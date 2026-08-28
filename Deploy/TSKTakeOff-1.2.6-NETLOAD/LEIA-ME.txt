@@ -1,0 +1,76 @@
+TSK TakeOff — versao 1.2.6
+Medicoes de alvenaria e materiais sobre DWG, com folha de medicao em Excel.
+
+Nao ha instalacao. Sao dois passos.
+
+
+PASSO 1 — EXTRAIR E CORRER O 1-DESBLOQUEAR.bat
+----------------------------------------------
+Extraia o zip para um sitio permanente — por exemplo C:\TSKTakeOff. Nao
+mova so a TSKTakeOff.dll: os outros ficheiros tem de ficar ao lado dela.
+
+Depois DE DUPLO-CLIQUE no  1-DESBLOQUEAR.bat  que esta na pasta.
+
+Porque e preciso: o Windows marca como "vindo da internet" tudo o que se
+descarrega, e o .NET RECUSA-SE a carregar uma DLL marcada. O AutoCAD
+responde ao NETLOAD com
+
+   Could not load file or assembly ... Operation is not supported
+
+e nao diz que a causa e a marca. O .bat tira a marca aos ficheiros desta
+pasta. Nao instala nada, nao copia nada e nao precisa de administrador.
+
+Se o Windows perguntar se quer executar, diga que sim: e um ficheiro de
+texto de dez linhas, pode abri-lo no Bloco de Notas antes.
+
+(Em alternativa, sem correr nada: botao direito no .zip -> Propriedades ->
+ marcar [x] Desbloquear -> OK, e SO DEPOIS extrair. Da no mesmo, mas tem
+ de ser feito antes de extrair.)
+
+
+PASSO 2 — CARREGAR NO AUTOCAD
+-----------------------------
+   1. Abra o AutoCAD (2021 a 2024) e um desenho
+   2. Escreva  NETLOAD  na linha de comandos
+   3. Escolha  TSKTakeOff.dll
+   4. O AutoCAD avisa que o editor nao esta verificado — e normal, o plugin
+      nao esta assinado digitalmente. Escolha "Carregar sempre" / "Always Load"
+   5. Escreva  TSKPAINEL  para abrir o painel, ou use o separador TSK TakeOff
+      na ribbon
+
+O NETLOAD nao fica. De cada vez que abrir o AutoCAD tem de repetir os
+passos 2 e 3 — e a partir da segunda vez ja nao pergunta nada.
+
+
+SE MESMO ASSIM RECUSAR CARREGAR
+-------------------------------
+Se o erro falar em "Operation is not supported" ou "loadFromRemoteSources",
+e porque ainda ha ficheiros marcados. Corra o 1-DESBLOQUEAR.bat outra vez,
+ou faca a mao no PowerShell, dentro da pasta:
+
+   Get-ChildItem -Recurse | Unblock-File
+
+Se o erro for outro e o AutoCAD recusar por causa da ORIGEM, e a variavel
+SECURELOAD, que decide de onde o AutoCAD aceita executaveis. Acrescente a
+pasta as localizacoes confiaveis:
+
+   OPTIONS  ->  separador Files  ->  Trusted Locations  ->  Add
+   e indique a pasta onde extraiu (ex.: C:\TSKTakeOff)
+
+Feito isso, o NETLOAD deixa de perguntar.
+
+
+REQUISITOS
+----------
+   Windows 10 ou 11, AutoCAD 2021 a 2024 (64 bits).
+   Microsoft Excel so e preciso para o "Excel ao vivo"; exportar o .xlsx
+   funciona sem o Excel aberto.
+
+   Esta pasta e para AutoCAD 2021-2024. Para o 2025/2026 e preciso outra
+   compilacao — peca-a a quem lhe enviou isto.
+
+
+PRIMEIRA UTILIZACAO
+-------------------
+   Ao medir pela primeira vez o plugin pede a licenca ou abre um periodo
+   de experiencia. Precisa de ligacao a internet nesse momento.

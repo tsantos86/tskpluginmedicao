@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TSKTakeOff.csproj" />
+  <Project Path="Tests/TSKTakeOff.Tests.csproj" />
+</Solution>

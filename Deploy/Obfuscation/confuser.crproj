@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ConfuserEx 2 — configuração de ofuscação do TSK TakeOff.
+
+    Correr:  Confuser.CLI.exe -n confuser.crproj
+
+    Expectativa realista: isto não torna a DLL inquebrável. Um .NET
+    decompila-se sempre. O que a ofuscação faz é subir o custo de remover a
+    verificação de licença de "cinco minutos no dnSpy" para "uma tarde de
+    trabalho de alguém que sabe o que está a fazer" — o suficiente para
+    dissuadir o utilizador comum, que é quem realmente pirateia software
+    de nicho.
+
+    Cuidados que custaram tempo a descobrir:
+      - o AutoCAD encontra os comandos por reflexão sobre [CommandMethod];
+        renomear essas classes parte tudo. Daí a regra de exclusão abaixo.
+      - as classes WinForms/WPF da paleta e da ribbon também não podem ser
+        renomeadas sem partir a serialização visual.
+      - anti-debug e anti-dump dão falsos positivos em antivírus. Ficam
+        desligados de propósito: um alerta do Defender custa mais vendas
+        do que a pirataria que evitam.
+-->
+<project outputDir="Confused" baseDir="." xmlns="http://confuser.codeplex.com">
+
+  <module path="..\..\bin\Release\TSKTakeOff.dll">
+
+    <!-- Protecções base: nomes, constantes e fluxo de controlo. -->
+    <rule pattern="true" inherit="false">
+      <protection id="rename">
+        <argument name="mode" value="letters" />
+        <argument name="renPublic" value="false" />
+      </protection>
+      <protection id="constants" />
+      <protection id="ctrl flow" />
+      <protection id="ref proxy" />
+    </rule>
+
+    <!-- Comandos AutoCAD: o AutoCAD procura-os por nome, via atributos.
+         Renomear = comandos desaparecem. -->
+    <rule pattern="name('TSKTakeOff.Commands') or name('TSKTakeOff.PluginInit')" inherit="false">
+      <protection id="rename" action="remove" />
+    </rule>
+
+    <!-- Interface: paleta, ribbon, diálogos. -->
+    <rule pattern="name('TSKTakeOff.Palette*') or name('TSKTakeOff.Ribbon*') or name('TSKTakeOff.*Dialog')" inherit="false">
+      <protection id="rename" action="remove" />
+    </rule>
+
+    <!-- Licenciamento: onde a ofuscação realmente compensa.
+         anti tamper deteta a DLL modificada depois de assinada. -->
+    <rule pattern="name('TSKTakeOff.Licenca') or name('TSKTakeOff.ConfigSupabase')" inherit="true">
+      <protection id="anti tamper" />
+    </rule>
+
+  </module>
+</project>

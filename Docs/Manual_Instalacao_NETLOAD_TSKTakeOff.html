@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TSK TakeOff — Manual de Instalação e Início Rápido</title>
+    <style>
+        @page { size: A4; margin: 12mm; }
+        :root { --blue: #2563eb; --dark: #0f172a; --text: #334155; --line: #e2e8f0; --soft: #f8fafc; }
+        * { box-sizing: border-box; }
+        body { font-family: "Segoe UI", Roboto, Arial, sans-serif; color: var(--text); line-height: 1.5; font-size: 10pt; margin: 0; }
+        .header { border-bottom: 3px solid var(--blue); padding-bottom: 10px; margin-bottom: 16px; display: flex; justify-content: space-between; gap: 16px; align-items: end; }
+        h1 { color: var(--dark); font-size: 21pt; margin: 0 0 3px; }
+        h2 { color: var(--dark); font-size: 14pt; border-bottom: 1px solid var(--line); padding-bottom: 5px; margin: 20px 0 10px; }
+        h3 { color: var(--dark); font-size: 11pt; margin: 0 0 5px; }
+        p { margin: 6px 0; }
+        ul, ol { margin: 6px 0 8px; padding-left: 22px; }
+        li { margin: 3px 0; }
+        .subtitle { color: var(--blue); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin: 0; }
+        .badge { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 5px 9px; white-space: nowrap; font-weight: 700; font-size: 9pt; }
+        .intro, .tip, .warning { padding: 10px 13px; border-radius: 0 6px 6px 0; margin: 10px 0; }
+        .intro { background: var(--soft); border-left: 4px solid var(--blue); }
+        .tip { background: #f0fdf4; border-left: 4px solid #16a34a; color: #166534; }
+        .warning { background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; }
+        .card { border: 1px solid var(--line); border-radius: 7px; padding: 11px 14px; margin: 10px 0; page-break-inside: avoid; }
+        .number { display: inline-flex; width: 23px; height: 23px; align-items: center; justify-content: center; border-radius: 50%; background: var(--blue); color: white; font-weight: 700; margin-right: 7px; }
+        table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 9pt; }
+        th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+        th { background: var(--soft); color: var(--dark); }
+        code { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 4px; color: var(--dark); font-family: Consolas, monospace; font-size: 9pt; }
+        .footer { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 8px; text-align: center; color: #64748b; font-size: 8.5pt; }
+        @media print { .page-break { page-break-before: always; } a { color: inherit; text-decoration: none; } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div>
+            <p class="subtitle">TSK Digital</p>
+            <h1>TSK TakeOff</h1>
+            <p>Manual de instalação e início rápido</p>
+        </div>
+        <div class="badge">AutoCAD 2021–2026</div>
+    </header>
+
+    <div class="intro">
+        O TSK TakeOff é um plugin para medir elementos de obra diretamente no AutoCAD,
+        organizar as medições no desenho e gerar a folha de medição no Excel.
+    </div>
+
+    <h2>1. Requisitos</h2>
+    <ul>
+        <li>Windows 10 ou Windows 11;</li>
+        <li>AutoCAD 2021 a 2026, versão 64 bits;</li>
+        <li>Microsoft Excel instalado apenas se for utilizar o recurso <strong>Excel ao Vivo</strong>;</li>
+        <li>arquivo DWG com as unidades do projeto configuradas corretamente.</li>
+    </ul>
+    <p>A exportação da folha para <code>.xlsx</code> pode ser realizada sem o Excel aberto.</p>
+
+    <h2>2. Instalação recomendada</h2>
+    <div class="card">
+        <h3><span class="number">1</span>Feche o AutoCAD</h3>
+        <p>Feche todas as janelas do AutoCAD antes de iniciar a instalação.</p>
+    </div>
+    <div class="card">
+        <h3><span class="number">2</span>Extraia o pacote</h3>
+        <p>Extraia todo o conteúdo do arquivo ZIP para uma pasta local, por exemplo:</p>
+        <p><code>C:\TSKTakeOff</code></p>
+        <div class="warning"><strong>Importante:</strong> não mova apenas a DLL. Todas as pastas e arquivos do pacote precisam permanecer juntos.</div>
+    </div>
+    <div class="card">
+        <h3><span class="number">3</span>Execute a instalação</h3>
+        <p>Se o pacote possuir o arquivo <code>instalar.bat</code>, execute-o com o botão direito e escolha <strong>Executar</strong>. O bundle será instalado no perfil do usuário, sem necessidade de direitos de administrador.</p>
+        <p>Como alternativa, copie a pasta <code>TSKTakeOff.bundle</code> inteira para:</p>
+        <p><code>%APPDATA%\Autodesk\ApplicationPlugins\</code></p>
+    </div>
+    <div class="card">
+        <h3><span class="number">4</span>Abra o AutoCAD</h3>
+        <p>Abra o AutoCAD e um desenho DWG. O separador <strong>TSK TakeOff</strong> deverá aparecer automaticamente na ribbon.</p>
+        <div class="tip"><strong>Confirmação:</strong> também é possível digitar <code>TSKPAINEL</code> na linha de comandos para abrir o painel de medições.</div>
+    </div>
+
+    <h2>3. Instalação manual com NETLOAD</h2>
+    <p>Utilize este procedimento somente quando tiver recebido uma DLL avulsa em vez do bundle instalável.</p>
+    <ol>
+        <li>Extraia o pacote para uma pasta local.</li>
+        <li>Nas propriedades do arquivo, marque <strong>Desbloquear</strong>, caso essa opção apareça.</li>
+        <li>Abra o AutoCAD e digite <code>NETLOAD</code>.</li>
+        <li>Selecione a DLL compatível com a versão do AutoCAD.</li>
+        <li>Se o AutoCAD perguntar se deseja carregar o arquivo, confirme com <strong>Carregar sempre</strong>, quando essa opção estiver disponível.</li>
+    </ol>
+    <table>
+        <thead><tr><th>Versão do AutoCAD</th><th>Build utilizada</th></tr></thead>
+        <tbody>
+            <tr><td>2021 a 2024</td><td><code>net48</code></td></tr>
+            <tr><td>2025 e 2026</td><td><code>net8.0-windows</code></td></tr>
+        </tbody>
+    </table>
+    <div class="warning"><strong>Não misture as builds:</strong> uma DLL destinada ao AutoCAD 2021–2024 não deve ser carregada no AutoCAD 2025–2026, nem o contrário.</div>
+
+    <h2>4. Primeiro uso</h2>
+    <ol>
+        <li>Abra o <strong>Painel de Medições</strong>.</li>
+        <li>Informe o serviço ou material, piso, altura e espessura.</li>
+        <li>Escolha a regra de desconto dos vãos, quando aplicável.</li>
+        <li>Se possuir um mapa de quantidades, importe-o com <code>TSKMQT</code> e escolha o artigo correspondente.</li>
+        <li>Escolha a ferramenta de medição e selecione ou desenhe a geometria no AutoCAD.</li>
+        <li>Confira os vãos detectados e os valores apresentados na grade.</li>
+        <li>Use <strong>Excel ao Vivo</strong> para acompanhar a folha ou <strong>Exportar XLSX</strong> para gerar o arquivo final.</li>
+    </ol>
+
+    <h2>5. Ferramentas principais</h2>
+    <table>
+        <thead><tr><th>Ferramenta</th><th>Função</th></tr></thead>
+        <tbody>
+            <tr><td>Parede Retângulo</td><td>Mede paredes com dois cliques nos cantos.</td></tr>
+            <tr><td>Parede Polyline</td><td>Mede paredes com percurso irregular.</td></tr>
+            <tr><td>Área / Área da Seleção</td><td>Mede áreas existentes ou desenhadas e calcula área × altura/espessura.</td></tr>
+            <tr><td>Retângulo / Polyline × Altura</td><td>Mede fachadas, ETICS e revestimentos.</td></tr>
+            <tr><td>Medição Linear</td><td>Mede rodapés, tubulações, perfis e outros serviços lineares.</td></tr>
+            <tr><td>Contar Blocos</td><td>Conta portas, janelas, tomadas, luminárias e outros blocos.</td></tr>
+            <tr><td>Adicionar Vão</td><td>Adiciona manualmente uma porta ou janela à medição selecionada.</td></tr>
+            <tr><td>Excel ao Vivo</td><td>Atualiza a folha de medição enquanto o trabalho é realizado.</td></tr>
+            <tr><td>Exportar XLSX</td><td>Gera a folha final ao lado do DWG.</td></tr>
+        </tbody>
+    </table>
+
+    <h2 class="page-break">6. Licença</h2>
+    <p>A instalação inclui um período de avaliação conforme as condições comerciais da TSK Digital. Para consultar ou ativar uma licença, use o comando <code>TSKLICENCA</code> ou o botão <strong>Licença</strong> na ribbon.</p>
+    <p>A licença fica associada à instalação. Em caso de troca de computador, entre em contato com o suporte para solicitar uma nova ativação.</p>
+    <p>Mesmo quando a licença precisa ser renovada, o usuário continua podendo consultar as medições existentes e exportar o trabalho.</p>
+
+    <h2>7. Solução de problemas</h2>
+    <div class="card">
+        <h3>O separador TSK TakeOff não aparece</h3>
+        <ol>
+            <li>Feche e abra novamente o AutoCAD.</li>
+            <li>Confirme se a pasta <code>TSKTakeOff.bundle</code> foi copiada inteira.</li>
+            <li>Digite <code>TSKPAINEL</code> para verificar se o plugin foi carregado.</li>
+            <li>Se o Windows bloqueou os arquivos, abra as propriedades da DLL, marque <strong>Desbloquear</strong> e tente novamente.</li>
+            <li>Se necessário, adicione a pasta à lista de locais confiáveis em <strong>Options → Files → Trusted Locations</strong>.</li>
+        </ol>
+    </div>
+    <div class="card">
+        <h3>As medições não aparecem</h3>
+        <p>Digite <code>TSKONDE</code> para verificar onde as medições estão gravadas, se a layer está desligada e em qual espaço do desenho os elementos foram criados.</p>
+    </div>
+    <div class="card">
+        <h3>O Excel não atualiza</h3>
+        <p>Confirme que o Excel está instalado, finalize qualquer edição de célula e carregue em <strong>Atualizar</strong>. Se o Excel tiver sido fechado, ligue novamente o recurso <strong>Excel ao Vivo</strong>.</p>
+    </div>
+    <div class="card">
+        <h3>O modelo do Excel abriu em Vista Protegida</h3>
+        <p>Abra o modelo diretamente no Excel e clique em <strong>Habilitar Edição</strong>. Depois, volte ao AutoCAD e tente novamente.</p>
+    </div>
+
+    <h2>8. Suporte</h2>
+    <p>Em caso de dúvidas sobre instalação, licença ou configuração do modelo de medições, entre em contato com a TSK Digital:</p>
+    <p><strong>suporte@tsktakeoff.pt</strong></p>
+
+    <footer class="footer">TSK TakeOff — medir, conferir e entregar. © TSK Digital</footer>
+</body>
+</html>

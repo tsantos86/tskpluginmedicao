@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+    SchemaVersion="1.0"
+    AutodeskProduct="AutoCAD"
+    ProductType="Application"
+    Name="TSK TakeOff"
+    AppVersion="1.2.6.49"
+    Description="Medições de alvenaria e materiais sobre DWG, com exportação para folha de medição em Excel."
+    Author="Casquilho"
+    ProductCode="{8F3A6C21-4B7E-4D19-9C42-0AC5011AD001}"
+    UpgradeCode="{8F3A6C21-4B7E-4D19-9C42-0AC5011AD002}"
+    HelpFile="./MANUAL.pdf">
+
+  <CompanyDetails Name="Casquilho" Url="https://tsktakeoff.pt" Email="suporte@tsktakeoff.pt" />
+
+  <!-- Duas séries, dois runtimes. O AutoCAD lê os dois blocos <Components> e
+       carrega apenas o que corresponde à sua versão — por isso o mesmo bundle
+       serve de 2021 a 2026, sem instaladores separados. -->
+  <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.0" SeriesMax="R25.1" />
+
+  <Components Description="TSK TakeOff — AutoCAD 2021 a 2024 (.NET Framework 4.8)">
+    <RuntimeRequirements
+        OS="Win64"
+        Platform="AutoCAD*"
+        SeriesMin="R24.0"
+        SeriesMax="R24.3" />
+    <!-- LoadOnAutoCADStartup: fica disponível assim que o AutoCAD abre,
+         sem NETLOAD. A ribbon e os comandos aparecem logo. -->
+    <ComponentEntry
+        AppName="TSKTakeOff"
+        ModuleName="./Contents/net48/TSKTakeOff.dll"
+        AppDescription="Plugin de medições TSK TakeOff"
+        LoadOnAutoCADStartup="True"
+        LoadOnCommandInvocation="False" />
+  </Components>
+
+  <Components Description="TSK TakeOff — AutoCAD 2025 e 2026 (.NET 8)">
+    <RuntimeRequirements
+        OS="Win64"
+        Platform="AutoCAD*"
+        SeriesMin="R25.0"
+        SeriesMax="R25.1" />
+    <ComponentEntry
+        AppName="TSKTakeOff"
+        ModuleName="./Contents/net8.0-windows/TSKTakeOff.dll"
+        AppDescription="Plugin de medições TSK TakeOff"
+        LoadOnAutoCADStartup="True"
+        LoadOnCommandInvocation="False" />
+  </Components>
+
+</ApplicationPackage>

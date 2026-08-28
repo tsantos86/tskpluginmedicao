@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<!--
+    TSK TakeOff — painel de licenças
+
+    Ficheiro único, corre localmente: abre-se com duplo clique, não precisa de
+    servidor nem de instalação.
+
+    SEGURANÇA — ler antes de usar:
+      Este painel usa a chave `service_role` do Supabase, que ignora toda a
+      RLS e dá acesso completo à base de dados. Por isso:
+        • a chave NUNCA é guardada — pede-se de cada vez que se abre;
+        • este ficheiro NUNCA vai para o instalador nem para o cliente;
+        • fica só no computador de quem vende.
+      Se a chave alguma vez sair daqui, rodá-la em
+      Supabase → Project Settings → API Keys → Rotate.
+-->
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TSK TakeOff — Licenças</title>
+<style>
+  :root {
+    --fundo: #14161a; --painel: #1c1f26; --linha: #2a2f39;
+    --texto: #e6e8ec; --suave: #9aa3b2;
+    --acento: #4d9fff; --ok: #34c77b; --aviso: #e6a13c; --erro: #e05b5b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: var(--fundo); color: var(--texto);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: var(--suave); font-weight: 600; }
+  .sub { color: var(--suave); margin-bottom: 24px; font-size: 13px; }
+  .grelha { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 18px; }
+  .cartao.largo { grid-column: 1 / -1; }
+  label { display: block; font-size: 12px; color: var(--suave); margin: 10px 0 4px; }
+  input, select, button {
+    font: inherit; border-radius: 6px; border: 1px solid var(--linha);
+    background: #23272f; color: var(--texto); padding: 8px 10px; width: 100%;
+  }
+  input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: -1px; }
+  button {
+    background: var(--acento); border-color: var(--acento); color: #06101d;
+    font-weight: 600; cursor: pointer; margin-top: 14px;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.secundario { background: transparent; color: var(--texto); border-color: var(--linha); }
+  .linha2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--linha); }
+  th { color: var(--suave); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  td.codigo { font-family: ui-monospace, Consolas, monospace; }
+  .etiqueta { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .et-ok { background: rgba(52,199,123,.15); color: var(--ok); }
+  .et-off { background: rgba(224,91,91,.15); color: var(--erro); }
+  .et-aviso { background: rgba(230,161,60,.15); color: var(--aviso); }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 6px; font-size: 13px; display: none; }
+  .msg.ok { display: block; background: rgba(52,199,123,.12); color: var(--ok); }
+  .msg.erro { display: block; background: rgba(224,91,91,.12); color: var(--erro); }
+  .codigo-novo {
+    font-family: ui-monospace, Consolas, monospace; font-size: 20px; letter-spacing: .08em;
+    background: #12151a; border: 1px dashed var(--acento); border-radius: 8px;
+    padding: 14px; text-align: center; margin-top: 12px; cursor: pointer;
+  }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 4px; }
+  .kpi { background: #23272f; border-radius: 8px; padding: 12px; text-align: center; }
+  .kpi b { display: block; font-size: 22px; }
+  .kpi span { font-size: 11px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; }
+  .aviso-chave {
+    background: rgba(230,161,60,.1); border: 1px solid rgba(230,161,60,.35);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; font-size: 13px; color: #f0c98a;
+  }
+  .vazio { color: var(--suave); padding: 16px 0; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>TSK TakeOff — Licenças</h1>
+<div class="sub">Painel local. Nada aqui é guardado no disco.</div>
+
+<!-- ---------------------------------------------------------------- -->
+<div id="ligacao" class="cartao largo" style="margin-bottom:16px">
+  <h2>Ligação ao servidor</h2>
+  <div class="aviso-chave">
+    A chave <b>service_role</b> dá acesso total à base de dados. Usa-a só neste
+    computador e nunca a distribuas com o plugin. Não fica guardada — tens de a
+    colar sempre que abres esta página.
+  </div>
+  <div class="linha2">
+    <div>
+      <label>URL do projecto</label>
+      <input id="url" placeholder="https://xxxx.supabase.co">
+    </div>
+    <div>
+      <label>Chave service_role</label>
+      <input id="chave" type="password" placeholder="eyJhbGciOi...">
+    </div>
+  </div>
+  <button onclick="ligar()">Ligar</button>
+  <div id="msgLigacao" class="msg"></div>
+</div>
+
+<!-- ---------------------------------------------------------------- -->
+<div id="painel" style="display:none">
+
+  <div class="cartao largo" style="margin-bottom:16px">
+    <h2>Resumo</h2>
+    <div class="kpis" id="kpis"></div>
+  </div>
+
+  <div class="grelha">
+
+    <div class="cartao">
+      <h2>Emitir licença</h2>
+      <label>Cliente</label>
+      <input id="ecliente" placeholder="Construtora Exemplo, Lda.">
+      <label>Email (opcional)</label>
+      <input id="eemail" placeholder="geral@cliente.pt">
+      <div class="linha2">
+        <div>
+          <label>Postos</label>
+          <input id="epostos" type="number" value="1" min="1">
+        </div>
+        <div>
+          <label>Plano</label>
+          <select id="eplano">
+            <option value="anual">Anual</option>
+            <option value="mensal">Mensal</option>
+            <option value="perpetua">Perpétua</option>
+          </select>
+        </div>
+      </div>
+      <button onclick="emitir()">Emitir código</button>
+      <div id="codigoNovo" class="codigo-novo" style="display:none" onclick="copiar(this)"></div>
+      <div id="msgEmitir" class="msg"></div>
+    </div>
+
+    <div class="cartao">
+      <h2>Gerir código</h2>
+      <label>Código</label>
+      <input id="gcodigo" placeholder="TSK-XXXX-XXXX-XXXX" style="font-family:ui-monospace,Consolas,monospace">
+      <label>Renovar até</label>
+      <input id="gdata" type="date">
+      <button onclick="renovar()">Renovar</button>
+      <button class="secundario" onclick="revogar()">Revogar acesso</button>
+      <div id="msgGerir" class="msg"></div>
+    </div>
+
+    <div class="cartao largo">
+      <h2>Licenças</h2>
+      <div id="tabelaLicencas"></div>
+    </div>
+
+    <div class="cartao largo">
+      <h2>Postos activos</h2>
+      <div id="tabelaPostos"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let URL_BASE = "", CHAVE = "";
+
+// ---- comunicação -------------------------------------------------
+async function rpc(funcao, args) {
+  const r = await fetch(`${URL_BASE}/rest/v1/rpc/${funcao}`, {
+    method: "POST",
+    headers: { "apikey": CHAVE, "Authorization": `Bearer ${CHAVE}`, "Content-Type": "application/json" },
+    body: JSON.stringify(args || {})
+  });
+  const texto = await r.text();
+  if (!r.ok) throw new Error(texto || `HTTP ${r.status}`);
+  try { return JSON.parse(texto); } catch { return texto; }
+}
+
+async function ler(vista, query) {
+  const r = await fetch(`${URL_BASE}/rest/v1/${vista}${query ? "?" + query : ""}`, {
+    headers: { "apikey": CHAVE, "Authorization": `Bearer ${CHAVE}` }
+  });
+  const texto = await r.text();
+  if (!r.ok) throw new Error(texto || `HTTP ${r.status}`);
+  return JSON.parse(texto);
+}
+
+function msg(id, texto, ok) {
+  const el = document.getElementById(id);
+  el.className = "msg " + (ok ? "ok" : "erro");
+  el.textContent = texto;
+}
+
+// ---- ligação -----------------------------------------------------
+async function ligar() {
+  URL_BASE = document.getElementById("url").value.trim().replace(/\/+$/, "");
+  CHAVE = document.getElementById("chave").value.trim();
+
+  if (!URL_BASE || !CHAVE) { msg("msgLigacao", "Preencha a URL e a chave.", false); return; }
+
+  try {
+    await ler("vw_licencas", "limit=1");
+    msg("msgLigacao", "Ligado.", true);
+    document.getElementById("painel").style.display = "block";
+    document.getElementById("chave").value = "";   // não deixar em memória visível
+    actualizar();
+  } catch (e) {
+    msg("msgLigacao", "Não foi possível ligar: " + e.message, false);
+  }
+}
+
+// ---- operações ---------------------------------------------------
+async function emitir() {
+  const cliente = document.getElementById("ecliente").value.trim();
+  if (!cliente) { msg("msgEmitir", "Escreva o nome do cliente.", false); return; }
+
+  const plano = document.getElementById("eplano").value;
+  const postos = parseInt(document.getElementById("epostos").value) || 1;
+
+  let ate = null;
+  const hoje = new Date();
+  if (plano === "anual")  { hoje.setFullYear(hoje.getFullYear() + 1); ate = hoje.toISOString().slice(0, 10); }
+  if (plano === "mensal") { hoje.setMonth(hoje.getMonth() + 1);       ate = hoje.toISOString().slice(0, 10); }
+
+  try {
+    const r = await rpc("emitir_licenca", {
+      p_cliente: cliente,
+      p_email: document.getElementById("eemail").value.trim() || null,
+      p_dias: 30,
+      p_max_dispositivos: postos,
+      p_valida_ate: ate
+    });
+    const el = document.getElementById("codigoNovo");
+    el.style.display = "block";
+    el.textContent = r.codigo;
+    msg("msgEmitir", "Emitido. Clique no código para copiar.", true);
+    actualizar();
+  } catch (e) { msg("msgEmitir", e.message, false); }
+}
+
+async function renovar() {
+  const codigo = document.getElementById("gcodigo").value.trim();
+  const data = document.getElementById("gdata").value;
+  if (!codigo || !data) { msg("msgGerir", "Preencha o código e a data.", false); return; }
+  try {
+    const r = await rpc("renovar_licenca", { p_codigo: codigo, p_valida_ate: data });
+    msg("msgGerir", r.ok ? "Renovada até " + data : r.motivo, r.ok);
+    actualizar();
+  } catch (e) { msg("msgGerir", e.message, false); }
+}
+
+async function revogar() {
+  const codigo = document.getElementById("gcodigo").value.trim();
+  if (!codigo) { msg("msgGerir", "Escreva o código.", false); return; }
+  if (!confirm(`Revogar ${codigo}?\n\nO posto perde acesso na próxima revalidação.`)) return;
+  try {
+    const r = await rpc("revogar_licenca", { p_codigo: codigo });
+    msg("msgGerir", r.ok ? "Revogada." : r.motivo, r.ok);
+    actualizar();
+  } catch (e) { msg("msgGerir", e.message, false); }
+}
+
+// ---- listagens ---------------------------------------------------
+function dataPt(v) { return v ? new Date(v).toLocaleDateString("pt-PT") : "—"; }
+
+async function actualizar() {
+  try {
+    const funil = await ler("vw_funil");
+    const f = funil[0] || {};
+    const licencas = await ler("vw_licencas");
+    const activas = licencas.filter(l => l.activa).length;
+
+    document.getElementById("kpis").innerHTML = `
+      <div class="kpi"><b>${activas}</b><span>Licenças activas</span></div>
+      <div class="kpi"><b>${f.trials_activos ?? 0}</b><span>Avaliações a decorrer</span></div>
+      <div class="kpi"><b>${f.trials_total ?? 0}</b><span>Avaliações totais</span></div>
+      <div class="kpi"><b>${f.convertidos ?? 0}</b><span>Convertidos</span></div>
+      <div class="kpi"><b>${f.taxa_conversao_pct ?? 0}%</b><span>Conversão</span></div>`;
+
+    document.getElementById("tabelaLicencas").innerHTML = licencas.length ? `
+      <table><thead><tr>
+        <th>Código</th><th>Cliente</th><th>Postos</th><th>Válida até</th><th>Última utilização</th><th>Estado</th>
+      </tr></thead><tbody>${licencas.map(l => `
+        <tr>
+          <td class="codigo">${l.codigo}</td>
+          <td>${l.cliente ?? "—"}</td>
+          <td>${l.postos_activados}/${l.max_dispositivos}</td>
+          <td>${dataPt(l.valida_ate)}</td>
+          <td>${dataPt(l.ultima_utilizacao)}</td>
+          <td><span class="etiqueta ${l.activa ? "et-ok" : "et-off"}">${l.activa ? "activa" : "revogada"}</span></td>
+        </tr>`).join("")}</tbody></table>`
+      : `<div class="vazio">Ainda não há licenças emitidas.</div>`;
+
+    const postos = await ler("vw_postos", "limit=100");
+    document.getElementById("tabelaPostos").innerHTML = postos.length ? `
+      <table><thead><tr>
+        <th>Cliente</th><th>Posto</th><th>AutoCAD</th><th>Plugin</th><th>Expira</th><th>Visto</th><th>Estado</th>
+      </tr></thead><tbody>${postos.map(p => {
+        const expirado = p.expira_em && new Date(p.expira_em) < new Date();
+        return `<tr>
+          <td>${p.cliente ?? "—"}</td>
+          <td class="codigo">${p.maquina}</td>
+          <td>${p.versao_autocad ?? "—"}</td>
+          <td>${p.versao_plugin ?? "—"}</td>
+          <td>${dataPt(p.expira_em)}</td>
+          <td>${dataPt(p.ultima_verificacao)}</td>
+          <td><span class="etiqueta ${p.bloqueada ? "et-off" : expirado ? "et-aviso" : "et-ok"}">${
+            p.bloqueada ? "bloqueado" : expirado ? "expirado" : "activo"}</span></td>
+        </tr>`; }).join("")}</tbody></table>`
+      : `<div class="vazio">Ainda não há postos activados.</div>`;
+
+  } catch (e) {
+    msg("msgLigacao", "Erro a carregar: " + e.message, false);
+  }
+}
+
+function copiar(el) {
+  navigator.clipboard.writeText(el.textContent.trim());
+  const antes = el.textContent;
+  el.textContent = "copiado";
+  setTimeout(() => el.textContent = antes, 900);
+}
+</script>
+</body>
+</html>

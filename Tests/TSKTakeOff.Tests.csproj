@@ -1,0 +1,73 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Testes do cálculo, sem AutoCAD.
+
+    Não há aqui ProjectReference para o TSKTakeOff.csproj, e é de propósito:
+    essa DLL liga-se ao acmgd/acdbmgd, que só existem dentro de uma instalação
+    do AutoCAD. Um projecto de testes que dependesse dela só correria em
+    máquinas com AutoCAD instalado — ou seja, nunca correria num servidor de
+    integração, que é metade da razão para existir.
+
+    Em vez disso, ligam-se por Compile Include os ficheiros que não tocam no
+    AutoCAD. Se um dia alguém puser um `using Autodesk...` num deles, este
+    projecto deixa de compilar — e isso é a funcionalidade, não o defeito:
+    é o aviso de que a lógica de cálculo se está a misturar com o desenho.
+
+    Correr:   dotnet test Tests/TSKTakeOff.Tests.csproj
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>TSKTakeOff.Tests</AssemblyName>
+    <RootNamespace>TSKTakeOff.Tests</RootNamespace>
+    <!-- O código de produção é C# 7.3 (net48) e usa construções que o
+         analisador moderno acha antiquadas. Não é aqui que isso se corrige. -->
+    <NoWarn>$(NoWarn);CS0618;IDE0079</NoWarn>
+  </PropertyGroup>
+
+  <!-- Ficheiros do plugin em teste. Lista curta e explícita: cada linha nova
+       é uma decisão de que aquele ficheiro é mesmo independente do AutoCAD. -->
+  <ItemGroup>
+    <Compile Include="..\Models.cs"           Link="Producao\Models.cs" />
+    <Compile Include="..\DimensaoVao.cs"      Link="Producao\DimensaoVao.cs" />
+    <!-- Leitura das descricoes de armadura. Mesma natureza do DimensaoVao e
+         pela mesma razao: um varao lido como 350 m em vez de 3,50 m multiplica
+         o aco por cem, e o erro sai num numero com ar de estar bem. -->
+    <Compile Include="..\Armadura.cs"         Link="Producao\Armadura.cs" />
+    <!-- Comparacao de codigos do articulado. Decide a ORDEM por que a
+         medicao se entrega, nao toca no AutoCAD, e engana-se em silencio:
+         exactamente o perfil de codigo que tem de estar sob teste. -->
+    <Compile Include="..\CodigoArticulado.cs" Link="Producao\CodigoArticulado.cs" />
+    <Compile Include="..\Medicoes.cs"         Link="Producao\Medicoes.cs" />
+    <!-- A chave de um artigo. Decide se uma medicao encontra o seu artigo no
+         mapa ou fica orfa, e a forma normalizada dela e agora a chave de um
+         indice: se a normalizacao e a comparacao divergirem, medicoes somem
+         da folha sem aviso. Nao toca no AutoCAD. -->
+    <Compile Include="..\ChaveArtigo.cs"      Link="Producao\ChaveArtigo.cs" />
+    <!-- A folha de medicao: ordem, agrupamentos, linhas em branco e formulas
+         de sub-total. E aritmetica e arrumacao, sem AutoCAD nenhum, e e onde
+         os erros aparecem — erros que nao rebentam, saem num ficheiro que vai
+         para o cliente com ar de estar bem. -->
+    <Compile Include="..\FolhaMedicao.cs"     Link="Producao\FolhaMedicao.cs" />
+    <!-- A traducao para o modelo classico (art/descricao): e a mesma natureza
+         do FolhaMedicao. So dependia do MapaQuantidades.Sep — um separador —
+         que foi trazido para constante local para este ficheiro correr aqui. -->
+    <Compile Include="..\FolhaTemplate.cs"    Link="Producao\FolhaTemplate.cs" />
+    <Compile Include="..\FiltroDeteccaoVaos.cs" Link="Producao\FiltroDeteccaoVaos.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

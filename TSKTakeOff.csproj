@@ -1,0 +1,227 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Duas gerações de AutoCAD, um só código-fonte:
+
+      net48    -> AutoCAD 2021-2024 (R24.0 a R24.3), .NET Framework 4.8
+      net8.0-windows -> AutoCAD 2025-2026 (R25.x), .NET 8
+
+    A Autodesk mudou de runtime no 2025 e não há compatibilidade entre os
+    dois: uma DLL net48 não carrega no 2025, e vice-versa. O bundle leva as
+    duas e o PackageContents.xml escolhe a certa por série.
+
+    Compilar as duas:   dotnet build -c Release
+    Só uma:             dotnet build -c Release -f net48
+  -->
+
+  <PropertyGroup>
+    <!-- Por omissão compila só para AutoCAD 2021-2024. O alvo do .NET 8 só
+         entra se houver mesmo um AutoCAD 2025 instalado — senão a compilação
+         falharia em qualquer máquina que só tenha o 2021, incluindo a tua. -->
+    <TargetFrameworks>net48</TargetFrameworks>
+    <TargetFrameworks Condition="Exists('$(ProgramFiles)\Autodesk\AutoCAD 2025\acmgd.dll')">net48;net8.0-windows</TargetFrameworks>
+
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>TSKTakeOff</RootNamespace>
+    <AssemblyName>TSKTakeOff</AssemblyName>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Company>Casquilho</Company>
+    <Product>TSK TakeOff</Product>
+    <Description>Medições de alvenaria e materiais sobre DWG, com folha de medição em Excel.</Description>
+
+    <!-- C# 7.3 no net48 (limite do compilador para Framework), mais recente no .NET 8.
+         O código é escrito para 7.3 de propósito, para compilar nos dois. -->
+    <LangVersion Condition="'$(TargetFramework)' == 'net48'">7.3</LangVersion>
+    <LangVersion Condition="'$(TargetFramework)' != 'net48'">latest</LangVersion>
+
+    <!-- Saída separada por framework: bin\Release\net48 (e net8.0-windows, se
+         houver 2025). O publicar.ps1 vai buscar cada uma à sua pasta.
+         ATENÇÃO: a DLL deixou de estar em bin\Release e passou a estar em
+         bin\Release\net48. -->
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+
+    <!-- As DLLs do AutoCAD não são copiadas (ExcludeAssets=runtime nos pacotes),
+         mas o ClosedXML e as suas dependências TÊM de vir para a pasta de saída,
+         senão o plugin carrega e rebenta ao exportar. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!-- O SDK apanha por omissão todos os .cs abaixo desta pasta, e isso inclui
+       Tests\ — os testes em si, que referem o xunit, e o AssemblyInfo que o
+       projecto de testes gera dentro do seu obj\. Os testes têm projeto
+       próprio e ficam fora desta compilação. -->
+  <ItemGroup>
+    <Compile Remove="Tests\**" />
+    <None Remove="Tests\**" />
+    <EmbeddedResource Remove="Tests\**" />
+    <!-- Deploy\PreviewIcons\ é uma utilidade à parte (gera a imagem de pré-visualização
+         dos ícones) com projeto próprio: tem um Main() e inclui ela mesma o
+         IconFactory.cs, por isso não pode entrar na DLL do plugin. -->
+    <Compile Remove="Deploy\PreviewIcons\**" />
+    <None Remove="Deploy\PreviewIcons\**" />
+    <EmbeddedResource Remove="Deploy\PreviewIcons\**" />
+  </ItemGroup>
+
+  <!-- A pasta de saída fica pronta para NETLOAD: a configuração pública do
+       Supabase acompanha a DLL e não precisa de instalação separada. -->
+  <ItemGroup>
+    <None Update="Deploy\supabase.json"
+          Link="supabase.json"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- ================= AutoCAD 2021-2024 (.NET Framework 4.8) ================= -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="AutoCAD.NET" Version="24.0.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="ClosedXML" Version="0.95.4" />
+
+    <Reference Include="accoremgd">
+      <HintPath>$(ProgramFiles)\Autodesk\AutoCAD 2021\accoremgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Acdbmgd">
+      <HintPath>$(ProgramFiles)\Autodesk\AutoCAD 2021\acdbmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>$(ProgramFiles)\Autodesk\AutoCAD 2021\acmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <!-- COM late binding (dynamic) para o Excel ao vivo -->
+    <Reference Include="Microsoft.CSharp" />
+    <!-- DPAPI (ProtectedData) para cifrar a licença local -->
+    <Reference Include="System.Security" />
+    <!-- WPF: a Ribbon vive no Autodesk.Windows / AdWindows.dll -->
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+  </ItemGroup>
+
+  <!-- ================= AutoCAD 2025-2026 (.NET 8) ================= -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
+    <!--
+      25.0.1, e não 25.0.0.
+
+      O pacote AutoCAD.NET 25.0.0 pede AutoCAD.NET.Core na versão exacta
+      [25.0.0-V058], que a Autodesk nunca chegou a publicar no nuget.org. O
+      restore morre em NU1102 antes sequer de compilar seja o que for — não é
+      um erro de código nosso, é o pacote que veio partido de fábrica. O
+      25.0.1 é a republicação que corrige a dependência para [25.0.0].
+
+      Isto não dava sinal nenhum nesta máquina: o alvo net8.0-windows só entra
+      se existir um AutoCAD 2025 instalado, e sem ele o restore nunca tentou.
+      Ia aparecer exactamente no pior momento — ao instalar o 2025 para
+      preparar a distribuição.
+    -->
+    <PackageReference Include="AutoCAD.NET" Version="25.0.1">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+
+    <!-- DPAPI: no .NET 8 deixou de vir na BCL e passou a pacote próprio. -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+
+    <Reference Include="accoremgd">
+      <HintPath>$(ProgramFiles)\Autodesk\AutoCAD 2025\accoremgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Acdbmgd">
+      <HintPath>$(ProgramFiles)\Autodesk\AutoCAD 2025\acdbmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>$(ProgramFiles)\Autodesk\AutoCAD 2025\acmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- ==================== VERSÃO ====================
+       Importado no FIM de propósito: assim as propriedades de versão
+       são calculadas com tudo o resto já definido, e não há forma de um
+       <Version> escrito acima as ficar a tapar. -->
+  <Import Project="Version.props" />
+
+  <!--
+    Incrementa o quarto componente antes de gerar AssemblyInfo. O net48 é o
+    alvo coordenador: em uma compilação multi-target o mesmo número é usado
+    para os runtimes do AutoCAD 2021-2026.
+
+    O GANCHO É O GetAssemblyVersion, NÃO O GenerateAssemblyInfo.
+
+    Estava no GenerateAssemblyInfo e o número nunca chegava à DLL: quem lê o
+    FileVersion e o InformationalVersion é o GetAssemblyAttributes, que corre
+    como dependência do CoreGenerateAssemblyInfo — ou seja, ANTES deste target.
+    Quando este corria, os atributos já tinham sido recolhidos com o
+    VersaoBuild a 0 do Version.props. A compilação escrevia "versão 1.2.6.6",
+    sincronizava o instalador e o bundle para 1.2.6.6, e gravava 1.2.6.0 na
+    DLL — o instalador e o binário a discordarem, e ninguém a conseguir dizer
+    que build tinha instalado.
+
+    O GetAssemblyVersion é o primeiro da cadeia, antes de qualquer atributo
+    ser recolhido. Um target corre no máximo uma vez por projecto, por isso
+    listar os dois é seguro: dispara no primeiro que aparecer.
+  -->
+  <Target Name="TskIncrementarBuild"
+          BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo"
+          Condition="'$(TargetFramework)' == 'net48' AND Exists('$(MSBuildThisFileDirectory)Deploy\incrementar-build.ps1')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)Deploy\incrementar-build.ps1&quot; -Ficheiro &quot;$(MSBuildThisFileDirectory)Version.build&quot;" />
+    <ReadLinesFromFile File="$(MSBuildThisFileDirectory)Version.build">
+      <Output TaskParameter="Lines" ItemName="_TskBuildLines" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <VersaoBuild>@(_TskBuildLines)</VersaoBuild>
+      <VersaoCompleta>$(VersaoBase)</VersaoCompleta>
+      <VersaoDistribuicao>$(VersaoBase).$(VersaoBuild)</VersaoDistribuicao>
+      <VersaoNumerica>$(VersaoBase).$(VersaoBuild)</VersaoNumerica>
+      <FileVersion>$(VersaoNumerica)</FileVersion>
+      <InformationalVersion>$(VersaoDistribuicao) ($([System.DateTime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss")) UTC)</InformationalVersion>
+    </PropertyGroup>
+    <Message Importance="high" Text="TSK TakeOff versão $(VersaoDistribuicao)" />
+  </Target>
+
+  <!--
+    Propaga a versão para o instalador e para o bundle.
+
+    Corre uma vez por compilação, só no alvo net48 — esse é o alvo
+    coordenador do número de build e os dois runtimes partilham a mesma
+    versão.
+
+    O ContinueOnError é deliberado: se o PowerShell estiver bloqueado por
+    política de execução, a compilação NÃO deve falhar por causa disso.
+    Perde-se a sincronização — e o verificar.py apanha-a — mas não se
+    perde a capacidade de compilar.
+  -->
+  <Target Name="TskSincronizarVersao"
+          AfterTargets="Build"
+          Condition="'$(TargetFramework)' == 'net48' AND Exists('$(MSBuildThisFileDirectory)Deploy\sincronizar-versao.ps1')">
+    <Message Importance="high" Text="TSK TakeOff $(InformationalVersion)" />
+
+    <!--
+      A raiz vai SEM barra invertida no fim.
+
+      O MSBuildThisFileDirectory acaba sempre em barra, e numa linha de
+      comandos do Windows a sequencia \" escapa a aspa: o argumento chega
+      partido ao PowerShell, que falha a ligar os parametros e sai com
+      codigo 1. Foi exactamente isso que aconteceu.
+
+      O ProjectDir tambem acaba em barra, por isso o valor e limpo aqui
+      com uma propriedade propria, em vez de uma funcao encaixada no meio
+      da linha de comandos.
+    -->
+    <PropertyGroup>
+      <_TskRaiz>$(MSBuildThisFileDirectory)</_TskRaiz>
+      <_TskRaiz Condition="$(_TskRaiz.EndsWith('\'))">$(_TskRaiz.Substring(0, $([MSBuild]::Subtract($(_TskRaiz.Length), 1))))</_TskRaiz>
+    </PropertyGroup>
+
+    <Exec ContinueOnError="true"
+          Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(_TskRaiz)\Deploy\sincronizar-versao.ps1&quot; -Versao &quot;$(VersaoDistribuicao)&quot; -VersaoNum &quot;$(VersaoNumerica)&quot; -Raiz &quot;$(_TskRaiz)&quot;" />
+  </Target>
+
+</Project>

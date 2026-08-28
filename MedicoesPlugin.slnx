@@ -1,0 +1,5 @@
+<Solution>
+  <!-- Compatibilidade com atalhos antigos do Visual Studio. A solução oficial é TSKTakeOff.slnx. -->
+  <Project Path="TSKTakeOff.csproj" />
+  <Project Path="Tests/TSKTakeOff.Tests.csproj" />
+</Solution>

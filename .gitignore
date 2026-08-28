@@ -1,0 +1,42 @@
+# Visual Studio / Rider
+.vs/
+.idea/
+*.suo
+*.user
+
+# Build outputs
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Test outputs
+TestResults/
+*.trx
+
+# Local logs and diagnostics
+*.log
+*.tmp
+*.dmp
+
+# Local licensing / telemetry / configuration
+# Configuração pública distribuída com o bundle; os segredos locais continuam ignorados.
+supabase.json
+!Deploy/supabase.json
+telemetria.json
+licenca.dat
+privacidade.txt
+sessoes.log
+sessoes_por_enviar.jsonl
+
+# Local installer/build payloads
+Deploy/Installer/Payload/
+Deploy/Installer/Output/
+Deploy/Obfuscation/Confused/
+Deploy/TSKTakeOff.bundle/Contents/
+Deploy/TSKTakeOff.bundle/MANUAL.pdf
+Deploy/*.zip
+
+# Python cache
+__pycache__/
+*.py[cod]
