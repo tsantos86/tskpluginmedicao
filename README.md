@@ -1,15 +1,38 @@
-# TSK TakeOff — plugin de medições para AutoCAD 2021–2026
+# TSK TakeOff
 
-**TSK TakeOff — medir no AutoCAD nunca foi tão rápido.**
+**Medições de construção civil no AutoCAD, com registo no DWG e exportação para Excel.**
 
-Selecione, meça e o TSK TakeOff organiza tudo: cada área e elemento é identificado
-e registado automaticamente no desenho (**hatches + layers**), pronto a verificar.
-Depois, os resultados vão para o **Excel** no formato da casa — mapa de quantidades,
-vãos descontados e totais por serviço.
+O TSK TakeOff é um plugin em C# para apoiar a medição de alvenarias, fachadas, áreas e elementos lineares. Liga a geometria do desenho ao mapa de quantidades: as medições ficam identificadas no DWG e podem ser organizadas por artigo, serviço e piso.
 
-**TSK DIGITAL — medir, conferir e entregar.**
+Desenvolvido no âmbito da **TSK Digital**, aproxima o trabalho de preparação de obra das ferramentas de software usadas para medir, conferir e entregar quantitativos.
 
-Assembly: `TSKTakeOff.dll` · Namespace: `TSKTakeOff` · `net48` para AutoCAD 2021–2024 e `net8.0-windows` para AutoCAD 2025–2026.
+[Começar](#fluxo-de-uso) · [Comandos](#comandos) · [Compilar](#compilar) · [Testes](#testes) · [Documentação](./Docs/)
+
+## Funcionalidades
+
+| Área | O que permite fazer |
+|---|---|
+| Medição no desenho | Medir paredes, fachadas, contornos, hachuras e elementos lineares. |
+| Organização | Associar medições a artigos do mapa, serviços e pisos. |
+| Vãos | Detetar vãos e confirmar os descontos aplicáveis. |
+| Rastreabilidade | Registar medições em XData no próprio DWG, com identificação visual. |
+| Excel | Acompanhar medições ao vivo ou exportar um mapa em `.xlsx`. |
+
+## Ambiente e compatibilidade
+
+O projeto tem dois alvos de compilação, destinados a diferentes gerações do AutoCAD:
+
+| AutoCAD | Alvo .NET | Plataforma |
+|---|---|---|
+| 2021–2024 | `net48` — .NET Framework 4.8 | Windows x64 |
+| 2025–2026 | `net8.0-windows` — .NET 8 | Windows x64 |
+
+A configuração atual compila `net48` por omissão e adiciona `net8.0-windows` quando encontra as referências locais do AutoCAD 2025. Consulte [TSKTakeOff.csproj](./TSKTakeOff.csproj) para os caminhos de referência e as dependências.
+
+- **Unidades:** desenhos em metros; medições 2D no plano XY.
+- **Excel ao vivo:** requer Microsoft Excel instalado, através de COM.
+- **Exportação XLSX:** usa ClosedXML e não requer Excel instalado.
+- **Carregamento:** `NETLOAD` da biblioteca `TSKTakeOff.dll`.
 
 ## Comandos
 
@@ -61,6 +84,30 @@ Visual Studio 2019/2022 (workload ".NET desktop development"):
 2. **Build → Compilar Solução** (Ctrl+Shift+B). Não usar ▶/F5: é uma biblioteca, não se executa.
 3. O alvo `net48` compila por omissão. O alvo `net8.0-windows` só entra quando existe a instalação/referência do AutoCAD 2025.
 4. Saída: `bin\Debug\net48\TSKTakeOff.dll` ou `bin\Release\net48\TSKTakeOff.dll`. Manter as restantes DLLs na mesma pasta.
+
+## Testes
+
+O projeto [TSKTakeOff.Tests](./Tests/TSKTakeOff.Tests.csproj) usa xUnit e .NET 8 para testar lógica de cálculo sem depender de uma instalação do AutoCAD. Inclui código de medições, dimensões de vãos, artigos e organização da folha de medição.
+
+Com o SDK .NET 8 disponível:
+
+```bash
+dotnet test Tests/TSKTakeOff.Tests.csproj
+```
+
+Estes testes cobrem a lógica incluída no projeto de testes; a interface e a integração com o AutoCAD precisam de validação no próprio programa.
+
+## Organização do código
+
+| Local | Responsabilidade |
+|---|---|
+| [Commands.cs](./Commands.cs) | Comandos disponibilizados no AutoCAD. |
+| [Ribbon.cs](./Ribbon.cs) e [Palette.cs](./Palette.cs) | Interface do plugin. |
+| [Medicoes.cs](./Medicoes.cs) e [Models.cs](./Models.cs) | Medições e modelos de dados. |
+| [ExcelExporter.cs](./ExcelExporter.cs) e [ExcelLiveSync.cs](./ExcelLiveSync.cs) | Exportação e sincronização com Excel. |
+| [Tests](./Tests/) | Testes automatizados da lógica independente do AutoCAD. |
+| [Docs](./Docs/) | Documentação complementar. |
+| [Deploy](./Deploy/) | Recursos e scripts de distribuição. |
 
 ## Notas técnicas
 
