@@ -38,8 +38,8 @@ namespace TSKTakeOff
         /// plano proíbe.
         /// </summary>
         public static List<MedicaoResultado> DeMateriais(
-            IEnumerable<MedFachada> panos, Func<string, bool> artigoConhecido,
-            IFormatProvider cultura)
+            IEnumerable<MedFachada> panos, RegraDesconto regra,
+            Func<string, bool> artigoConhecido, IFormatProvider cultura)
         {
             if (cultura == null) cultura = CultureInfo.CurrentCulture;
             var saida = new List<MedicaoResultado>();
@@ -58,7 +58,7 @@ namespace TSKTakeOff
                     Alcado = f.Alcado,
                     Rotulo = RotuloDoPano(f),
                     Unidade = Unidades.M2,
-                    Quantidade = f.AreaLiquida,
+                    Quantidade = f.AreaLiquida(regra),
                     TipoMedida = "Materiais",
                     Comprimento = f.Comp,
                     UnidadeComprimento = Unidades.Metro,
@@ -67,7 +67,7 @@ namespace TSKTakeOff
                 };
 
                 Alertas(m, f.Artigo, artigoConhecido);
-                if (f.DescontoVaos > f.Area + 1e-9) m.Alertas |= AlertaNo.VaosExcessivos;
+                if (f.DescontoVaos(regra) > f.Area + 1e-9) m.Alertas |= AlertaNo.VaosExcessivos;
 
                 // SÓ O ARTIGO SE EDITA, e é a verdade e não uma limitação da
                 // vista: o FacRepo sabe gravar o artigo de um pano, mas não o
@@ -86,12 +86,13 @@ namespace TSKTakeOff
                     Unidades.Texto(Unidades.Metro, f.Alt, cultura), true, false));
                 pr.Add(new Propriedade("areaBruta", "Área bruta",
                     Unidades.Texto(Unidades.M2, f.Area, cultura), false, false));
+                double descontoVaos = f.DescontoVaos(regra);
                 pr.Add(new Propriedade("desconto", "Desconto de vãos",
-                    f.DescontoVaos > 0
-                        ? "−" + Unidades.Texto(Unidades.M2, f.DescontoVaos, cultura)
+                    descontoVaos > 0
+                        ? "−" + Unidades.Texto(Unidades.M2, descontoVaos, cultura)
                         : Unidades.Texto(Unidades.M2, 0.0, cultura), false, false));
                 pr.Add(new Propriedade("quantidade", "Quantidade",
-                    Unidades.Texto(Unidades.M2, f.AreaLiquida, cultura), true, false));
+                    Unidades.Texto(Unidades.M2, f.AreaLiquida(regra), cultura), true, false));
                 if (!string.IsNullOrEmpty(f.Alcado))
                     pr.Add(new Propriedade("alcado", "Alçado / zona", f.Alcado, false, false));
                 pr.Add(new Propriedade("handle", "Handle", f.Handle ?? "", false, false));

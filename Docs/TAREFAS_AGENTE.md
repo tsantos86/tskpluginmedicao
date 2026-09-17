@@ -23,10 +23,29 @@ a implementação da paleta de resultados compacta.
 
 ## Fila
 
-- [ ] Fase 3 — Terminar `PROPRIEDADES` recolhível com os modos `Essenciais` e
+- [x] Fase 3 — Terminar `PROPRIEDADES` recolhível com os modos `Essenciais` e
       `Tudo` (item ainda `[~]` no plano): confirmar que os dois modos mostram
       o conjunto certo de campos por tipo de nó (medição, vão, título, grupo)
       e que a alternância entre modos não perde o valor em edição.
+      **Feito 2026-09-17**: os modos `Essenciais`/`Tudo` já existiam no
+      painel real (`MedPanelControl` em `Palette.cs`) e ficaram confirmados
+      correctos por leitura do modelo (`Propriedade.Essencial` por campo,
+      sem `if` por tipo de nó — medição, vão, título e grupo mostram o
+      conjunto certo dos dois lados). O que faltava era o "recolhível":
+      acrescentado o botão `▼/▶ PROPRIEDADES`, igual ao padrão de
+      CONFIGURAÇÃO/Mais opções. A perda de valor em edição ao trocar de
+      modo está coberta pelo `MosaicoMetricas._editor.Leave → Confirmar()`
+      já existente, que dispara antes do `Click` do botão de modo (ordem de
+      foco normal do WinForms). De caminho, corrigido um `CS0428`/`CS0019`
+      pré-existente em `ResultadosAdaptadores.DeMateriais` que impedia
+      `dotnet test` de compilar (`f.AreaLiquida`/`f.DescontoVaos` chamados
+      como propriedades quando são métodos com `RegraDesconto`). Verificado
+      por `dotnet test` (304/304, agora consegue compilar) e leitura
+      cuidadosa de `Palette.cs` — **implementado, aguarda build manual**
+      (sem AutoCAD/WinForms neste sandbox). Detalhe completo e achado de
+      código morto (`ResultadosPainel.cs` e as três abas antigas, que nunca
+      são acrescentadas ao `PaletteSet`) em
+      `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`, Fase 3.
 - [ ] Fase 3 — Garantir que expandir/recolher grupos e `Atualizar` preservam
       a seleção e a posição de scroll sempre que o nó selecionado ainda
       existir depois da reconstrução da árvore.

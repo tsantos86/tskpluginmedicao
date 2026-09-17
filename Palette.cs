@@ -470,8 +470,10 @@ namespace TSKTakeOff
         private Panel _resultadosCompactos;
         private DataGridView _dgvCompacto;
         private Label _lblResultadoResumo;
-        private Label _lblPropriedadeTitulo;
+        private Button _lblPropriedadeTitulo;
         private bool _configExpandida;
+        /// <summary>PROPRIEDADES recolhe-se, como CONFIGURAÇÃO e Mais opções.</summary>
+        private bool _propriedadesAbertas = true;
         private NoResultado _raizResultados;
         private EstadoVista _estadoResultados = new EstadoVista();
         private TextBox _txtPesquisa;
@@ -1674,15 +1676,27 @@ namespace TSKTakeOff
             _btnMedirAqui.FlatAppearance.BorderSize = 0;
             _btnMedirAqui.Click += (s, e) => MedirAqui();
 
-            _lblPropriedadeTitulo = new Label
+            // PROPRIEDADES recolhe-se como CONFIGURAÇÃO: num painel a 480 px,
+            // o mosaico de métricas é espaço que a árvore não tem, e quem só
+            // quer conferir totais não precisa dele aberto.
+            _lblPropriedadeTitulo = new Button
             {
                 Dock = DockStyle.Fill,
-                Text = "PROPRIEDADES — nada selecionado",
+                Text = "▼  PROPRIEDADES  —  nada selecionado",
+                FlatStyle = FlatStyle.Flat,
                 Padding = new Padding(PaletteTheme.Margem, 0, 0, 0),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Font = PaletteTheme.TituloSeccao,
                 ForeColor = PaletteTheme.Tinta,
-                AutoEllipsis = true
+                BackColor = PaletteTheme.FundoSeccao,
+                AutoEllipsis = true,
+                AccessibleName = "Propriedades"
+            };
+            _lblPropriedadeTitulo.FlatAppearance.BorderSize = 0;
+            _lblPropriedadeTitulo.Click += (s, e) =>
+            {
+                _propriedadesAbertas = !_propriedadesAbertas;
+                AtualizarPropriedadesCompactas();
             };
 
             cabecalhoProps.Controls.Add(_lblPropriedadeTitulo);
@@ -2394,20 +2408,30 @@ namespace TSKTakeOff
             if (_mosaico == null) return;
 
             var no = NoSeleccionado();
-            _lblPropriedadeTitulo.Text = no == null
-                ? "PROPRIEDADES — nada selecionado"
-                : "PROPRIEDADES — " + no.Rotulo;
+            _lblPropriedadeTitulo.Text = (_propriedadesAbertas ? "▼  " : "▶  ") +
+                "PROPRIEDADES  —  " + (no == null ? "nada selecionado" : no.Rotulo);
+            _lblPropriedadeTitulo.AccessibleDescription =
+                (_propriedadesAbertas ? "Expandida. " : "Recolhida. ") +
+                (no == null ? "Nada selecionado." : no.Rotulo);
 
-            // "Medir aqui" só em nós de artigo, como o plano manda.
+            // "Medir aqui" só em nós de artigo, como o plano manda. Fica no
+            // cabeçalho mesmo recolhido — é uma acção, não uma leitura.
             if (_btnMedirAqui != null)
                 _btnMedirAqui.Visible = no != null && no.PermiteMedirAqui;
 
             _mosaico.No = no;
             _mosaico.Handles = HandlesSeleccionados();
+            _mosaico.Visible = _propriedadesAbertas;
+
+            var painel = _mosaico.Parent;
 
             if (no == null || no.Propriedades == null)
             {
                 _mosaico.Definir(null);
+                if (painel != null)
+                    painel.Height = _propriedadesAbertas
+                        ? PaletteTheme.AlturaTituloSeccao + _mosaico.AlturaNecessaria
+                        : PaletteTheme.AlturaTituloSeccao;
                 return;
             }
 
@@ -2424,10 +2448,13 @@ namespace TSKTakeOff
             _mosaico.Definir(mostrar);
 
             // A faixa cresce com o que tem de mostrar, em vez de cortar. Uma
-            // parede com dez métricas não cabe na altura de seis.
-            var painel = _mosaico.Parent;
+            // parede com dez métricas não cabe na altura de seis. Recolhida,
+            // fica só a altura do cabeçalho — o mosaico continua desenhado
+            // por trás, pronto a reaparecer sem se recompor.
             if (painel != null)
-                painel.Height = PaletteTheme.AlturaTituloSeccao + _mosaico.AlturaNecessaria;
+                painel.Height = _propriedadesAbertas
+                    ? PaletteTheme.AlturaTituloSeccao + _mosaico.AlturaNecessaria
+                    : PaletteTheme.AlturaTituloSeccao;
         }
 
         /// <summary>
@@ -3332,7 +3359,7 @@ namespace TSKTakeOff
                     : null,
                 CultureInfo.CurrentCulture);
             medicoes.AddRange(ResultadosAdaptadores.DeMateriais(
-                _fachadas,
+                _fachadas, Config.Regra,
                 MapaQuantidades.Existe
                     ? (Func<string, bool>)(a => MapaQuantidades.Procurar(a) != null)
                     : null,
