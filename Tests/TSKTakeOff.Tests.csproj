@@ -59,6 +59,19 @@
          que foi trazido para constante local para este ficheiro correr aqui. -->
     <Compile Include="..\FolhaTemplate.cs"    Link="Producao\FolhaTemplate.cs" />
     <Compile Include="..\FiltroDeteccaoVaos.cs" Link="Producao\FiltroDeteccaoVaos.cs" />
+    <!-- A arvore de resultados da paleta: hierarquia, identidade dos nos,
+         pesquisa, filtros e totais. Nao toca no AutoCAD nem no WinForms, e e
+         de proposito: o WinForms nao tem arvore com colunas, por isso a lista
+         de linhas visiveis e calculada a mao — e uma lista calculada dentro de
+         um DataGridView so se verifica abrindo o AutoCAD e olhando para ela.
+         Aqui verifica-se com um teste. -->
+    <Compile Include="..\ResultadosModelo.cs" Link="Producao\ResultadosModelo.cs" />
+    <Compile Include="..\ResultadosArvore.cs"  Link="Producao\ResultadosArvore.cs" />
+    <!-- Os adaptadores das outras tres abas para a mesma arvore. E aqui que se
+         decide que unidade cada medicao fatura: o comprimento de um pano e uma
+         DIMENSAO e o de um linear E a quantidade dele. Trocar isso soma metros
+         com metros quadrados, e o total sai com ar de estar bem. -->
+    <Compile Include="..\ResultadosAdaptadores.cs" Link="Producao\ResultadosAdaptadores.cs" />
   </ItemGroup>
 
   <ItemGroup>

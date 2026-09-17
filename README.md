@@ -15,7 +15,7 @@ Assembly: `TSKTakeOff.dll` · Namespace: `TSKTakeOff` · `net48` para AutoCAD 20
 
 | Comando | Função |
 |---|---|
-| `TSKPAINEL` | Abre o painel lateral (abas Fachadas/ETICS e Alvenaria). |
+| `TSKPAINEL` | Abre o painel lateral (abas Arquitetura, Materiais, Lineares e Contagens). |
 | `TSKPAREDE` | Mede uma parede de alvenaria com o serviço/altura do painel; deteta vãos no fim. |
 | `TSKAREA` | Desenha o contorno de uma área em planta, preenche-a e mede **área × altura** (m³) — betonilhas, enchimentos, camadas. |
 | `TSKAREASEL` | O mesmo, mas sobre hachuras/polylines fechadas **que já estão no projeto**. Mede sobre cópias; o desenho original não se toca. |
@@ -30,7 +30,7 @@ Os comandos antigos `MEDPAREDE`, `MEDRET`, `MEDPOLF`, `MEDIR`, `MEDEXPORT` conti
 
 ## Ribbon
 
-Separador **TSK TakeOff** com os painéis Projeto | Alvenaria | Fachadas/ETICS | Excel.
+Separador **TSK TakeOff** com os painéis Projeto | Arquitetura | Materiais | Lineares | Contagens | Excel.
 É criada por código — **não existe CUIX para carregar**, basta o NETLOAD da DLL.
 
 ## Fluxo de uso
@@ -47,8 +47,12 @@ Separador **TSK TakeOff** com os painéis Projeto | Alvenaria | Fachadas/ETICS |
 
 - **Artigo do mapa**: escolhe-se em *Artigo (mapa)* e acompanha as medições que se fizerem a seguir.
   Para o mudar em medições **já feitas** — mapa importado a meio da obra, ou versão nova do mapa —
-  selecionam-se as linhas na grelha (Ctrl/Shift para várias) e carrega-se em **Reclassificar**.
-  As que ainda não têm artigo aparecem marcadas a laranja e saem no **fim** da folha.
+  selecionam-se as medições na árvore (Ctrl/Shift para várias) e usa-se **Mais ▸ Reclassificar…**.
+  As que ainda não têm artigo juntam-se no grupo **Por classificar**, marcadas com `⚑`,
+  e saem no **fim** da folha.
+- **Medir aqui**: selecionar um resultado serve para consultar e editar. Para mandar as próximas
+  medições para um artigo, escolhe-se o nó desse artigo e carrega-se em **Medir aqui** — a única
+  operação que altera a próxima medição. O nó fixado mostra a etiqueta `PRÓXIMA`.
 - **Vãos**: descontar tudo · SINAPI (excedente de 2 m²) · não descontar — configurável no painel.
 - **Pré-aro**: unidades e metros lineares (porta = 2×alt + larg; janela = perímetro).
 - Tudo gravado em **XData no próprio DWG** — salvar o desenho salva as medições.
@@ -67,4 +71,6 @@ Visual Studio 2019/2022 (workload ".NET desktop development"):
 - Desenho assumido em **metros**; medição 2D (plano XY).
 - Ícones gerados em runtime (GDI+), sem ficheiros de recursos.
 - Excel ao vivo via COM (requer Excel instalado); export via ClosedXML (não requer).
-- Próximos passos: projeto (obra/pisos), biblioteca de materiais do articulado, export no formato da folha de medição da empresa, estados 🟩 medido / 🟥 desconto / 🟦 conferência, auth Supabase.
+- A aba **Arquitetura** usa uma árvore compacta de resultados (`Pavimentos > Piso > Serviço > Artigo > Medição > Vão/Título`) com duas colunas — elemento e quantidade —, pesquisa (`Ctrl+F`), filtros com `Aplicar`, painel de propriedades editável e totais **por unidade**, nunca somados entre grandezas diferentes.
+- A hierarquia, a pesquisa, os filtros e a agregação vivem em `ResultadosModelo.cs` / `ResultadosArvore.cs`, **fora do WinForms e do AutoCAD**, e estão sob teste — é o que permite verificar um total sem abrir o AutoCAD. Os adaptadores das outras abas estão em `ResultadosAdaptadores.cs`.
+- As abas Materiais, Lineares e Contagens mantêm por agora os seus fluxos e grelhas específicos; os adaptadores para a árvore comum já existem e estão testados.

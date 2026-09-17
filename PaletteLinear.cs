@@ -14,10 +14,9 @@ namespace TSKTakeOff
     /// </summary>
     public class LinearControl : UserControl
     {
-        private DataGridView _dgv;
+        private ResultadosPainel _painel;
         private Label _lblTotais;
         private List<MedItem> _lineares = new List<MedItem>();
-        private bool _carregando;
 
         public LinearControl()
         {
@@ -28,6 +27,18 @@ namespace TSKTakeOff
         {
             Dock = DockStyle.Fill;
             AutoScaleMode = AutoScaleMode.Dpi;
+
+            var cabecalho = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = PaletteTheme.AlturaCabecalho,
+                Text = "LINEARES\r\nComprimentos por categoria",
+                Font = PaletteTheme.TituloSeccao,
+                ForeColor = PaletteTheme.Tinta,
+                BackColor = PaletteTheme.AzulTopo,
+                Padding = new Padding(10, 5, 8, 3),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
 
             var ajuda = new Label
             {
@@ -55,28 +66,12 @@ namespace TSKTakeOff
             tools.Items.Add(MakeButton("Atualizar", IconFactory.Atualizar(),
                 (s, e) => PaletteHost.RefreshData()));
 
-            _dgv = new DataGridView
+            _painel = new ResultadosPainel("LINEARES")
             {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                BackgroundColor = SystemColors.Window,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            AddCol("num", "Nº", 44);
-            AddCol("categoria", "Categoria", 130);
-            AddCol("layer", "Layer", 180);
-            AddCol("comp", "Comprimento (m)", 110);
-            AddCol("vertices", "Vértices", 72);
-
-            _dgv.SelectionChanged += (s, e) =>
-            {
-                if (!_carregando) PaletteHost.MarcarSeleccaoGrelha();
+                // Uma medição linear não se configura por artigo: não há
+                // «próxima medição» para fixar, e um botão que nunca faz nada
+                // é pior do que não existir.
+                PermiteMedirAqui = false
             };
 
             _lblTotais = new Label
@@ -88,10 +83,16 @@ namespace TSKTakeOff
                 Padding = new Padding(8, 0, 0, 0)
             };
 
-            Controls.Add(_dgv);
+            Controls.Add(_painel);
             Controls.Add(_lblTotais);
             Controls.Add(tools);
             Controls.Add(ajuda);
+            Controls.Add(cabecalho);
+            var dicas = new ToolTip { AutoPopDelay = 15000, InitialDelay = 400, ReshowDelay = 100 };
+            BackColor = PaletteTheme.Fundo;
+            ForeColor = PaletteTheme.Tinta;
+            PaletteTheme.AplicarTema(this);
+            PaletteTheme.PrepararInteraccao(this, dicas);
         }
 
         private static ToolStripButton MakeButton(string text, Image icon, EventHandler onClick)
@@ -103,57 +104,30 @@ namespace TSKTakeOff
                 AutoSize = true,
                 Padding = new Padding(2, 1, 2, 1),
                 Margin = new Padding(1, 0, 1, 0),
-                ToolTipText = text
+                ToolTipText = text,
+                AccessibleName = text
             };
-        }
-
-        private void AddCol(string name, string header, float width)
-        {
-            _dgv.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = name,
-                HeaderText = header,
-                FillWeight = width,
-                SortMode = DataGridViewColumnSortMode.NotSortable
-            });
         }
 
         public void BindData(List<MedItem> lineares)
         {
+            // A ordem que a árvore recebe é a ordem por que os grupos nascem.
             _lineares = (lineares ?? new List<MedItem>())
                 .OrderBy(m => m.Categoria ?? "")
                 .ThenBy(m => m.Layer ?? "")
                 .ThenBy(m => m.Handle ?? "")
                 .ToList();
 
-            string anterior = HandleSelecionado();
-            string nova = PaletteHost.MedicaoNova;
-            bool seguirNova = nova != null && _lineares.Exists(m => m.Handle == nova);
-
-            _carregando = true;
             try
             {
-                _dgv.SuspendLayout();
-                _dgv.Rows.Clear();
-
-                int n = 1;
-                foreach (var med in _lineares)
-                {
-                    int idx = _dgv.Rows.Add(
-                        n++,
-                        med.Categoria ?? "",
-                        med.Layer ?? "",
-                        N2(med.Comprimento),
-                        med.Vertices);
-                    _dgv.Rows[idx].Tag = med.Handle;
-                }
-
-                if (!(seguirNova && Focar(nova))) Focar(anterior);
+                var raiz = ResultadosArvore.Construir(
+                    ResultadosAdaptadores.DeLineares(_lineares, CultureInfo.CurrentCulture),
+                    CultureInfo.CurrentCulture);
+                _painel.Vincular(raiz, PaletteHost.MedicaoNova);
             }
-            finally
+            catch (Exception ex)
             {
-                _dgv.ResumeLayout();
-                _carregando = false;
+                PaletteHost.Log("Lineares: " + ex.Message);
             }
 
             var porCategoria = _lineares
@@ -165,28 +139,24 @@ namespace TSKTakeOff
                 _lineares.Count == 0 ? "" : "   |   " + string.Join("   |   ", porCategoria));
         }
 
-        private string HandleSelecionado()
-        {
-            var row = _dgv.CurrentRow;
-            if (row == null && _dgv.SelectedRows.Count > 0) row = _dgv.SelectedRows[0];
-            return row?.Tag as string;
-        }
-
-        private bool Focar(string handle)
-        {
-            if (string.IsNullOrEmpty(handle)) return false;
-            foreach (DataGridViewRow row in _dgv.Rows)
-            {
-                if ((row.Tag as string) != handle) continue;
-                _dgv.CurrentCell = row.Cells[0];
-                return true;
-            }
-            return false;
-        }
-
         private static string N2(double valor)
         {
             return valor.ToString("N2", CultureInfo.CurrentCulture);
+        }
+
+        /// <summary>
+        /// `Ctrl+F` leva o foco à pesquisa dos resultados, esteja o foco onde
+        /// estiver dentro da aba. No ProcessCmdKey e não num KeyDown porque um
+        /// atalho que só funciona com o foco no sítio certo não é um atalho.
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.F) && _painel != null)
+            {
+                _painel.FocarPesquisa();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
     }
 }

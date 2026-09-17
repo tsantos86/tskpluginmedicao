@@ -23,9 +23,9 @@ escrita por cima, e aparece logo na folha.
 
 ## O painel
 
-O painel tem três separadores, organizados por tipo de trabalho: **Alvenaria**, **Materiais** e **Contagens**.
+O painel tem quatro separadores, organizados por tipo de trabalho: **Arquitetura**, **Materiais**, **Lineares** e **Contagens**.
 
-### Alvenaria
+### Arquitetura
 
 Para paredes. Preencha antes de medir:
 
@@ -38,6 +38,55 @@ Para paredes. Preencha antes de medir:
 | **Altura** | Pé-direito da parede, em metros. |
 | **Espessura** | Espessura da parede. Pondo `0`, usa a medida do rectângulo desenhado. |
 | **Regra de vãos** | Como descontar portas e janelas — ver abaixo. |
+
+A secção **CONFIGURAÇÃO** abre recolhida e, fechada, mostra na própria barra o
+resumo do que vai sair na próxima medição — `PISO 0 · ALVENARIA · 11.2.1 ·
+h 2,80 m · e 0,15 m`. O mesmo resumo está no cabeçalho do painel, ao lado do
+nome do DWG activo. São dois sítios de propósito: é a única coisa do painel que
+muda o que acontece a seguir sem ninguém estar a olhar para ela, e medir dez
+paredes para o artigo errado descobre-se tarde de mais.
+
+O **Texto do título** e a **Layer** manual estão em **Mais opções**, dentro da
+configuração. Não são campos do dia a dia: a layer é calculada a partir do
+artigo e do bloco em quase todos os casos.
+
+### Ler os resultados
+
+Os resultados aparecem numa **árvore**, organizada por
+`Pavimentos > Piso > Serviço > Artigo > Medição > Vão/Título`.
+
+A árvore tem **duas colunas**: o nome do elemento e a **quantidade**, na unidade
+do artigo. Nos níveis que juntam unidades diferentes, elas aparecem lado a lado
+— `62,93 m² · 36,90 m · 2 un.` — e **nunca somadas**: são grandezas diferentes.
+
+O comprimento, a altura, a espessura e as contas derivadas vivem no painel
+**PROPRIEDADES**, por baixo. O botão `Essenciais` / `Tudo` alterna entre o
+resumo e a lista completa. **É aí que se edita**: os campos com fundo amarelo
+escrevem no desenho quando sai da célula. Com várias medições escolhidas na
+árvore (`Ctrl` para soltas, `Shift` para um intervalo), o que se escreve numa
+vale para todas.
+
+Os vãos aparecem por baixo da parede a que pertencem, com a dedução em negativo
+— e não são somados outra vez: a quantidade da parede já é líquida.
+
+- **Pesquisa** (`Ctrl+F`) — procura em serviço, artigo, piso, bloco, alçado,
+  designação, handle e nome dos vãos. Ignora acentos e maiúsculas. Vários
+  termos são um **E**: `piso 1 tijolo` procura o que tenha as duas coisas.
+- **Filtros** — Pavimento, Serviço, Artigo, Tipo/unidade e Estado. Escolhe-se
+  tudo e carrega-se em `Aplicar`: a árvore muda uma vez, no fim. O `Repor`
+  devolve as escolhas ao filtro em vigor; o `Limpar` da barra apaga pesquisa e
+  filtros de uma vez.
+- Filtrar **não altera nada** no desenho, no Excel nem na próxima medição — é
+  só uma lente. O contador diz sempre `n visíveis de N`.
+
+### Medir aqui
+
+Selecionar uma linha **serve para consultar e editar**, e mais nada. Para mandar
+as próximas medições para um artigo, escolha o nó desse **artigo** e carregue em
+**Medir aqui**: copia o piso, o serviço e o artigo para a configuração,
+mantendo as dimensões. O nó fixado passa a mostrar a etiqueta `PRÓXIMA`.
+
+É a única operação que altera a próxima medição.
 
 ### Materiais
 
@@ -116,7 +165,7 @@ Na geometria, o que é lido depende do tipo de medição a que o vão pertence:
 
 - **Materiais / fachada (alçado)** — o rectângulo tem as duas cotas: lê largura
   e altura do desenho.
-- **Alvenaria (planta)** — em planta o rectângulo é largura × espessura da
+- **Arquitetura (planta)** — em planta o rectângulo é largura × espessura da
   parede, e a altura não está lá. Lê-se a largura e a altura entra a `2.10 m`,
   para afinar na tabela.
 
@@ -206,37 +255,49 @@ mediu. Só aparecem os artigos que tiverem medições.
 
 O caso normal de uma obra: mediu-se antes de o mapa do cliente chegar, ou o
 mapa mudou de versão a meio. Nesse caso as medições antigas ficam **sem
-artigo** — a grelha marca-as a laranja com «— sem artigo —» e o rodapé diz
-quantas são. Na folha saem **no fim**, depois de tudo o que já está
-classificado; é por isso que uma medição nova, essa com artigo, parece
+artigo** — a árvore junta-as num grupo **Por classificar**, marca-as com `⚑` e
+o rodapé diz quantas são. Na folha saem **no fim**, depois de tudo o que já
+está classificado; é por isso que uma medição nova, essa com artigo, parece
 saltar-lhes à frente. Não é a folha que se baralhou: é o que já tem lugar no
 articulado a ocupá-lo.
 
 Para as arrumar:
 
-1. Escolha o artigo de destino em **Artigo (mapa)**, no topo do painel.
-2. Selecione as linhas na grelha — `Ctrl` para escolher soltas, `Shift` para
+1. Selecione as medições na árvore — `Ctrl` para escolher soltas, `Shift` para
    um intervalo.
-3. Carregue em **Reclassificar** e confirme.
+2. Abra **Mais ▸ Reclassificar…** e escolha o artigo de destino.
 
 A geometria não se toca: muda só o artigo a que as medições pertencem, e com
 ele o sítio onde saem na folha.
 
-Para uma linha só, também pode escrever o código directamente na coluna
-**Artigo** da grelha — o plugin vai buscar a designação ao mapa.
+Para uma medição só, também pode escrever o código no campo **Artigo** do painel
+PROPRIEDADES — o plugin vai buscar a designação ao mapa.
 
 ### Limpar em bloco (Piso e Artigo)
 
-Selecione as células com `Ctrl` ou `Shift` e carregue em **`Delete`**: limpa a
-selecção toda de uma vez. Funciona nas colunas **Piso** e **Artigo**.
+Selecione as medições na árvore com `Ctrl` ou `Shift` e **deixe o campo vazio**
+em PROPRIEDADES: limpa a selecção toda de uma vez. Funciona no **Piso** e no
+**Artigo**.
 
-Também pode escrever por cima: com várias linhas seleccionadas, o que escrever
-numa vale para todas. Escreva directamente, sem clicar — o clique desfaz a
-selecção.
+O mesmo vale para escrever por cima: com várias medições seleccionadas, o que
+escrever numa vale para todas.
 
-Isto existe porque a grelha **reordena-se a cada alteração** (agrupa por artigo
-e por piso): editar linha a linha faz a seguinte mudar de sítio debaixo do rato,
-e acaba-se a alterar duas vezes umas e nenhuma vez outras.
+Isto existe porque a árvore **reagrupa-se a cada alteração** (agrupa por piso,
+serviço e artigo): editar uma a uma faz a seguinte mudar de sítio debaixo do
+rato, e acaba-se a alterar duas vezes umas e nenhuma vez outras.
+
+### Teclado
+
+| Tecla | Faz |
+|---|---|
+| `Ctrl+F` | Vai para a pesquisa, esteja o foco onde estiver |
+| `↑` `↓` | Percorre os nós visíveis |
+| `←` | Recolhe o nó; já recolhido, sobe ao nível de cima |
+| `→` | Expande o nó; já expandido, desce ao primeiro filho |
+| `Home` / `End` | Primeiro / último nó da lista |
+| `Enter` / `Espaço` | Abre ou fecha o grupo; num nó de artigo, faz `Medir aqui` |
+| `Ctrl` / `Shift` | Selecção múltipla, para as operações em lote |
+| `Esc` | Fecha os filtros e devolve o foco ao botão que os abriu |
 
 ### Quando alguma coisa não bate certo
 

@@ -18,7 +18,7 @@ namespace TSKTakeOff
         private NumericUpDown _numAlturaPiso;
         /// <summary>Texto que sai na linha de título criada pelos botões Capítulo / Artigo.</summary>
         private TextBox _txtTitulo;
-        private DataGridView _dgv;
+        private ResultadosPainel _painel;
         /// <summary>Última lista carregada na grelha, para consultar sem reler o DWG.</summary>
         private List<MedFachada> _meds = new List<MedFachada>();
         private Label _lblTotais;
@@ -38,7 +38,8 @@ namespace TSKTakeOff
                 Dock = DockStyle.Top,
                 AutoSize = true,
                 ColumnCount = 3,
-                Padding = new Padding(6)
+                Padding = new Padding(10),
+                BackColor = PaletteTheme.Fundo
             };
             config.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             config.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -103,6 +104,18 @@ namespace TSKTakeOff
             config.Controls.Add(new Label(), 2, 4);
 
             // ----- Botões -----
+            var tituloConfig = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = PaletteTheme.AlturaTituloSeccao,
+                Text = "CONFIGURAÇÃO",
+                Font = PaletteTheme.TituloSeccao,
+                ForeColor = PaletteTheme.Tinta,
+                BackColor = PaletteTheme.FundoSeccao,
+                Padding = new Padding(10, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
             var tools = new ToolStrip
             {
                 Dock = DockStyle.Top,
@@ -128,45 +141,19 @@ namespace TSKTakeOff
             tools.Items.Add(MakeButton("Artigo", IconFactory.Artigo(),
                 (s, e) => MarcarTitulo("ART", "Artigo")));
             tools.Items.Add(MakeButton("Limpar tudo", IconFactory.Limpar(), (s, e) => LimparTudo()));
+            // ----- Resultados -----
+            //
+            // A mesma vista das outras abas: árvore por Piso > Material >
+            // Artigo, pesquisa, filtros e propriedades. O material faz de
+            // serviço na hierarquia — é o que agrupa os panos da mesma
+            // natureza — e não se inventou campo novo no DWG para isso.
+            _painel = new ResultadosPainel("MATERIAIS");
+            _painel.PropriedadeEditada += AoEditarPropriedade;
 
-            // ----- Grade -----
-            _dgv = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                RowHeadersVisible = false,
-                // DisplayedCells, não AllCells. Com AllCells, cada linha
-                // acrescentada faz o DataGridView remedir todas as colunas
-                // contra TODAS as linhas já postas — é quadrático, e é por
-                // isso que a paleta ia ficando pesada à medida que se media.
-                // DisplayedCells mede só o que está visível: o custo passa a
-                // depender do tamanho da janela, não do tamanho da obra.
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells,
-                BackgroundColor = System.Drawing.Color.White
-            };
-            // Nº e Artigo à cabeça, como na grelha da Alvenaria: o Nº é a
-            // linha da folha e o Artigo é o que diz onde a medição vai parar
-            // no mapa. Sem eles, medir um pano com um artigo escolhido não
-            // dava sinal nenhum na paleta — só no Excel.
-            AddCol("num", "Nº");
-            AddCol("sep", "⏎");
-            AddCol("artigo", "Artigo");
-            AddCol("mat", "Material");
-            AddCol("alcado", "Alçado");
-            AddCol("piso", "Piso");
-            AddCol("tipo", "Tipo");
-            AddCol("comp", "Comp. (m)");
-            AddCol("alt", "Alt. (m)");
-            AddCol("area", "Área (m²)");
-
-            // A partir do primeiro clique numa linha, é a grelha que manda no
+            // A partir do primeiro clique numa linha, é o painel que manda no
             // destino dos títulos. Os eventos disparados pelo BindData não
             // contam — quem os provoca é a reconstrução, não o utilizador.
-            _dgv.SelectionChanged += (s, e) => { if (!_carregando) _escolheu = true; };
+            _painel.SeleccaoMudou += (s, e) => { if (!_carregando) _escolheu = true; };
 
             _lblTotais = new Label
             {
@@ -177,12 +164,18 @@ namespace TSKTakeOff
                 Padding = new Padding(6, 0, 0, 0)
             };
 
-            Controls.Add(_dgv);
+            Controls.Add(_painel);
             Controls.Add(_lblTotais);
             Controls.Add(tools);
+            Controls.Add(tituloConfig);
             Controls.Add(config);
 
             UpdateCorSwatch();
+            var dicas = new ToolTip { AutoPopDelay = 15000, InitialDelay = 400, ReshowDelay = 100 };
+            BackColor = PaletteTheme.Fundo;
+            ForeColor = PaletteTheme.Tinta;
+            PaletteTheme.AplicarTema(this);
+            PaletteTheme.PrepararInteraccao(this, dicas);
         }
 
         private static ToolStripButton MakeButton(string text, Image icon, EventHandler onClick)
@@ -194,21 +187,58 @@ namespace TSKTakeOff
                 AutoSize = true,
                 Padding = new Padding(2, 1, 2, 1),
                 Margin = new Padding(1, 0, 1, 0),
-                ToolTipText = text
+                ToolTipText = text,
+                AccessibleName = text
             };
         }
 
         private static Label Lbl(string t) =>
             new Label { Text = t, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill };
 
-        private void AddCol(string name, string header)
+        /// <summary>
+        /// Grava no desenho o que se editou em PROPRIEDADES.
+        ///
+        /// O painel não escreve: diz o que foi editado e quem manda no desenho
+        /// decide. Aqui é o FacRepo, e ele só sabe gravar o ARTIGO de um pano:
+        /// o material e o piso ficam como foram medidos, e as dimensões vêm da
+        /// geometria. Ver ResultadosAdaptadores.DeMateriais, que é onde esses
+        /// campos estão marcados como de leitura.
+        /// </summary>
+        private void AoEditarPropriedade(object sender, PropriedadeEditadaEventArgs e)
         {
-            _dgv.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = name,
-                HeaderText = header,
-                SortMode = DataGridViewColumnSortMode.NotSortable
-            });
+            if (e.No == null || e.No.Handle == null) return;
+            if (e.Propriedade.Campo != "artigo") return;
+
+            bool ok = FacRepo.DefinirArtigo(e.No.Handle, ChaveDoArtigo(e.Valor));
+
+            if (!ok)
+                PaletteHost.Log("não consegui gravar o " + e.Propriedade.Nome +
+                                " deste pano — pode ter sido apagado do desenho.");
+
+            PaletteHost.RefreshData();
+            PaletteHost.EscreverExcelAgora();
+        }
+
+        /// <summary>
+        /// Traduz um código escrito à mão para a chave que uma medição guarda.
+        ///
+        /// Com mapa importado, escrever "3.1.1" passa a valer o artigo INTEIRO
+        /// do mapa. Ficar com o código novo e a designação antiga colada atrás
+        /// dava um par que não existe em mapa nenhum: a medição tornava-se
+        /// órfã e ia parar ao fim da folha sem nada que o explicasse.
+        /// </summary>
+        private static string ChaveDoArtigo(string escrito)
+        {
+            string codigo = (escrito ?? "").Trim();
+            if (codigo.Length == 0) return "";
+
+            var no = MapaQuantidades.PorCodigo(codigo);
+            if (no != null) return no.Chave;
+
+            if (MapaQuantidades.Existe)
+                PaletteHost.Log("o mapa não tem nenhum artigo com o código «" + codigo +
+                                "». A medição fica com ele, mas sai no fim da folha.");
+            return codigo;
         }
 
         // ------------------------------------------------------------------
@@ -272,9 +302,10 @@ namespace TSKTakeOff
 
         private void Remover()
         {
-            var row = _dgv.CurrentRow;
-            if (row == null && _dgv.SelectedRows.Count > 0) row = _dgv.SelectedRows[0];
-            string handle = row?.Tag as string;
+            var noSel = _painel.NoSeleccionado;
+            // Um grupo não se remove: não é uma medição, é uma arrumação — e
+            // não tem handle nenhum para onde apontar.
+            string handle = noSel == null || noSel.EhGrupo ? null : noSel.Handle;
             if (handle == null)
             {
                 MessageBox.Show("Clique numa linha da grade primeiro.", "TSK TakeOff",
@@ -390,9 +421,8 @@ namespace TSKTakeOff
         {
             if (!_escolheu) return null;
 
-            var row = _dgv.CurrentRow;
-            if (row == null && _dgv.SelectedRows.Count > 0) row = _dgv.SelectedRows[0];
-            return row?.Tag as string;
+            var no = _painel.NoSeleccionado;
+            return no == null || no.EhGrupo ? null : no.Handle;
         }
 
         /// <summary>
@@ -402,41 +432,22 @@ namespace TSKTakeOff
         /// </summary>
         private string HandleDaGrelhaBruto()
         {
-            var row = _dgv.CurrentRow;
-            if (row == null && _dgv.SelectedRows.Count > 0) row = _dgv.SelectedRows[0];
-            return row?.Tag as string;
-        }
-
-        /// <summary>Põe o cursor nesta medição, se ela estiver na grelha.</summary>
-        private bool Focar(string handle)
-        {
-            for (int i = 0; i < _dgv.Rows.Count; i++)
-            {
-                if ((_dgv.Rows[i].Tag as string) != handle) continue;
-                try
-                {
-                    _dgv.CurrentCell = _dgv.Rows[i].Cells[0];
-                    _dgv.Rows[i].Selected = true;
-                    return true;
-                }
-                catch { return false; }
-            }
-            return false;
+            var no = _painel.NoSeleccionado;
+            return no == null || no.EhGrupo ? null : no.Handle;
         }
 
         /// <summary>
-        /// Volta a pôr a grelha onde estava, sem passar do fim. Ao remover,
-        /// a lista encolhe e o índice antigo pode já não existir.
+        /// Põe o cursor nesta medição, se ela estiver à vista.
+        ///
+        /// Pelo Id do nó — que numa medição é o handle — e não pelo índice da
+        /// linha: a lista é refeita a cada medição e os índices mudam todos.
         /// </summary>
-        private void ReporRolagem(int scroll)
+        private bool Focar(string handle)
         {
-            if (scroll < 0 || _dgv.Rows.Count == 0) return;
-            try
-            {
-                int alvo = scroll < _dgv.Rows.Count ? scroll : _dgv.Rows.Count - 1;
-                _dgv.FirstDisplayedScrollingRowIndex = alvo;
-            }
-            catch { /* grelha mais curta do que o índice: fica onde está */ }
+            if (string.IsNullOrEmpty(handle)) return false;
+            _painel.Seleccionar("M:" + handle);
+            var no = _painel.NoSeleccionado;
+            return no != null && no.Handle == handle;
         }
 
         /// <summary>Alguém clicou numa linha desta grelha (e não foi o BindData).</summary>
@@ -451,46 +462,62 @@ namespace TSKTakeOff
         /// grelha da Alvenaria — e pela mesma razão, agora que esta grelha
         /// também sai por ordem do articulado.
         /// </summary>
+        /// LIDO DA FONTE, NÃO DAS LINHAS VISÍVEIS. Um filtro é uma lente: o
+        /// pano que se acabou de medir continua a ser o alvo do título
+        /// seguinte, mesmo que o filtro em vigor o esteja a esconder.
         private string UltimoHandle()
         {
             string acabada = PaletteHost.UltimaMedicao;
             if (acabada != null)
-                for (int i = 0; i < _dgv.Rows.Count; i++)
-                    if ((_dgv.Rows[i].Tag as string) == acabada) return acabada;
+                foreach (var m in _meds)
+                    if (m.Handle == acabada) return acabada;
 
-            for (int i = _dgv.Rows.Count - 1; i >= 0; i--)
-            {
-                string h = _dgv.Rows[i].Tag as string;
-                if (h != null) return h;
-            }
+            for (int i = _meds.Count - 1; i >= 0; i--)
+                if (_meds[i].Handle != null) return _meds[i].Handle;
+
             return null;
         }
 
-        /// <summary>Apaga todas as medições de materiais do desenho, com confirmação.</summary>
+        /// <summary>
+        /// Apaga todas as medições de materiais do desenho, com confirmação.
+        ///
+        /// OPERA SOBRE A FONTE COMPLETA, NUNCA SOBRE AS LINHAS VISÍVEIS. Com um
+        /// filtro aplicado, percorrer o que está à vista apagava só essas — e o
+        /// botão diz «limpar tudo», portanto quem o carrega fica convencido de
+        /// que o desenho ficou limpo. A árvore repete ainda o handle do pano
+        /// nos vãos e nos títulos dele, o que inflacionaria a contagem.
+        /// </summary>
         private void LimparTudo()
         {
-            int n = _dgv.Rows.Count;
-            if (n == 0)
+            var handles = new List<string>();
+            var vistos = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var m in _meds)
+                if (m.Handle != null && vistos.Add(m.Handle)) handles.Add(m.Handle);
+
+            if (handles.Count == 0)
             {
                 PaletteHost.Log("Não há medições de materiais para limpar.");
                 return;
             }
 
+            string aviso = _painel != null && _painel.Estado.AFiltrar
+                ? "\n\nATENÇÃO: há um filtro aplicado, mas isto apaga TODAS as " +
+                  "medições do desenho, não só as que estão à vista."
+                : "";
+
             var resp = MessageBox.Show(
-                string.Format("Apagar as {0} medição(ões) de materiais deste desenho?\n\n" +
+                string.Format("Apagar as {0} medição(ões) de materiais deste desenho?{1}\n\n" +
                               "Esta acção não pode ser desfeita pelo painel " +
-                              "(mas o CTRL+Z do AutoCAD ainda funciona).", n),
+                              "(mas o CTRL+Z do AutoCAD ainda funciona).",
+                              handles.Count, aviso),
                 "TSK TakeOff — limpar tudo",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button2);
             if (resp != DialogResult.Yes) return;
 
             int apagadas = 0;
-            foreach (DataGridViewRow row in _dgv.Rows)
-            {
-                string handle = row.Tag as string;
-                if (handle != null && FacRepo.Remover(handle)) apagadas++;
-            }
+            foreach (string handle in handles)
+                if (FacRepo.Remover(handle)) apagadas++;
 
             PaletteHost.Log(apagadas + " medição(ões) de materiais apagada(s).");
             PaletteHost.RefreshData();
@@ -505,65 +532,28 @@ namespace TSKTakeOff
             _meds = FolhaMedicao.OrdenarComoFolha(meds ?? new List<MedFachada>());
             meds = _meds;
 
-            // Onde estávamos, ANTES de deitar a grelha abaixo. Sem isto a
-            // grelha voltava ao topo a cada medição e a cada remoção — quem
-            // estava a trabalhar no fim da lista perdia o sítio de cada vez.
-            string handleSel = HandleDaGrelhaBruto();
-            int scroll = _dgv.FirstDisplayedScrollingRowIndex;
-
             // Os eventos da reconstrução não são escolhas de ninguém.
             _carregando = true;
             try
             {
-            _dgv.Rows.Clear();
-            bool comMapa = MapaQuantidades.Existe;
-            int n = 1;
+                // A selecção e a rolagem são repostas pelo painel, PELO ID do
+                // nó — que numa medição é o handle. Era este o sítio onde a
+                // grelha antiga guardava o índice da linha e o perdia à
+                // primeira reordenação.
+                var raiz = ResultadosArvore.Construir(
+                    ResultadosAdaptadores.DeMateriais(
+                        _meds,
+                        MapaQuantidades.Existe
+                            ? (Func<string, bool>)(a => MapaQuantidades.Procurar(a) != null)
+                            : null,
+                        CultureInfo.CurrentCulture),
+                    CultureInfo.CurrentCulture);
 
-            foreach (var m in meds)
-            {
-                int idx = _dgv.Rows.Add(
-                    n++,
-                    m.Separador ? "⏎" : "",
-                    CodigoArtigo(m.Artigo),
-                    m.Material,
-                    m.Alcado,
-                    m.Piso,
-                    m.Tipo == TipoFachada.Retangulo ? "Retângulo" : "Polyline",
-                    N2(m.Comp),
-                    N2(m.Alt),
-                    N2(m.Area));
-                var row = _dgv.Rows[idx];
-                row.Tag = m.Handle;
-                var cor = FachadaConfig.CorDoPiso(m.Piso);
-                row.Cells["piso"].Style.BackColor = cor;
-                row.Cells["piso"].Style.ForeColor =
-                    cor.GetBrightness() < 0.5 ? System.Drawing.Color.White : System.Drawing.Color.Black;
-
-                // Só se aponta o dedo a um pano sem artigo quando há um mapa
-                // onde o pôr. Sem mapa, não ter artigo é o normal.
-                if (comMapa && string.IsNullOrEmpty(m.Artigo))
-                {
-                    var cel = row.Cells["artigo"];
-                    cel.Value = "⊕";
-                    cel.Style.ForeColor = System.Drawing.Color.FromArgb(192, 0, 0);
-                    cel.ToolTipText = "Sem artigo do mapa: sai no fim da folha.";
-                }
+                _painel.Vincular(raiz, PaletteHost.MedicaoNova);
             }
-
-            // Acabou de se medir um pano: o cursor vai para ele. Sem isto a
-            // grelha era reconstruída e ficava na primeira linha, e o Capítulo
-            // / Artigo a seguir caía no pano errado. Mesmo contrato da
-            // Alvenaria.
-            //
-            // A medição nova manda na rolagem: pôr o CurrentCell já rola até
-            // lá, e repor a rolagem antiga a seguir tirava-a do ecrã.
-            string nova = PaletteHost.MedicaoNova;
-            bool seguiuNova = nova != null && Focar(nova);
-
-            // Senão volta-se ao que estava seleccionado; e se ele desapareceu
-            // — foi removido — repõe-se ao menos a rolagem.
-            if (!seguiuNova && !(handleSel != null && Focar(handleSel)))
-                ReporRolagem(scroll);
+            catch (Exception ex)
+            {
+                PaletteHost.Log("Materiais: " + ex.Message);
             }
             finally { _carregando = false; }
 
@@ -581,6 +571,21 @@ namespace TSKTakeOff
             if (string.IsNullOrEmpty(artigo)) return "";
             int i = artigo.IndexOf('\u001f');
             return i >= 0 ? artigo.Substring(0, i) : artigo;
+        }
+
+        /// <summary>
+        /// `Ctrl+F` leva o foco à pesquisa dos resultados, esteja o foco onde
+        /// estiver dentro da aba. No ProcessCmdKey e não num KeyDown porque um
+        /// atalho que só funciona com o foco no sítio certo não é um atalho.
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.F) && _painel != null)
+            {
+                _painel.FocarPesquisa();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
     }
 }

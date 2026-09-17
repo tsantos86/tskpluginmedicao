@@ -1,0 +1,820 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace TSKTakeOff
+{
+    /// <summary>
+    /// As peças de composição da paleta compacta: cabeçalho, secções que se
+    /// recolhem e títulos de secção.
+    ///
+    /// Existem para as quatro abas terem a mesma forma sem a copiarem quatro
+    /// vezes. O painel é estreito e usado o dia inteiro: o que importa é a
+    /// densidade — que cada linha de píxeis diga alguma coisa — e que o mesmo
+    /// gesto esteja sempre no mesmo sítio.
+    /// </summary>
+    public static class PalettePanelShell
+    {
+        /// <summary>
+        /// O cabeçalho: que desenho está activo e o que vai sair na próxima
+        /// medição.
+        ///
+        /// A próxima medição aparece DUAS vezes de propósito — aqui e no
+        /// resumo da CONFIGURAÇÃO recolhida. É a única coisa da paleta que
+        /// muda o que acontece a seguir sem ninguém estar a olhar para ela, e
+        /// medir dez paredes para o artigo errado descobre-se tarde de mais.
+        /// </summary>
+        public sealed class Cabecalho : Panel
+        {
+            private readonly Label _dwg;
+            private readonly Label _proxima;
+
+            public Cabecalho()
+            {
+                Dock = DockStyle.Top;
+                Height = PaletteTheme.AlturaCabecalho;
+                BackColor = PaletteTheme.AzulTopo;
+                Padding = new Padding(PaletteTheme.Margem, 3, PaletteTheme.Margem, 3);
+
+                _proxima = new Label
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = false,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Font = PaletteTheme.Pequeno,
+                    ForeColor = PaletteTheme.AcentoEscuro,
+                    AutoEllipsis = true,
+                    AccessibleName = "Próxima medição"
+                };
+                _dwg = new Label
+                {
+                    Dock = DockStyle.Top,
+                    Height = 16,
+                    AutoSize = false,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Font = PaletteTheme.PequenoNegrito,
+                    ForeColor = PaletteTheme.Tinta,
+                    AutoEllipsis = true,
+                    AccessibleName = "Desenho activo"
+                };
+
+                Controls.Add(_proxima);
+                Controls.Add(_dwg);
+            }
+
+            /// <summary>O DWG activo. Sem desenho aberto di-lo, em vez de ficar vazio.</summary>
+            public void DefinirDesenho(string nome)
+            {
+                bool ha = !string.IsNullOrEmpty(nome);
+                _dwg.Text = ha ? "● " + nome : "○ sem desenho aberto";
+                _dwg.ForeColor = ha ? PaletteTheme.Tinta : PaletteTheme.Apagado;
+            }
+
+            public void DefinirProxima(string resumo)
+            {
+                _proxima.Text = "Próxima medição: " + (resumo ?? "");
+                _proxima.AccessibleDescription = _proxima.Text;
+                ToolTip().SetToolTip(_proxima, _proxima.Text);
+            }
+
+            private ToolTip _dica;
+            private ToolTip ToolTip()
+            {
+                return _dica ?? (_dica = new ToolTip { AutoPopDelay = 15000 });
+            }
+        }
+
+        /// <summary>
+        /// Título de uma secção que não se recolhe: "MEDIR", "RESULTADOS".
+        /// </summary>
+        public sealed class Titulo : Panel
+        {
+            private readonly Label _texto;
+            private readonly Label _meta;
+
+            public Titulo(string texto, string meta)
+            {
+                Dock = DockStyle.Top;
+                Height = PaletteTheme.AlturaTituloSeccao;
+                BackColor = PaletteTheme.FundoSeccao;
+                Padding = new Padding(PaletteTheme.Margem, 0, PaletteTheme.Margem, 0);
+
+                _meta = new Label
+                {
+                    Dock = DockStyle.Right,
+                    AutoSize = false,
+                    Width = 150,
+                    TextAlign = ContentAlignment.MiddleRight,
+                    Font = PaletteTheme.Pequeno,
+                    ForeColor = PaletteTheme.Apagado,
+                    AutoEllipsis = true,
+                    Text = meta ?? ""
+                };
+                _texto = new Label
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = false,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Font = PaletteTheme.TituloSeccao,
+                    ForeColor = PaletteTheme.Tinta,
+                    Text = texto
+                };
+
+                Controls.Add(_texto);
+                Controls.Add(_meta);
+            }
+
+            public string Meta
+            {
+                get { return _meta.Text; }
+                set { _meta.Text = value ?? ""; }
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                using (var caneta = new Pen(PaletteTheme.Linha))
+                    e.Graphics.DrawLine(caneta, 0, Height - 1, Width, Height - 1);
+            }
+        }
+
+        /// <summary>
+        /// Uma secção que se recolhe, com resumo no cabeçalho.
+        ///
+        /// O RESUMO É O QUE TORNA A RECOLHA ACEITÁVEL. Uma secção fechada que
+        /// não diz o que tem lá dentro obriga a abri-la para confirmar, e aí
+        /// mais valia estar sempre aberta. Fechada, esta continua a dizer o
+        /// essencial — "PISO 0 · ALVENARIA · 11.2.1 · h 2,80 m" —, que é
+        /// precisamente o que a pessoa iria lá ver.
+        /// </summary>
+        public sealed class Seccao : Panel
+        {
+            private readonly Button _cabecalho;
+            private readonly Panel _conteudo;
+            private readonly string _titulo;
+            private string _resumo = "";
+            private bool _recolhida;
+
+            /// <summary>Disparado depois de recolher ou expandir.</summary>
+            public event EventHandler EstadoMudou;
+
+            public Seccao(string titulo, bool comecaRecolhida)
+            {
+                _titulo = titulo;
+                Dock = DockStyle.Top;
+                AutoSize = true;
+                AutoSizeMode = AutoSizeMode.GrowAndShrink;
+                BackColor = PaletteTheme.Fundo;
+
+                _conteudo = new Panel
+                {
+                    Dock = DockStyle.Top,
+                    AutoSize = true,
+                    AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                    BackColor = PaletteTheme.Fundo,
+                    Padding = new Padding(PaletteTheme.Margem, PaletteTheme.MargemPequena,
+                                          PaletteTheme.Margem, PaletteTheme.Margem)
+                };
+
+                _cabecalho = new Button
+                {
+                    Dock = DockStyle.Top,
+                    Height = PaletteTheme.AlturaTituloSeccao,
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = PaletteTheme.FundoSeccao,
+                    ForeColor = PaletteTheme.Tinta,
+                    Font = PaletteTheme.TituloSeccao,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding = new Padding(PaletteTheme.Margem, 0, PaletteTheme.Margem, 0),
+                    UseVisualStyleBackColor = false,
+                    TabStop = true
+                };
+                _cabecalho.FlatAppearance.BorderSize = 0;
+                _cabecalho.FlatAppearance.MouseOverBackColor = PaletteTheme.Palido;
+                PaletteTheme.ComFoco(_cabecalho);
+                _cabecalho.Click += (s, e) => Alternar();
+
+                // O conteúdo entra PRIMEIRO para o cabeçalho ficar por cima
+                // dele: num Dock=Top, o último a entrar é o que fica no topo.
+                Controls.Add(_conteudo);
+                Controls.Add(_cabecalho);
+
+                Recolhida = comecaRecolhida;
+            }
+
+            /// <summary>Onde os campos da secção são postos.</summary>
+            public Panel Conteudo { get { return _conteudo; } }
+
+            public bool Recolhida
+            {
+                get { return _recolhida; }
+                set
+                {
+                    _recolhida = value;
+                    _conteudo.Visible = !value;
+                    Actualizar();
+                    var h = EstadoMudou;
+                    if (h != null) h(this, EventArgs.Empty);
+                }
+            }
+
+            /// <summary>
+            /// O que a secção diz quando está fechada. Escrito também quando
+            /// está aberta: assim o texto não aparece do nada ao recolher.
+            /// </summary>
+            public string Resumo
+            {
+                get { return _resumo; }
+                set { _resumo = value ?? ""; Actualizar(); }
+            }
+
+            public void Alternar() { Recolhida = !Recolhida; }
+
+            private void Actualizar()
+            {
+                string seta = _recolhida ? "▶" : "▼";
+                _cabecalho.Text = _recolhida && _resumo.Length > 0
+                    ? seta + "  " + _titulo + "    " + _resumo
+                    : seta + "  " + _titulo;
+
+                // Nem só a seta: quem usa leitor de ecrã, ou quem não distingue
+                // a diferença entre ▶ e ▼ num painel denso, precisa da palavra.
+                _cabecalho.AccessibleName = _titulo;
+                _cabecalho.AccessibleDescription =
+                    (_recolhida ? "Recolhida. " : "Expandida. ") + _resumo;
+
+                ToolTip().SetToolTip(_cabecalho,
+                    (_recolhida ? "Expandir " : "Recolher ") + _titulo +
+                    (_resumo.Length > 0 ? "\n" + _resumo : ""));
+            }
+
+            private ToolTip _dica;
+            private ToolTip ToolTip()
+            {
+                return _dica ?? (_dica = new ToolTip { AutoPopDelay = 15000 });
+            }
+        }
+
+        /// <summary>
+        /// A grelha de acções da secção MEDIR, como no mockup aprovado: seis
+        /// células iguais, separadas por um fio de 1 px, cada uma com o ícone
+        /// por cima do texto.
+        ///
+        /// NÃO É UMA ToolStrip, e a diferença não é estética. Uma ToolStrip
+        /// com ícones de 24 px e texto por baixo ocupa uns sessenta píxeis de
+        /// altura e alinha os botões à esquerda, deixando o resto da faixa
+        /// vazio. Num painel de 480 px usado o dia inteiro, essa faixa é
+        /// espaço que a árvore de resultados não tem — e era isso que fazia a
+        /// paleta parecer um formulário em vez de um instrumento.
+        ///
+        /// O fundo da grelha é a cor da linha: as células ficam por cima com
+        /// uma margem de 1 px, e o que se vê entre elas é o fundo. É como se
+        /// desenha uma grelha sem pintar trinta bordas.
+        /// </summary>
+        public static TableLayoutPanel GrelhaDeAccoes(int colunas)
+        {
+            var g = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = colunas,
+                RowCount = 1,
+                BackColor = PaletteTheme.Linha,
+                Padding = new Padding(0),
+                Margin = new Padding(0)
+            };
+            for (int i = 0; i < colunas; i++)
+                g.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / colunas));
+            g.RowStyles.Add(new RowStyle(SizeType.Absolute, PaletteTheme.AlturaBotaoAccao));
+            return g;
+        }
+
+        /// <summary>
+        /// Uma acção da grelha: ícone pequeno por cima, texto por baixo, sem
+        /// borda. O clique é protegido — um erro vai para a linha de comandos,
+        /// nunca abre uma caixa vermelha por cima do desenho.
+        /// </summary>
+        /// <summary>
+        /// Um botão de acção que se DESENHA A SI PRÓPRIO.
+        ///
+        /// Um Button normal, mesmo com FlatStyle.Flat e BackColor definido,
+        /// continua a passar pelo renderizador do Windows — e dentro de uma
+        /// paleta alojada no AutoCAD ele impunha o cinzento claro do sistema
+        /// por cima da cor que lhe tínhamos dado. O resultado eram células
+        /// brancas num painel grafite, com o texto escuro por cima.
+        ///
+        /// Com UserPaint ligado, o que se vê é exactamente o que aqui se
+        /// desenha: fundo, ícone e texto. Deixa de haver terceiro a opinar.
+        /// </summary>
+        private sealed class BotaoAccao : Button
+        {
+            private readonly bool _destaque;
+            private bool _sobre;
+
+            public BotaoAccao(bool destaque)
+            {
+                _destaque = destaque;
+                SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint |
+                         ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+                MouseEnter += (s, e) => { _sobre = true; Invalidate(); };
+                MouseLeave += (s, e) => { _sobre = false; Invalidate(); };
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                var g = e.Graphics;
+                Color fundo = _sobre ? PaletteTheme.Palido
+                            : _destaque ? PaletteTheme.FundoSeccao : PaletteTheme.Fundo;
+
+                using (var pincel = new SolidBrush(fundo))
+                    g.FillRectangle(pincel, ClientRectangle);
+
+                int x = Padding.Left;
+                if (Image != null)
+                {
+                    g.DrawImage(Image, x, (Height - Image.Height) / 2,
+                                Image.Width, Image.Height);
+                    x += Image.Width + 7;
+                }
+
+                var caixa = new Rectangle(x, 0, Width - x - Padding.Right, Height);
+                TextRenderer.DrawText(g, Text, Font, caixa, PaletteTheme.Tinta,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.Left |
+                    TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+                // O foco por teclado tem de se ver: sem isto, quem navega com
+                // o Tab não sabe onde está.
+                if (Focused)
+                    using (var caneta = new Pen(PaletteTheme.Acento, 2f))
+                        g.DrawRectangle(caneta, 1, 1, Width - 3, Height - 3);
+            }
+        }
+
+        public static Button Accao(string texto, Image icone, EventHandler aoClicar,
+                                   ToolTip dicas = null, bool destaque = false)
+        {
+            var fundo = destaque ? PaletteTheme.Palido : PaletteTheme.Fundo;
+
+            var b = new BotaoAccao(destaque)
+            {
+                Text = texto,
+                // Reduzido: o Button pinta a imagem no tamanho NATIVO, e os
+                // ícones nascem a 64×64. Sem isto transbordavam por cima do
+                // texto e saíam cortados em baixo.
+                Image = PaletteTheme.Icone(icone, PaletteTheme.LadoIconeAccao),
+                Dock = DockStyle.Fill,
+                // A margem é o fio da grelha: o fundo do contentor aparece por
+                // aqui e desenha as separações sem pintar borda nenhuma.
+                Margin = new Padding(0, 0, 1, 1),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = fundo,
+                ForeColor = PaletteTheme.Tinta,
+                Font = destaque ? PaletteTheme.Negrito : PaletteTheme.Normal,
+                // ÍCONE À ESQUERDA, e não por cima.
+                //
+                // Empilhado, o texto ia para a margem de baixo e o WinForms
+                // cortava-lhe as descidas — o "g" de "Retângulo" ficava sem
+                // metade. Ao lado, a altura da célula só tem de dar para uma
+                // linha de texto, e o nome cabe por extenso em vez de abreviado.
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(9, 0, 4, 0),
+                UseVisualStyleBackColor = false,
+                AccessibleName = texto
+            };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = PaletteTheme.Palido;
+            b.FlatAppearance.MouseDownBackColor = PaletteTheme.AzulTopo;
+
+            if (dicas != null) dicas.SetToolTip(b, texto);
+
+            b.Click += (s, e) =>
+            {
+                try { if (aoClicar != null) aoClicar(s, e); }
+                catch (Exception ex) { PaletteHost.Log(texto + ": " + ex.Message); }
+            };
+            return b;
+        }
+
+        /// <summary>
+        /// Um botão de barra compacto: só texto, baixo, sem borda. Para as
+        /// acções sobre resultados, que são frequentes mas secundárias — ao
+        /// contrário das de MEDIR, que merecem o ícone.
+        /// </summary>
+        public static Button BotaoCompacto(string texto, EventHandler aoClicar,
+                                           ToolTip dicas = null, string descricao = null)
+        {
+            var b = new Button
+            {
+                Text = texto,
+                Dock = DockStyle.Left,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Height = PaletteTheme.AlturaCampo,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = PaletteTheme.Fundo,
+                ForeColor = PaletteTheme.Tinta,
+                Font = PaletteTheme.Pequeno,
+                Padding = new Padding(7, 0, 7, 0),
+                Margin = new Padding(0, 0, 3, 0),
+                UseVisualStyleBackColor = false,
+                AccessibleName = texto,
+                AccessibleDescription = descricao
+            };
+            b.FlatAppearance.BorderSize = 1;
+            b.FlatAppearance.BorderColor = PaletteTheme.Linha;
+            b.FlatAppearance.MouseOverBackColor = PaletteTheme.Palido;
+
+            if (dicas != null) dicas.SetToolTip(b, descricao ?? texto);
+
+            b.Click += (s, e) =>
+            {
+                try { if (aoClicar != null) aoClicar(s, e); }
+                catch (Exception ex) { PaletteHost.Log(texto + ": " + ex.Message); }
+            };
+            return b;
+        }
+
+        /// <summary>
+        /// As propriedades como MOSAICOS DE MÉTRICA, e não como lista.
+        ///
+        /// Uma lista de dezassete linhas obriga a percorrer para encontrar o
+        /// número que se procura. Em mosaico, o comprimento, a altura, a área
+        /// bruta, a líquida, o volume e os pré-aros lêem-se todos de uma
+        /// passagem — que é como se confere uma medição de que se desconfia.
+        ///
+        /// DESENHADO POR INTEIRO, num só OnPaint. São seis a doze valores que
+        /// mudam a cada selecção: com um controlo por mosaico seriam dezenas de
+        /// criações e destruições por clique, e cada um deles à mercê do
+        /// renderizador do Windows — que é exactamente o que pintou de branco
+        /// os botões de MEDIR.
+        /// </summary>
+        public sealed class MosaicoMetricas : Panel
+        {
+            private readonly List<Propriedade> _metricas = new List<Propriedade>();
+            private readonly List<Rectangle> _caixas = new List<Rectangle>();
+            private readonly TextBox _editor;
+            private int _aEditar = -1;
+            private int _sobre = -1;
+
+            /// <summary>Largura a que um mosaico deixa de caber com folga.</summary>
+            private const int LarguraMinima = 104;
+            private const int AlturaMosaico = 38;
+
+            /// <summary>Alguém acabou de escrever num mosaico editável.</summary>
+            public event EventHandler<PropriedadeEditadaEventArgs> Editado;
+
+            public MosaicoMetricas()
+            {
+                Dock = DockStyle.Fill;
+                BackColor = PaletteTheme.Fundo;
+                DoubleBuffered = true;
+                SetStyle(ControlStyles.ResizeRedraw, true);
+
+                // Um editor só, reposicionado sobre o mosaico que se está a
+                // editar. Criar uma caixa por mosaico seria doze caixas
+                // invisíveis à espera de uma que raramente acontece.
+                _editor = new TextBox
+                {
+                    Visible = false,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    BackColor = PaletteTheme.FundoCampo,
+                    ForeColor = PaletteTheme.Tinta,
+                    Font = PaletteTheme.Normal
+                };
+                _editor.KeyDown += (s, e) =>
+                {
+                    if (e.KeyCode == Keys.Enter) { Confirmar(); e.Handled = e.SuppressKeyPress = true; }
+                    else if (e.KeyCode == Keys.Escape) { Cancelar(); e.Handled = e.SuppressKeyPress = true; }
+                };
+                _editor.Leave += (s, e) => Confirmar();
+                Controls.Add(_editor);
+
+                MouseMove += (s, e) =>
+                {
+                    int i = MosaicoEm(e.Location);
+                    if (i == _sobre) return;
+                    _sobre = i;
+                    Cursor = i >= 0 && _metricas[i].Editavel ? Cursors.IBeam : Cursors.Default;
+                    Invalidate();
+                };
+                MouseLeave += (s, e) => { _sobre = -1; Invalidate(); };
+                MouseDown += (s, e) =>
+                {
+                    int i = MosaicoEm(e.Location);
+                    if (i >= 0 && _metricas[i].Editavel) Editar(i);
+                };
+            }
+
+            /// <summary>Mostra estas métricas. Substitui as anteriores.</summary>
+            public void Definir(IEnumerable<Propriedade> metricas)
+            {
+                Cancelar();
+                _metricas.Clear();
+                if (metricas != null) _metricas.AddRange(metricas);
+                Invalidate();
+            }
+
+            /// <summary>O nó a que estas métricas pertencem, para o evento.</summary>
+            public NoResultado No { get; set; }
+
+            /// <summary>Os handles abrangidos pela selecção, para a edição em lote.</summary>
+            public List<string> Handles { get; set; }
+
+            // ----------------------------------------------------------
+            // Disposição
+            // ----------------------------------------------------------
+
+            private int Colunas()
+            {
+                int cabem = Math.Max(1, ClientSize.Width / LarguraMinima);
+                return Math.Min(cabem, 6);
+            }
+
+            private void Medir()
+            {
+                _caixas.Clear();
+                if (_metricas.Count == 0) return;
+
+                int cols = Colunas();
+                int largura = ClientSize.Width / cols;
+
+                for (int i = 0; i < _metricas.Count; i++)
+                {
+                    int col = i % cols, lin = i / cols;
+                    // A última coluna leva o resto da divisão, para a faixa
+                    // fechar direita na margem em vez de deixar uma fresta.
+                    int w = col == cols - 1 ? ClientSize.Width - largura * col : largura;
+                    _caixas.Add(new Rectangle(largura * col, AlturaMosaico * lin, w, AlturaMosaico));
+                }
+            }
+
+            private int MosaicoEm(Point p)
+            {
+                for (int i = 0; i < _caixas.Count; i++)
+                    if (_caixas[i].Contains(p)) return i;
+                return -1;
+            }
+
+            /// <summary>A altura que estas métricas precisam, para o pai a dar.</summary>
+            public int AlturaNecessaria
+            {
+                get
+                {
+                    if (_metricas.Count == 0) return AlturaMosaico;
+                    int cols = Colunas();
+                    return ((_metricas.Count + cols - 1) / cols) * AlturaMosaico;
+                }
+            }
+
+            // ----------------------------------------------------------
+            // Desenho
+            // ----------------------------------------------------------
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                var g = e.Graphics;
+                using (var pincel = new SolidBrush(PaletteTheme.Fundo))
+                    g.FillRectangle(pincel, ClientRectangle);
+
+                Medir();
+                if (_metricas.Count == 0)
+                {
+                    TextRenderer.DrawText(g, "Escolha uma linha da árvore para ver as medidas.",
+                        PaletteTheme.Normal, ClientRectangle, PaletteTheme.Apagado,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    return;
+                }
+
+                using (var fio = new Pen(PaletteTheme.LinhaSuave))
+                for (int i = 0; i < _caixas.Count; i++)
+                {
+                    var r = _caixas[i];
+                    var m = _metricas[i];
+
+                    if (i == _sobre && m.Editavel)
+                        using (var pincel = new SolidBrush(PaletteTheme.Palido))
+                            g.FillRectangle(pincel, r);
+
+                    // O rótulo pequeno por cima, o valor grande por baixo: o
+                    // número é o que se procura, o nome só o identifica.
+                    var rNome = new Rectangle(r.X + 9, r.Y + 4, r.Width - 12, 13);
+                    TextRenderer.DrawText(g, m.Nome, PaletteTheme.Pequeno, rNome,
+                        PaletteTheme.Apagado,
+                        TextFormatFlags.Left | TextFormatFlags.EndEllipsis |
+                        TextFormatFlags.NoPrefix);
+
+                    Color tinta = Negativo(m.Valor) ? PaletteTheme.VermelhoDeducao
+                                : m.Editavel ? PaletteTheme.Tinta : PaletteTheme.CorParede;
+
+                    var rValor = new Rectangle(r.X + 9, r.Y + 17, r.Width - 12, 17);
+                    TextRenderer.DrawText(g, m.Valor, PaletteTheme.Numero, rValor, tinta,
+                        TextFormatFlags.Left | TextFormatFlags.EndEllipsis |
+                        TextFormatFlags.NoPrefix);
+
+                    // O que se edita traz um sublinhado tracejado — a mesma
+                    // convenção de um campo, sem gastar a altura de um.
+                    if (m.Editavel)
+                        using (var caneta = new Pen(PaletteTheme.AcentoEscuro) { DashStyle =
+                                   System.Drawing.Drawing2D.DashStyle.Dot })
+                            g.DrawLine(caneta, r.X + 9, r.Bottom - 6,
+                                       r.X + Math.Min(r.Width - 12, 64), r.Bottom - 6);
+
+                    g.DrawLine(fio, r.Right - 1, r.Y + 5, r.Right - 1, r.Bottom - 5);
+                    g.DrawLine(fio, r.X, r.Bottom - 1, r.Right, r.Bottom - 1);
+                }
+            }
+
+            private static bool Negativo(string valor)
+            {
+                return !string.IsNullOrEmpty(valor) && valor.TrimStart().StartsWith("−");
+            }
+
+            // ----------------------------------------------------------
+            // Edição
+            // ----------------------------------------------------------
+
+            private void Editar(int i)
+            {
+                Medir();
+                if (i < 0 || i >= _caixas.Count) return;
+
+                _aEditar = i;
+                var r = _caixas[i];
+                _editor.Bounds = new Rectangle(r.X + 8, r.Y + 15, Math.Min(r.Width - 14, 110), 20);
+                _editor.Text = ValorCru(_metricas[i]);
+                _editor.Visible = true;
+                _editor.BringToFront();
+                _editor.Focus();
+                _editor.SelectAll();
+            }
+
+            private void Cancelar()
+            {
+                _aEditar = -1;
+                _editor.Visible = false;
+            }
+
+            private void Confirmar()
+            {
+                if (_aEditar < 0 || !_editor.Visible) return;
+
+                int i = _aEditar;
+                string escrito = (_editor.Text ?? "").Trim();
+                Cancelar();
+
+                var h = Editado;
+                if (h == null) return;
+                h(this, new PropriedadeEditadaEventArgs
+                {
+                    No = No,
+                    Propriedade = _metricas[i],
+                    Valor = escrito,
+                    Handles = Handles
+                });
+            }
+
+            /// <summary>
+            /// O valor sem a unidade, para se editar o número e não o texto.
+            /// "2,80 m" abre como "2,80".
+            /// </summary>
+            private static string ValorCru(Propriedade p)
+            {
+                string v = (p.Valor ?? "").Trim();
+                switch (p.Campo)
+                {
+                    case "altura":
+                    case "largura":
+                    case "espessura":
+                    case "larguraVao":
+                    case "alturaVao":
+                    case "quantidadeVao":
+                        int esp = v.IndexOf(' ');
+                        return esp > 0 ? v.Substring(0, esp) : v;
+                    case "artigo":
+                        int sep = v.IndexOf(" · ", StringComparison.Ordinal);
+                        return sep > 0 ? v.Substring(0, sep) : v;
+                    default:
+                        return v;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Grelha de campos de duas colunas — rótulo e caixa — que é a forma
+        /// da CONFIGURAÇÃO em todas as abas.
+        /// </summary>
+        public static TableLayoutPanel GrelhaDeCampos()
+        {
+            var t = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 3,
+                BackColor = PaletteTheme.Fundo,
+                Margin = new Padding(0)
+            };
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 104));
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            return t;
+        }
+
+        /// <summary>
+        /// Acrescenta uma linha "rótulo + campo" à grelha, com o terceiro
+        /// lugar opcional para um botão (a cor do piso, por exemplo).
+        /// </summary>
+        public static void Campo(TableLayoutPanel grelha, string rotulo,
+                                 Control campo, Control extra = null)
+        {
+            int linha = grelha.RowCount++;
+            grelha.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var lbl = PaletteTheme.Rotulo(rotulo);
+            lbl.AccessibleName = rotulo;
+            if (campo != null)
+            {
+                // Só herda o nome do rótulo quando o campo ainda não tem um
+                // seu. Uma linha sem rótulo — o caso da checkbox solta, que
+                // já traz o próprio texto como nome acessível — apagava esse
+                // nome com uma cadeia vazia, e uma cadeia vazia explícita lê-se
+                // pelo leitor de ecrã como "sem nome", não como "usa o texto".
+                if (string.IsNullOrEmpty(campo.AccessibleName))
+                    campo.AccessibleName = rotulo.TrimEnd(':', ' ');
+                campo.Margin = new Padding(0, 1, 0, 1);
+            }
+
+            grelha.Controls.Add(lbl, 0, linha);
+            grelha.Controls.Add(campo ?? new Label(), 1, linha);
+            grelha.Controls.Add(extra ?? new Label { Width = 0, Height = 0 }, 2, linha);
+        }
+
+        /// <summary>Uma linha de nota por baixo de um campo, sem rótulo à esquerda.</summary>
+        public static void NotaDeCampo(TableLayoutPanel grelha, Label nota)
+        {
+            int linha = grelha.RowCount++;
+            grelha.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grelha.Controls.Add(new Label { Width = 0, Height = 0 }, 0, linha);
+            grelha.Controls.Add(nota, 1, linha);
+            grelha.Controls.Add(new Label { Width = 0, Height = 0 }, 2, linha);
+        }
+
+        /// <summary>
+        /// Faixa de aviso, com texto e não só cor.
+        ///
+        /// A cor sozinha não serve: em alto contraste desaparece, e há quem não
+        /// a distinga. O símbolo e a frase é que carregam a informação.
+        /// </summary>
+        public sealed class Aviso : Panel
+        {
+            private readonly Label _texto;
+
+            public Aviso()
+            {
+                Dock = DockStyle.Top;
+                Height = 0;
+                Visible = false;
+                BackColor = PaletteTheme.FundoAviso;
+                Padding = new Padding(PaletteTheme.Margem, 3, PaletteTheme.Margem, 3);
+
+                _texto = new Label
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = false,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Font = PaletteTheme.Pequeno,
+                    ForeColor = PaletteTheme.TextoAviso,
+                    AutoEllipsis = true
+                };
+                Controls.Add(_texto);
+            }
+
+            public void Mostrar(string texto)
+            {
+                if (string.IsNullOrEmpty(texto)) { Esconder(); return; }
+                _texto.Text = "⚠  " + texto;
+                _texto.AccessibleName = "Aviso";
+                _texto.AccessibleDescription = texto;
+                Height = 24;
+                Visible = true;
+            }
+
+            public void Esconder()
+            {
+                Visible = false;
+                Height = 0;
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                using (var pincel = new SolidBrush(PaletteTheme.BordaAviso))
+                    e.Graphics.FillRectangle(pincel, 0, 0, 3, Height);
+            }
+        }
+    }
+}

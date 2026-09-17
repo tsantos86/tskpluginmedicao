@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -790,6 +791,41 @@ namespace TSKTakeOff
                 }
             }
             Highlight(g, 15, 18, 23, 12);
+            g.Dispose();
+            return bmp;
+        }
+
+        /// <summary>
+        /// Roda dentada — o botão «Definições…» do painel único.
+        ///
+        /// Estava a reutilizar o ícone do «Atualizar», que é uma seta em
+        /// círculo: dizia "isto refresca" a um botão que abre um diálogo de
+        /// configuração, e as duas ações não têm nada em comum além de
+        /// ambas serem redondas.
+        /// </summary>
+        public static Bitmap Definicoes()
+        {
+            var bmp = NewCanvas(out Graphics g);
+
+            const float cx = 32f, cy = 32f;
+            const float rMiolo = 8f;
+            const float rDenteIn = 15f, rDenteOut = 21f;
+            const int dentes = 8;
+
+            for (int i = 0; i < dentes; i++)
+            {
+                double ang = i * Math.PI * 2.0 / dentes;
+                float dx = (float)Math.Cos(ang), dy = (float)Math.Sin(ang);
+                Line(g, Cobalt, MainStroke,
+                    cx + dx * rDenteIn, cy + dy * rDenteIn,
+                    cx + dx * rDenteOut, cy + dy * rDenteOut);
+            }
+
+            Ellipse(g, new RectangleF(cx - rDenteIn, cy - rDenteIn, rDenteIn * 2, rDenteIn * 2),
+                Cobalt, 126, 46, DetailStroke);
+            Ellipse(g, new RectangleF(cx - rMiolo, cy - rMiolo, rMiolo * 2, rMiolo * 2),
+                SlateDeep, 126, 46, DetailStroke);
+
             g.Dispose();
             return bmp;
         }

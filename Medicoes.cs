@@ -55,17 +55,29 @@ namespace TSKTakeOff
 
         public List<Vao> Vaos { get; } = new List<Vao>();
 
-        public double DescontoVaos
+        /// <summary>
+        /// O desconto de vãos segundo a regra escolhida — a mesma que a
+        /// <see cref="Parede"/> já respeita, e pela mesma razão: sem o
+        /// parâmetro, um pano medido com a regra SINAPI ou "não descontar"
+        /// ligada acabava sempre a descontar a área toda, porque nada aqui
+        /// perguntava qual era a regra em vigor.
+        ///
+        /// Não há versão sem argumento — de propósito, para não voltar a
+        /// existir um sítio a descontar "tudo" em silêncio. É o mesmo
+        /// contrato de <see cref="Parede.DescontoVaos"/>.
+        /// </summary>
+        public double DescontoVaos(RegraDesconto regra)
         {
-            get
-            {
-                double soma = 0;
-                foreach (var v in Vaos) soma += v.AreaTotal;
-                return soma;
-            }
+            double soma = 0;
+            foreach (var v in Vaos) soma += v.Desconto(regra);
+            return soma;
         }
 
-        public double AreaLiquida => System.Math.Max(0.0, Area - DescontoVaos);
+        /// <summary>Área líquida segundo a regra escolhida.</summary>
+        public double AreaLiquida(RegraDesconto regra)
+        {
+            return System.Math.Max(0.0, Area - DescontoVaos(regra));
+        }
 
         // ------------------------------------------------------------------
         // Títulos (CAP/ART) — o mesmo contrato da Parede, para a aba Materiais

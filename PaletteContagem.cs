@@ -22,7 +22,7 @@ namespace TSKTakeOff
         private TextBox _txtCategoria;
         private NumericUpDown _numRaio;
         private CheckBox _chkTexto;
-        private DataGridView _dgv;
+        private ResultadosPainel _painel;
         private Label _lblTotais;
 
         private List<MedContagem> _contagens = new List<MedContagem>();
@@ -41,7 +41,8 @@ namespace TSKTakeOff
                 Dock = DockStyle.Top,
                 AutoSize = true,
                 ColumnCount = 2,
-                Padding = new Padding(6)
+                Padding = new Padding(10),
+                BackColor = PaletteTheme.Fundo
             };
             config.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             config.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -90,6 +91,18 @@ namespace TSKTakeOff
             config.Controls.Add(new Label(), 0, 4);
             config.Controls.Add(_chkTexto, 1, 4);
 
+            var cabecalho = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = PaletteTheme.AlturaCabecalho,
+                Text = "CONTAGENS\r\nElementos quantificados no desenho",
+                Font = PaletteTheme.TituloSeccao,
+                ForeColor = PaletteTheme.Tinta,
+                BackColor = PaletteTheme.AzulTopo,
+                Padding = new Padding(10, 5, 8, 3),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
             var ajuda = new Label
             {
                 Dock = DockStyle.Top,
@@ -120,28 +133,17 @@ namespace TSKTakeOff
             tools.Items.Add(MakeButton("Limpar tudo", IconFactory.Limpar(),
                 (s, e) => LimparTudo()));
 
-            _dgv = new DataGridView
+            // A mesma vista das outras abas: árvore, pesquisa, filtros e
+            // propriedades. Aqui a hierarquia é Piso > Artigo/grupo > Nome, e
+            // a quantidade soma em `un.` — cada marca no desenho é uma unidade
+            // e é o grupo que faz a conta.
+            _painel = new ResultadosPainel("CONTAGENS")
             {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                RowHeadersVisible = false,
-                // DisplayedCells, não AllCells. Com AllCells, cada linha
-                // acrescentada faz o DataGridView remedir todas as colunas
-                // contra TODAS as linhas já postas — é quadrático, e é por
-                // isso que a paleta ia ficando pesada à medida que se media.
-                // DisplayedCells mede só o que está visível: o custo passa a
-                // depender do tamanho da janela, não do tamanho da obra.
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells,
-                BackgroundColor = Color.White
+                // Uma contagem não pertence a um artigo do mapa: não há
+                // «próxima medição» para fixar num nó.
+                PermiteMedirAqui = false
             };
-            AddCol("nome", "Nome");
-            AddCol("cat", "Artigo / grupo");
-            AddCol("piso", "Piso");
-            AddCol("qt", "Quantidade");
+
 
             _lblTotais = new Label
             {
@@ -152,11 +154,17 @@ namespace TSKTakeOff
                 Padding = new Padding(6, 0, 0, 0)
             };
 
-            Controls.Add(_dgv);
+            Controls.Add(_painel);
             Controls.Add(_lblTotais);
             Controls.Add(tools);
             Controls.Add(ajuda);
             Controls.Add(config);
+            Controls.Add(cabecalho);
+            var dicas = new ToolTip { AutoPopDelay = 15000, InitialDelay = 400, ReshowDelay = 100 };
+            BackColor = PaletteTheme.Fundo;
+            ForeColor = PaletteTheme.Tinta;
+            PaletteTheme.AplicarTema(this);
+            PaletteTheme.PrepararInteraccao(this, dicas);
         }
 
         private static ToolStripButton MakeButton(string text, Image icon, EventHandler onClick)
@@ -168,22 +176,19 @@ namespace TSKTakeOff
                 AutoSize = true,
                 Padding = new Padding(2, 1, 2, 1),
                 Margin = new Padding(1, 0, 1, 0),
-                ToolTipText = text
+                ToolTipText = text,
+                AccessibleName = text
             };
         }
 
         private static Label Lbl(string t) =>
             new Label { Text = t, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill };
 
-        private void AddCol(string name, string header)
-        {
-            _dgv.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = name,
-                HeaderText = header,
-                SortMode = DataGridViewColumnSortMode.NotSortable
-            });
-        }
+        // As propriedades de uma contagem são só de leitura, e é a verdade e
+        // não uma limitação da vista: o ContRepo cria e apaga contagens, mas
+        // não tem forma de alterar uma já feita. Para mudar o nome, a categoria
+        // ou o piso, apaga-se e conta-se outra vez — que é o que o botão
+        // «Apagar nome» já serve. Ver ResultadosAdaptadores.DeContagens.
 
         // ------------------------------------------------------------------
         private void SyncConfig()
@@ -251,19 +256,25 @@ namespace TSKTakeOff
         // ------------------------------------------------------------------
         public void BindData(List<MedContagem> contagens)
         {
-            _contagens = contagens ?? new List<MedContagem>();
-            _dgv.Rows.Clear();
+            // Ordenado antes de construir: a ordem por que as medições chegam
+            // é a ordem por que os grupos da árvore nascem.
+            _contagens = (contagens ?? new List<MedContagem>())
+                .OrderBy(c => c.Piso ?? "")
+                .ThenBy(c => c.Categoria ?? "")
+                .ThenBy(c => c.Nome ?? "")
+                .ToList();
 
-            foreach (var g in _contagens
-                .GroupBy(c => new
-                {
-                    Nome = c.Nome ?? "",
-                    Cat = c.Categoria ?? "",
-                    Piso = c.Piso ?? ""
-                })
-                .OrderBy(g => g.Key.Cat).ThenBy(g => g.Key.Piso).ThenBy(g => g.Key.Nome))
+            try
             {
-                _dgv.Rows.Add(g.Key.Nome, g.Key.Cat, g.Key.Piso, g.Count());
+                var raiz = ResultadosArvore.Construir(
+                    ResultadosAdaptadores.DeContagens(
+                        _contagens, System.Globalization.CultureInfo.CurrentCulture),
+                    System.Globalization.CultureInfo.CurrentCulture);
+                _painel.Vincular(raiz, PaletteHost.MedicaoNova);
+            }
+            catch (Exception ex)
+            {
+                PaletteHost.Log("Contagens: " + ex.Message);
             }
 
             _lblTotais.Text = string.Format("Contagens: {0}  |  Tipos: {1}",
@@ -274,6 +285,21 @@ namespace TSKTakeOff
             foreach (var nome in _contagens.Select(c => c.Nome).Distinct())
                 if (!string.IsNullOrEmpty(nome) && !_cmbNome.Items.Contains(nome))
                     _cmbNome.Items.Add(nome);
+        }
+
+        /// <summary>
+        /// `Ctrl+F` leva o foco à pesquisa dos resultados, esteja o foco onde
+        /// estiver dentro da aba. No ProcessCmdKey e não num KeyDown porque um
+        /// atalho que só funciona com o foco no sítio certo não é um atalho.
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.F) && _painel != null)
+            {
+                _painel.FocarPesquisa();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
     }
 }

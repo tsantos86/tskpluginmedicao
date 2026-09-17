@@ -32,10 +32,19 @@ namespace TSKTakeOff
                     _ctrlLinear = new LinearControl();
                     _ctrl = new MedPanelControl();
                     _ctrlContagem = new ContagemControl();
-                    _ps.Add("Contagens", _ctrlContagem);
-                    _ps.Add("Materiais", _ctrlFachada);
-                    _ps.Add("Lineares", _ctrlLinear);
-                    _ps.Add("Alvenaria", _ctrl);
+                    // UM PAINEL SÓ.
+                    //
+                    // Eram quatro abas — Arquitetura, Materiais, Lineares,
+                    // Contagens — e isso dividia o que a medição junta. Não há
+                    // especialidades: mede-se arquitetura, e o que varia é o
+                    // TIPO DE MEDIDA, que agora é um nível da árvore.
+                    //
+                    // Com abas, o PISO 0 nunca mostrava o seu total nas quatro
+                    // unidades: cada aba só via a sua, e para saber o que ali
+                    // estava medido era preciso somar de cabeça entre
+                    // separadores. Agora a árvore mostra
+                    // «40,33 m² · 3,88 m³ · 29,15 m · 2 un.» numa linha.
+                    _ps.Add("Arquitetura", _ctrl);
                     _ps.DockEnabled = DockSides.Left | DockSides.Right | DockSides.None;
                 }
                 _ps.Visible = true;
@@ -73,12 +82,11 @@ namespace TSKTakeOff
                           " materiais, " + lineares.Count + " lineares, " +
                           contagens.Count + " contagens");
 
-                _ctrl.BindData(paredes);
-                cron.Marcar("grelha alvenaria");
-                _ctrlFachada.BindData(fachadas);
-                _ctrlLinear?.BindData(lineares);
-                _ctrlContagem?.BindData(contagens);
-                cron.Marcar("outras grelhas");
+                // Tudo para o mesmo painel, numa árvore só. A travessia do
+                // Model Space continua a ser UMA — ver Leitura.Tudo — e agora
+                // a apresentação também.
+                _ctrl.BindData(paredes, fachadas, lineares, contagens);
+                cron.Marcar("árvore de resultados");
 
                 // Depois das grelhas todas: já cada uma teve a hipótese de pôr
                 // o cursor na medição acabada de fazer.
@@ -422,7 +430,7 @@ namespace TSKTakeOff
         }
     }
 
-    /// <summary>Conteúdo da paleta: configurações, botões com ícones e grade ao vivo.</summary>
+    /// <summary>Conteúdo da aba Arquitetura: configuração, ações e resultados ao vivo.</summary>
     public class MedPanelControl : UserControl
     {
         private TextBox _txtServico;
@@ -430,6 +438,8 @@ namespace TSKTakeOff
         private TextBox _txtBloco;
         private ComboBox _cmbPiso;
         private Button _btnCor;
+        /// <summary>A cor do piso corrente, desenhada na pastilha do botão.</summary>
+        private Color _corDoPiso = Color.Gray;
         private NumericUpDown _numAltura;
         private NumericUpDown _numEspessura;
         private ComboBox _cmbRegra;
@@ -451,8 +461,42 @@ namespace TSKTakeOff
         private Label _lblTotais;
         /// <summary>Última lista carregada na grelha, para consultar sem reler o DWG.</summary>
         private List<Parede> _paredes = new List<Parede>();
+        /// <summary>As outras três listas do mesmo desenho, para a árvore única.</summary>
+        private List<MedFachada> _fachadas = new List<MedFachada>();
+        private List<MedItem> _lineares = new List<MedItem>();
+        private List<MedContagem> _contagens = new List<MedContagem>();
         private ToolStripButton _btnExcel;
         private bool _carregando;
+        private Panel _resultadosCompactos;
+        private DataGridView _dgvCompacto;
+        private Label _lblResultadoResumo;
+        private Label _lblPropriedadeTitulo;
+        private bool _configExpandida;
+        private NoResultado _raizResultados;
+        private EstadoVista _estadoResultados = new EstadoVista();
+        private TextBox _txtPesquisa;
+        private Button _btnFiltros;
+        private Button _btnLimparFiltros;
+        private Button _btnPropriedadesModo;
+        /// <summary>As propriedades como mosaicos de métrica.</summary>
+        private PalettePanelShell.MosaicoMetricas _mosaico;
+        private Button _btnMedirAqui;
+        /// <summary>O resumo da próxima medição, no cabeçalho.</summary>
+        private Label _lblProximaMedicao;
+        /// <summary>O DWG activo, no canto do cabeçalho.</summary>
+        private Label _lblDwg;
+        /// <summary>Chips do que está filtrado, na barra dos resultados.</summary>
+        private Label _lblChips;
+        /// <summary>Estado vazio, por cima da árvore.</summary>
+        private Label _lblVazio;
+        /// <summary>Pausa antes de refazer a árvore enquanto se escreve na pesquisa.</summary>
+        private Timer _adiarPesquisa;
+        /// <summary>O cabeçalho da CONFIGURAÇÃO, que repete esse resumo quando recolhida.</summary>
+        private Button _btnConfigToggle;
+        /// <summary>Barra de ações sobre o que já está medido, separada da de MEDIR.</summary>
+        private ToolStrip _barraResultados;
+        /// <summary>Modo do painel de propriedades: só o essencial, ou tudo.</summary>
+        private bool _propriedadesEssenciais = true;
 
         public MedPanelControl()
         {
@@ -466,18 +510,118 @@ namespace TSKTakeOff
         {
             Dock = DockStyle.Fill;
 
-            // ----- Configurações (topo) -----
+            // ----- Cabeçalho compacto da Arquitetura -----
+            //
+            // A próxima medição aparece aqui E no resumo da CONFIGURAÇÃO
+            // recolhida, de propósito. É a única coisa da paleta que muda o
+            // que acontece a seguir sem ninguém estar a olhar para ela, e
+            // medir dez paredes para o artigo errado descobre-se tarde demais.
+            var cabecalho = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = PaletteTheme.AlturaCabecalho,
+                BackColor = PaletteTheme.AzulTopo
+            };
+            _lblProximaMedicao = new Label
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(10, 0, 8, 0),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = PaletteTheme.Pequeno,
+                ForeColor = PaletteTheme.AcentoEscuro,
+                AutoEllipsis = true,
+                AccessibleName = "Próxima medição"
+            };
+            // A faixa de cima leva a marca à esquerda e o DWG activo à direita.
+            //
+            // O DWG tem de estar à vista: um handle só quer dizer alguma coisa
+            // dentro do desenho onde foi criado, e trabalhar com dois abertos
+            // ao mesmo tempo é o normal. Sem isto, media-se convencido de estar
+            // no ficheiro errado e só a folha o dizia.
+            var faixa = new Panel { Dock = DockStyle.Top, Height = 20 };
+            _lblDwg = new Label
+            {
+                Dock = DockStyle.Right,
+                Width = 190,
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding = new Padding(0, 0, PaletteTheme.Margem, 0),
+                Font = PaletteTheme.Pequeno,
+                AutoEllipsis = true,
+                AccessibleName = "Desenho activo"
+            };
+
+            // A marca e a aba, com pesos diferentes: "TSK TAKEOFF" identifica o
+            // produto e "Arquitetura" diz onde se está. Tudo com o mesmo peso
+            // lia-se como uma frase, e nenhuma das duas informações chegava.
+            var marca = new Label
+            {
+                Dock = DockStyle.Fill,
+                Text = "TSK TAKEOFF",
+                Padding = new Padding(10, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = PaletteTheme.Tinta,
+                Font = PaletteTheme.TituloSeccao,
+                AutoEllipsis = true
+            };
+            faixa.Controls.Add(marca);
+            faixa.Controls.Add(_lblDwg);
+
+            cabecalho.Controls.Add(_lblProximaMedicao);
+            cabecalho.Controls.Add(faixa);
+
+            // ----- Configurações da Arquitetura (topo) -----
+            //
+            // A grelha é declarada ANTES do botão que a recolhe. O lambda do
+            // Click fecha sobre ela, e uma variável local só existe a partir
+            // da linha em que é declarada: com a ordem trocada isto não
+            // compilava (CS0841).
             var config = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
+                Visible = false,
                 ColumnCount = 2,
                 Padding = new Padding(8)
             };
-            config.ColumnCount = 3;
-            config.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 132));
-            config.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            config.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 68));
+
+            var configHost = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = PaletteTheme.AlturaTituloSeccao,
+                BackColor = PaletteTheme.FundoSeccao
+            };
+            _btnConfigToggle = new Button {
+                Dock = DockStyle.Fill,
+                FlatStyle = FlatStyle.Flat,
+                FlatAppearance = { BorderSize = 0 },
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = PaletteTheme.TituloSeccao,
+                BackColor = PaletteTheme.FundoSeccao,
+                ForeColor = PaletteTheme.Tinta,
+                Text = "▶  CONFIGURAÇÃO",
+                AccessibleName = "Configuração"
+            };
+            _btnConfigToggle.Click += (s, e) => {
+                _configExpandida = !_configExpandida;
+                config.Visible = _configExpandida;
+                _btnConfigToggle.AccessibleDescription =
+                    _configExpandida ? "Expandida." : "Recolhida.";
+                AtualizarResumoDaProxima();
+            };
+            configHost.Controls.Add(_btnConfigToggle);
+            // QUATRO colunas: rótulo · campo · rótulo · campo.
+            //
+            // Em pares, os campos que se lêem juntos ficam juntos — Serviço ao
+            // lado de Bloco, Altura ao lado de Espessura — e a secção passa de
+            // nove linhas para cinco. Num painel estreito, essas quatro linhas
+            // são a diferença entre ver a árvore de resultados e ter de rolar
+            // até ela.
+            config.ColumnCount = 4;
+            config.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 104));
+            config.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            config.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 88));
+            config.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
 
             _txtServico = new TextBox { Text = Config.Servico, Dock = DockStyle.Fill };
 
@@ -487,8 +631,34 @@ namespace TSKTakeOff
             _cmbPiso.Text = Config.Piso;
             _cmbPiso.TextChanged += (s, e) => AtualizarCor();
 
-            _btnCor = new Button { Text = "Cor…", Dock = DockStyle.Fill };
+            // A cor do piso numa PASTILHA, e não no fundo do botão inteiro.
+            //
+            // Pintado por inteiro, o botão ficava um bloco de cor com o texto
+            // "Cor…" por cima — e a legibilidade dependia da cor que o piso
+            // calhasse a ter. Com uma pastilha à esquerda, o botão lê-se
+            // sempre e a cor vê-se na mesma.
+            _btnCor = new Button
+            {
+                Text = "  Cor…",
+                Dock = DockStyle.Fill,
+                FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleRight,
+                Font = PaletteTheme.Pequeno,
+                BackColor = PaletteTheme.Fundo,
+                ForeColor = PaletteTheme.Tinta,
+                UseVisualStyleBackColor = false,
+                AccessibleName = "Cor do piso"
+            };
+            _btnCor.FlatAppearance.BorderColor = PaletteTheme.BordaCampo;
             _btnCor.Click += (s, e) => EscolherCor();
+            _btnCor.Paint += (s, e) =>
+            {
+                var r = new Rectangle(4, (_btnCor.Height - 12) / 2, 12, 12);
+                using (var pincel = new SolidBrush(_corDoPiso))
+                    e.Graphics.FillRectangle(pincel, r);
+                using (var caneta = new Pen(PaletteTheme.BordaCampo))
+                    e.Graphics.DrawRectangle(caneta, r);
+            };
 
             _cmbAlcado = new ComboBox { Dock = DockStyle.Fill };
             foreach (var a in FachadaConfig.Alcados) _cmbAlcado.Items.Add(a);
@@ -587,122 +757,277 @@ namespace TSKTakeOff
             // Ordem pelo fluxo de trabalho: classificação, serviço, localização
             // e por fim os parâmetros geométricos. O topo fica uma linha menor
             // e a lista de artigos passa a ocupar todo o espaço disponível.
+            // O artigo atravessa as três colunas da direita: é o campo mais
+            // longo de todos — um código e uma designação de caderno de
+            // encargos — e emparelhá-lo cortava-o a meio.
             config.Controls.Add(Rot("Artigo do mapa:"), 0, 0);
             config.Controls.Add(_cmbArtigoMqt, 1, 0);
-            config.Controls.Add(new Label(), 2, 0);
-            config.Controls.Add(new Label(), 0, 1);
-            config.Controls.Add(_lblArtigoMqt, 1, 1);
-            config.Controls.Add(new Label(), 2, 1);
+            config.SetColumnSpan(_cmbArtigoMqt, 3);
 
-            // Logo por baixo do artigo, que é de onde o texto vem quando vem
-            // do mapa. O rótulo diz "título" e não "artigo" porque o mesmo
-            // campo serve os dois botões, Capítulo e Artigo.
-            config.Controls.Add(Rot("Texto do título:"), 0, 2);
-            config.Controls.Add(_txtTitulo, 1, 2);
-            config.Controls.Add(new Label(), 2, 2);
+            config.Controls.Add(new Label { Width = 0, Height = 0 }, 0, 1);
+            config.Controls.Add(_lblArtigoMqt, 1, 1);
+            config.SetColumnSpan(_lblArtigoMqt, 3);
 
             // Já não diz "/ Layer": a layer tem campo próprio. O serviço passou
             // a ser só o que identifica a medição na folha do cliente.
-            config.Controls.Add(Rot("Serviço:"), 0, 3);
-            config.Controls.Add(_txtServico, 1, 3);
-            config.Controls.Add(new Label(), 2, 3);
-
+            //
+            // Ao lado do bloco, que é o par natural: um diz o QUE se mede, o
+            // outro diz ONDE.
+            config.Controls.Add(Rot("Serviço:"), 0, 2);
+            config.Controls.Add(_txtServico, 1, 2);
             // Deixou de ser só torre/fracção: o que aqui estiver arranca como
             // designação da medição na folha, e é onde se escreve o "WC1" ou
             // o "quarto 2". O rótulo tem de o dizer, senão ninguém adivinha.
-            config.Controls.Add(Rot("Bloco / etiqueta:"), 0, 4);
-            config.Controls.Add(_txtBloco, 1, 4);
-            config.Controls.Add(new Label(), 2, 4);
+            config.Controls.Add(Rot("Bloco:"), 2, 2);
+            config.Controls.Add(_txtBloco, 3, 2);
 
-            // A seguir ao bloco porque é dele — e do artigo — que o nome sai
-            // quando o campo fica vazio.
-            config.Controls.Add(Rot("Layer (opcional):"), 0, 5);
-            config.Controls.Add(_txtLayer, 1, 5);
-            config.Controls.Add(new Label(), 2, 5);
-            config.Controls.Add(new Label(), 0, 6);
-            config.Controls.Add(_lblLayer, 1, 6);
-            config.Controls.Add(new Label(), 2, 6);
             // "(opcional)" no rótulo porque ele JÁ o é — o SyncConfig trata o
             // campo vazio como "sem piso" e a folha não emite cabeçalho nenhum.
             // Só que a caixa abre com "PISO 0" lá dentro e o rótulo não dizia
             // nada, e assim ninguém adivinha que se pode apagar.
-            config.Controls.Add(Rot("Piso (opcional):"), 0, 7);
-            config.Controls.Add(_cmbPiso, 1, 7);
-            config.Controls.Add(_btnCor, 2, 7);
-            config.Controls.Add(Rot("Alçado / zona:"), 0, 8);
-            config.Controls.Add(_cmbAlcado, 1, 8);
-            config.Controls.Add(new Label(), 2, 8);
+            //
+            // A cor vai colada ao piso, que é de quem ela é.
+            var pisoECor = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0), BackColor = Color.Transparent
+            };
+            pisoECor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            pisoECor.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 62));
+            pisoECor.Controls.Add(_cmbPiso, 0, 0);
+            pisoECor.Controls.Add(_btnCor, 1, 0);
 
-            config.Controls.Add(Rot("Altura parede (m):"), 0, 9);
-            config.Controls.Add(_numAltura, 1, 9);
-            config.Controls.Add(new Label(), 2, 9);
-            config.Controls.Add(Rot("Espessura (m):"), 0, 10);
-            config.Controls.Add(_numEspessura, 1, 10);
-            config.Controls.Add(new Label(), 2, 10);
-            config.Controls.Add(Rot("Regra de vãos:"), 0, 11);
-            config.Controls.Add(_cmbRegra, 1, 11);
-            config.Controls.Add(new Label(), 2, 11);
+            config.Controls.Add(Rot("Piso:"), 0, 3);
+            config.Controls.Add(pisoECor, 1, 3);
+            config.Controls.Add(Rot("Alçado / zona:"), 2, 3);
+            config.Controls.Add(_cmbAlcado, 3, 3);
+
+            // As duas dimensões lado a lado: são lidas em conjunto — "2,80 por
+            // 0,15" — e separadas em linhas obrigavam a saltar entre elas.
+            config.Controls.Add(Rot("Altura (m):"), 0, 4);
+            config.Controls.Add(_numAltura, 1, 4);
+            config.Controls.Add(Rot("Espessura (m):"), 2, 4);
+            config.Controls.Add(_numEspessura, 3, 4);
+
+            config.Controls.Add(Rot("Regra de vãos:"), 0, 5);
+            config.Controls.Add(_cmbRegra, 1, 5);
+            config.SetColumnSpan(_cmbRegra, 3);
+
+            // ----- Mais opções -----
+            //
+            // O texto do título e a layer manual saem do corpo principal.
+            // Não são campos do dia a dia: a layer é calculada do artigo e do
+            // bloco em quase todos os casos, e o texto do título vem do mapa.
+            // Ocupavam três das doze linhas da CONFIGURAÇÃO, e num painel
+            // estreito isso empurrava a altura e a espessura para fora do ecrã.
+            var maisOpcoes = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                Visible = false,
+                Margin = new Padding(0),
+                BackColor = PaletteTheme.Fundo
+            };
+            maisOpcoes.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 132));
+            maisOpcoes.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            // O rótulo diz "título" e não "artigo" porque o mesmo campo serve
+            // os dois botões, Capítulo e Artigo.
+            maisOpcoes.Controls.Add(Rot("Texto do título:"), 0, 0);
+            maisOpcoes.Controls.Add(_txtTitulo, 1, 0);
+            maisOpcoes.Controls.Add(Rot("Layer (opcional):"), 0, 1);
+            maisOpcoes.Controls.Add(_txtLayer, 1, 1);
+            maisOpcoes.Controls.Add(new Label { Width = 0, Height = 0 }, 0, 2);
+            maisOpcoes.Controls.Add(_lblLayer, 1, 2);
+
+            var btnMaisOpcoes = new Button
+            {
+                Dock = DockStyle.Fill,
+                Text = "▶  Mais opções",
+                FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = PaletteTheme.Pequeno,
+                ForeColor = PaletteTheme.Acento,
+                BackColor = PaletteTheme.Fundo,
+                Height = PaletteTheme.AlturaCampo,
+                AccessibleName = "Mais opções",
+                AccessibleDescription = "Recolhida. Texto do título e layer manual."
+            };
+            btnMaisOpcoes.FlatAppearance.BorderSize = 0;
+            btnMaisOpcoes.Click += (s, e) =>
+            {
+                maisOpcoes.Visible = !maisOpcoes.Visible;
+                btnMaisOpcoes.Text = (maisOpcoes.Visible ? "▼" : "▶") + "  Mais opções";
+                btnMaisOpcoes.AccessibleDescription =
+                    (maisOpcoes.Visible ? "Expandida. " : "Recolhida. ") +
+                    "Texto do título e layer manual.";
+            };
+
+            config.Controls.Add(btnMaisOpcoes, 0, 6);
+            config.SetColumnSpan(btnMaisOpcoes, 4);
+            config.Controls.Add(maisOpcoes, 0, 7);
+            config.SetColumnSpan(maisOpcoes, 4);
 
 
             AtualizarCor();
             MostrarLayerEfectiva();
 
-            // ----- Barra de botões com ícones -----
-            var tools = new ToolStrip
-            {
+            // ----- Barra de ações da Arquitetura -----
+            var medirTitulo = new Label {
                 Dock = DockStyle.Top,
-                GripStyle = ToolStripGripStyle.Hidden,
-                ImageScalingSize = new Size(24, 24),
-                Padding = new Padding(6, 4, 6, 4),
-                ShowItemToolTips = true,
-                RenderMode = ToolStripRenderMode.System
+                Height = PaletteTheme.AlturaTituloSeccao,
+                Text = "MEDIR      Escolha o tipo de medição",
+                Padding = new Padding(PaletteTheme.Margem, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = PaletteTheme.FundoSeccao,
+                // Explícita, e não herdada. Herdada, ficava escura sobre a
+                // faixa escura da secção e o título desaparecia.
+                ForeColor = PaletteTheme.Tinta,
+                Font = PaletteTheme.TituloSeccao
             };
+            // Seis células iguais, com o fio da grelha entre elas — a
+            // composição aprovada. Antes era uma ToolStrip com ícones de 24 px
+            // e texto por baixo: sessenta píxeis de altura, botões encostados à
+            // esquerda e o resto da faixa vazio. Num painel estreito usado o
+            // dia inteiro, isso é espaço que a árvore não tem.
+            var dicasMedir = new ToolTip { AutoPopDelay = 15000 };
+            var tools = PalettePanelShell.GrelhaDeAccoes(3);
 
-            tools.Items.Add(MakeButton("Retângulo", IconFactory.ParedeRet(), (s, e) => MedirParedeRet()));
-            tools.Items.Add(MakeButton("Polyline", IconFactory.ParedePoly(), (s, e) => MedirParede()));
+            tools.Controls.Add(PalettePanelShell.Accao("Retângulo",
+                IconFactory.ParedeRet(), (s, e) => MedirParedeRet(), dicasMedir, true), 0, 0);
+            tools.Controls.Add(PalettePanelShell.Accao("Polyline",
+                IconFactory.ParedePoly(), (s, e) => MedirParede(), dicasMedir), 1, 0);
             // Área: para as camadas — betonilhas, enchimentos, impermeabilizações.
             // Desenha-se o contorno, sai o preenchimento, e a medição é a área
             // vezes a altura do painel (que aqui é a espessura da camada).
-            tools.Items.Add(MakeButton("Área", IconFactory.Area(), (s, e) => MedirArea()));
+            tools.Controls.Add(PalettePanelShell.Accao("Área",
+                IconFactory.Area(), (s, e) => MedirArea(), dicasMedir), 2, 0);
             // E a mesma medição sobre o que o projecto já traz desenhado: os
             // pavimentos vêm hachurados e os compartimentos fechados, e
             // redesenhar o contorno por cima era trabalho a dobrar.
-            tools.Items.Add(MakeButton("Área da Selecção", IconFactory.AreaSel(),
-                (s, e) => MedirAreaSeleccao()));
+            tools.Controls.Add(PalettePanelShell.Accao("Área da seleção",
+                IconFactory.AreaSel(), (s, e) => MedirAreaSeleccao(), dicasMedir), 0, 1);
             // Havia DOIS botões para isto, com grafias diferentes: um chamava
             // o comando directamente, o outro passava pelo SyncConfig antes.
             // Fica o que sincroniza o painel — o outro media com a altura e a
             // espessura antigas se elas tivessem sido mudadas e ainda não
             // aplicadas, e ninguém perceberia porquê.
-            tools.Items.Add(MakeButton("Medir Selecção", IconFactory.MedirSel(),
-                (s, e) => MedirSeleccaoNaPlanta()));
-            tools.Items.Add(MakeButton("Adicionar Vão", IconFactory.Vao(), (s, e) => AdicionarVao()));
-            tools.Items.Add(new ToolStripSeparator());
-            _btnExcel = MakeButton("Excel ao Vivo", IconFactory.Excel(), (s, e) => ToggleExcel());
-            tools.Items.Add(_btnExcel);
-            tools.Items.Add(MakeButton("Exportar XLSX", IconFactory.Exportar(), (s, e) => Exportar()));
-            tools.Items.Add(new ToolStripSeparator());
-            tools.Items.Add(MakeButton("Atualizar", IconFactory.Atualizar(), (s, e) =>
+            tools.Controls.Add(PalettePanelShell.Accao("Medir seleção",
+                IconFactory.MedirSel(), (s, e) => MedirSeleccaoNaPlanta(), dicasMedir), 1, 1);
+            tools.Controls.Add(PalettePanelShell.Accao("Adicionar vão",
+                IconFactory.Vao(), (s, e) => AdicionarVao(), dicasMedir), 2, 1);
+
+            // Filas 3 e 4: os tipos de medida que viviam nas outras abas.
+            //
+            // Com um painel só, os comandos delas têm de estar aqui — senão a
+            // paleta passa a mostrar contagens e lineares nos resultados e não
+            // tem por onde os medir. São geometrias diferentes do mesmo
+            // trabalho, não especialidades diferentes.
+            // Quatro filas, quatro RowStyle — a GrelhaDeAccoes já trouxe a
+            // primeira. Faltava uma: com RowCount=4 e só três RowStyle
+            // explícitos, a quarta fila («Contar blocos» / QSELECT /
+            // Definições…) ficava sem altura fixa e podia sair mais baixa ou
+            // mais alta do que as outras três, partindo a grelha de células
+            // iguais que o comentário abaixo promete.
+            tools.RowCount = 4;
+            tools.RowStyles.Add(new RowStyle(SizeType.Absolute, PaletteTheme.AlturaBotaoAccao));
+            tools.RowStyles.Add(new RowStyle(SizeType.Absolute, PaletteTheme.AlturaBotaoAccao));
+            tools.RowStyles.Add(new RowStyle(SizeType.Absolute, PaletteTheme.AlturaBotaoAccao));
+
+            tools.Controls.Add(PalettePanelShell.Accao("Pano retângulo",
+                IconFactory.Retangulo(), (s, e) => MedirNoutroTipo("TSKRET "), dicasMedir), 0, 2);
+            tools.Controls.Add(PalettePanelShell.Accao("Pano × altura",
+                IconFactory.Polf(), (s, e) => MedirNoutroTipo("TSKPOLF "), dicasMedir), 1, 2);
+            tools.Controls.Add(PalettePanelShell.Accao("Linear",
+                IconFactory.Linear(), (s, e) => MedirNoutroTipo("TSKLINEAR "), dicasMedir), 2, 2);
+            tools.Controls.Add(PalettePanelShell.Accao("Contar blocos",
+                IconFactory.Contagem(), (s, e) => MedirNoutroTipo("TSKCONTAR "), dicasMedir), 0, 3);
+            tools.Controls.Add(PalettePanelShell.Accao("QSELECT",
+                IconFactory.Qselect(), (s, e) => PaletteHost.RunCommand("_QSELECT "), dicasMedir), 1, 3);
+            tools.Controls.Add(PalettePanelShell.Accao("Definições…",
+                IconFactory.Definicoes(), (s, e) => AbrirDefinicoesDoTipo(), dicasMedir), 2, 3);
+
+            // ----- Barra de RESULTADOS -----
+            //
+            // Separada da de MEDIR, e não a seguir a um traço vertical na
+            // mesma barra. São duas coisas diferentes: uma dispara comandos
+            // sobre o desenho, a outra trata do que já está medido — e
+            // misturadas, o «Limpar tudo» ficava a dois botões do «Retângulo».
+            // Compacta: ícone pequeno ao LADO do texto, 24 px de altura. São
+            // acções secundárias — trabalham sobre o que já está medido — e
+            // não merecem o mesmo peso visual dos botões de MEDIR. Com ícones
+            // de 20 px e texto por baixo, esta faixa sozinha valia outra secção.
+            _barraResultados = new ToolStrip
+            {
+                Dock = DockStyle.Top,
+                GripStyle = ToolStripGripStyle.Hidden,
+                ImageScalingSize = new Size(14, 14),
+                Padding = new Padding(6, 1, 6, 1),
+                ShowItemToolTips = true,
+                RenderMode = ToolStripRenderMode.System,
+                BackColor = PaletteTheme.FundoBarra,
+                AutoSize = true
+            };
+
+            _btnExcel = BotaoDeBarra("Excel ao Vivo", IconFactory.Excel(), (s, e) => ToggleExcel());
+            _barraResultados.Items.Add(_btnExcel);
+            _barraResultados.Items.Add(BotaoDeBarra("Exportar", IconFactory.Exportar(),
+                (s, e) => Exportar()));
+
+            // UMA acção «Atualizar», não duas.
+            //
+            // Havia o botão da barra e o ícone do cabeçalho, e não faziam o
+            // mesmo: um forçava a escrita imediata no Excel, o outro não. Dois
+            // botões com o mesmo nome e comportamentos diferentes é pior do que
+            // não ter nenhum — fica o que escreve já, que é o que se espera de
+            // quem carrega em «Atualizar» a olhar para a folha.
+            _barraResultados.Items.Add(BotaoDeBarra("Atualizar", IconFactory.Atualizar(), (s, e) =>
             {
                 PaletteHost.RefreshData();
                 PaletteHost.EscreverExcelAgora();   // o botão não espera
             }));
-            tools.Items.Add(MakeButton("Remover", IconFactory.Remover(), (s, e) => RemoverParede()));
-            tools.Items.Add(MakeButton("Linha branca", IconFactory.LinhaBranca(),
-                (s, e) => AlternarSeparador()));
+
+            // ----- Menu «Mais» -----
+            //
+            // As acções destrutivas e as menos frequentes saem da barra. Ficam
+            // a um clique, mas deixam de estar encostadas aos botões de medir,
+            // onde o «Limpar tudo» era vizinho do «Retângulo».
+            var mais = new ToolStripDropDownButton("Mais")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Mais ações sobre os resultados",
+                AccessibleName = "Mais ações",
+                Alignment = ToolStripItemAlignment.Right
+            };
+            mais.DropDownItems.Add(ItemDeMenu("Remover", IconFactory.Remover(),
+                "Apaga a medição, o vão ou o título escolhido na árvore.",
+                () => RemoverParede()));
+            mais.DropDownItems.Add(ItemDeMenu("Linha branca", IconFactory.LinhaBranca(),
+                "Linha em branco por baixo da medição-alvo.",
+                () => AlternarSeparador()));
             // Ficou só o "Artigo". O capítulo e o sub-artigo saíam do mapa de
             // quantidades quando ele existe, e escrevê-los à mão ao lado do
             // mapa dava duas fontes para a mesma coisa — que é como uma folha
             // começa a discordar de si própria.
-            tools.Items.Add(MakeButton("Artigo", IconFactory.Artigo(),
-                (s, e) => MarcarTitulo("ART", "Artigo")));
+            mais.DropDownItems.Add(ItemDeMenu("Artigo", IconFactory.Artigo(),
+                "Linha de título de artigo por baixo da medição-alvo.",
+                () => MarcarTitulo("ART", "Artigo")));
             // Reclassificar: mudar de artigo o que JÁ está medido. Sem isto, um
             // mapa importado a meio da obra só arrumava as medições feitas
             // depois dele — as de antes ficavam sem artigo, saíam no fim da
             // folha, e a única saída era medir tudo outra vez.
-            tools.Items.Add(MakeButton("Reclassificar", IconFactory.Reclassificar(),
-                (s, e) => Reclassificar()));
-            tools.Items.Add(MakeButton("Limpar tudo", IconFactory.Limpar(), (s, e) => LimparTudo()));
+            mais.DropDownItems.Add(ItemDeMenu("Reclassificar…", IconFactory.Reclassificar(),
+                "Passa as medições escolhidas para outro artigo do mapa.",
+                () => Reclassificar()));
+            mais.DropDownItems.Add(new ToolStripSeparator());
+            mais.DropDownItems.Add(ItemDeMenu("Limpar tudo…", IconFactory.Limpar(),
+                "Apaga TODAS as medições de alvenaria do desenho.",
+                () => LimparTudo()));
+            _barraResultados.Items.Add(mais);
+            _barraResultados.AccessibleName = "Ações dos resultados";
 
             // ----- Grade -----
             _dgv = new DataGridView
@@ -783,6 +1108,10 @@ namespace TSKTakeOff
                 // O nome calculado muda com o bloco e com o artigo; mostrá-lo
                 // ao vivo é o que evita medir primeiro e descobrir depois.
                 MostrarLayerEfectiva();
+                // E o resumo da próxima medição, nos dois sítios que o
+                // mostram: é ele que evita medir dez paredes para o artigo
+                // errado e só dar por isso na folha.
+                AtualizarResumoDaProxima();
             };
             _txtServico.TextChanged += sincronizar;
             _txtBloco.TextChanged += sincronizar;
@@ -955,24 +1284,1232 @@ namespace TSKTakeOff
                 }
             };
 
-            // ----- Totais (rodapé) -----
+            // ----- Resultados compactos e propriedades -----
+            CriarResultadosCompactos();
+
+            // ----- Totais (rodapé da Arquitetura) -----
+            // A barra de estado, no fundo — com a cor do cabeçalho, para
+            // fechar o painel entre duas faixas da mesma família. Cinzenta e
+            // com o tipo de letra do sistema, lia-se como uma sobra do
+            // formulário; é a linha que responde à pergunta com que se abre a
+            // paleta, e tem de se ler como uma resposta.
             _lblTotais = new Label
             {
                 Dock = DockStyle.Bottom,
-                Height = 26,
+                Height = 24,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Font = new Font(Font, FontStyle.Bold),
-                Padding = new Padding(6, 0, 0, 0)
+                Font = PaletteTheme.Pequeno,
+                ForeColor = PaletteTheme.Tinta,
+                BackColor = PaletteTheme.AzulTopo,
+                Padding = new Padding(PaletteTheme.Margem, 0, PaletteTheme.Margem, 0),
+                AutoEllipsis = true,
+                AccessibleName = "Totais"
             };
 
-            Controls.Add(_dgv);
+            Controls.Add(_resultadosCompactos);
+            // A grelha larga já não entra no painel: a árvore compacta é a
+            // vista de resultados. Fica declarada até a limpeza da Fase 8
+            // levar os ajudantes que só ela usava.
+            // Controls.Add(_dgv);
             Controls.Add(_lblTotais);
             Controls.Add(tools);
+            Controls.Add(medirTitulo);
             Controls.Add(config);
+            Controls.Add(configHost);
+            Controls.Add(cabecalho);
+
+            AtualizarResumoDaProxima();
+            PrepararInteraccao();
         }
 
-        private static Label Rot(string t) =>
-            new Label { Text = t, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill };
+        private void PrepararInteraccao()
+        {
+            var dicas = new ToolTip { AutoPopDelay = 15000, InitialDelay = 400, ReshowDelay = 100 };
+            BackColor = PaletteTheme.Fundo;
+            ForeColor = PaletteTheme.Tinta;
+            PaletteTheme.AplicarTema(this);
+            PaletteTheme.PrepararInteraccao(this, dicas);
+            if (_dgvCompacto != null)
+            {
+                _dgvCompacto.AccessibleDescription = "Árvore de resultados. Use as setas para navegar, Enter para expandir ou ativar e Espaço para expandir.";
+                dicas.SetToolTip(_dgvCompacto, "Resultados. Use as setas, Enter ou Espaço.");
+            }
+            if (_mosaico != null)
+            {
+                _mosaico.AccessibleName = "Propriedades";
+                dicas.SetToolTip(_mosaico,
+                    "Medidas do resultado escolhido. As sublinhadas editam-se ao clique.");
+            }
+        }
+
+        private void CriarResultadosCompactos()
+        {
+            // Fill, e não Bottom: com a grelha larga fora do painel, é a árvore
+            // que ocupa o espaço que sobra. Em Bottom ficava uma faixa vazia
+            // do tamanho da grelha que já lá não está.
+            _resultadosCompactos = new Panel { Dock = DockStyle.Fill, BackColor = PaletteTheme.Fundo };
+            var barra = new Panel { Dock = DockStyle.Top, Height = PaletteTheme.AlturaBarra, BackColor = PaletteTheme.FundoSeccao };
+            var titulo = new Label { Dock = DockStyle.Left, Width = 95, Text = "RESULTADOS", Padding = new Padding(8, 0, 0, 0), TextAlign = ContentAlignment.MiddleLeft, Font = PaletteTheme.TituloSeccao };
+            _lblResultadoResumo = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 8, 0), ForeColor = PaletteTheme.Apagado };
+            // «Limpar» apaga pesquisa E filtros — as duas coisas que escondem
+            // resultados. As recolhas ficam onde estavam: a vista a que se
+            // volta tem de ser a de antes de procurar, não uma árvore toda
+            // aberta que ninguém pediu.
+            _btnLimparFiltros = new Button
+            {
+                Dock = DockStyle.Right, Width = 56, Text = "Limpar",
+                FlatStyle = FlatStyle.Flat, Font = PaletteTheme.Pequeno,
+                Visible = false,
+                BackColor = PaletteTheme.FundoSeccao, ForeColor = PaletteTheme.Apagado,
+                AccessibleName = "Limpar pesquisa e filtros"
+            };
+            _btnLimparFiltros.FlatAppearance.BorderSize = 0;
+            _btnLimparFiltros.Click += (s, e) =>
+            {
+                _estadoResultados.LimparVista();
+                _carregando = true;
+                try { _txtPesquisa.Text = ""; } finally { _carregando = false; }
+                AtualizarResultadosCompactos(_raizResultados);
+            };
+
+            _btnFiltros = new Button
+            {
+                Dock = DockStyle.Right, Width = 66, Text = "Filtros",
+                FlatStyle = FlatStyle.Flat, Font = PaletteTheme.Pequeno,
+                BackColor = PaletteTheme.Fundo, ForeColor = PaletteTheme.Tinta,
+                UseVisualStyleBackColor = false,
+                AccessibleName = "Filtros"
+            };
+            _btnFiltros.Click += (s, e) => AbrirFiltros();
+
+            _txtPesquisa = new TextBox {
+                Dock = DockStyle.Right, Width = 130, TabStop = true,
+                AccessibleName = "Pesquisar resultados",
+                // Explícito, e não herdado: uma TextBox nasce branca, e num
+                // painel grafite isso é um buraco de luz.
+                BackColor = PaletteTheme.FundoCampo,
+                ForeColor = PaletteTheme.Tinta,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            PaletteTheme.TextoDeSugestao(_txtPesquisa, "Pesquisar…");
+
+            // Debounce: a árvore não se refaz a cada tecla.
+            //
+            // Escrever "alvenaria" são nove reconstruções da lista inteira, e
+            // num desenho grande sente-se o painel a arrastar-se atrás de quem
+            // escreve. Com a pausa, escreve-se a palavra toda e a lista muda
+            // uma vez.
+            _adiarPesquisa = new Timer { Interval = 220 };
+            _adiarPesquisa.Tick += (s, e) =>
+            {
+                _adiarPesquisa.Stop();
+                _estadoResultados.Pesquisa = _txtPesquisa.Text;
+                AtualizarResultadosCompactos(_raizResultados);
+            };
+            _txtPesquisa.TextChanged += (s, e) =>
+            {
+                if (_carregando) return;
+                _adiarPesquisa.Stop();
+                _adiarPesquisa.Start();
+            };
+            // Enter não espera pela pausa: quem carrega em Enter já decidiu.
+            _txtPesquisa.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    _adiarPesquisa.Stop();
+                    _estadoResultados.Pesquisa = _txtPesquisa.Text;
+                    AtualizarResultadosCompactos(_raizResultados);
+                    e.Handled = e.SuppressKeyPress = true;
+                }
+                else if (e.KeyCode == Keys.Escape)
+                {
+                    _txtPesquisa.Text = "";
+                    e.Handled = e.SuppressKeyPress = true;
+                }
+            };
+
+            // Os chips do que está filtrado. Até dois: com mais, a barra
+            // encolhe a pesquisa e deixa de caber nada.
+            _lblChips = new Label
+            {
+                Dock = DockStyle.Right,
+                AutoSize = false,
+                Width = 0,
+                TextAlign = ContentAlignment.MiddleRight,
+                Font = PaletteTheme.Pequeno,
+                ForeColor = PaletteTheme.AcentoEscuro,
+                AutoEllipsis = true
+            };
+            barra.Controls.Add(_lblResultadoResumo);
+            barra.Controls.Add(_lblChips);
+            barra.Controls.Add(_btnLimparFiltros);
+            barra.Controls.Add(_btnFiltros);
+            barra.Controls.Add(_txtPesquisa);
+            barra.Controls.Add(titulo);
+
+            _dgvCompacto = new DataGridView {
+                Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
+                RowHeadersVisible = false,
+                // Multi-selecção por causa do «Reclassificar» e da edição em
+                // lote: um artigo trocado a meio da obra são dezenas de
+                // medições, e passá-las uma a uma é onde se desiste e se vai
+                // fazer à mão no Excel. Ctrl escolhe soltas, Shift um intervalo.
+                MultiSelect = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+                AllowUserToResizeRows = false,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                BackgroundColor = PaletteTheme.Fundo,
+                BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                Font = PaletteTheme.Normal,
+                AccessibleName = "Resultados",
+                TabStop = true
+            };
+
+            // DUAS colunas, e não cinco.
+            //
+            // A árvore mostrava «Comp.» e «Altura» ao lado da quantidade, e foi
+            // isso que a revisão do brief mandou tirar: comprimento e altura são
+            // DIMENSÕES, não quantidades. Com três colunas fixas para cinco
+            // grandezas, a contagem de 2 portas aparecia debaixo de "Comp." e o
+            // comprimento de uma parede lia-se como se fosse a medição dela.
+            // As dimensões vivem em PROPRIEDADES; aqui fica a quantidade, na
+            // unidade do artigo, e nos grupos que misturam unidades ficam lado
+            // a lado — "62,93 m² · 36,90 m · 2 un." — em vez de somadas.
+            var colEstrutura = new DataGridViewTextBoxColumn
+            {
+                Name = "estrutura",
+                HeaderText = "Estrutura / elemento",
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                FillWeight = 100,
+                MinimumWidth = 150
+            };
+            var colQuantidade = new DataGridViewTextBoxColumn
+            {
+                Name = "quantidade",
+                HeaderText = "Quantidade",
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                Width = 132,
+                MinimumWidth = 96
+            };
+            colQuantidade.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            _dgvCompacto.Columns.Add(colEstrutura);
+            _dgvCompacto.Columns.Add(colQuantidade);
+
+            // O DataGridView desenha sem duplo buffer e a propriedade que o liga
+            // é protegida — daí a reflexão. Sem isto a árvore pisca a cada
+            // medição, e numa obra grande vê-se.
+            try
+            {
+                typeof(DataGridView)
+                    .GetProperty("DoubleBuffered",
+                                 System.Reflection.BindingFlags.Instance |
+                                 System.Reflection.BindingFlags.NonPublic)
+                    ?.SetValue(_dgvCompacto, true, null);
+            }
+            catch { }
+
+            // A indentação, as guias, o ícone do nó e o [▸]/[▾] são desenhados.
+            // Com espaços não funcionava: a letra é proporcional, e níveis
+            // diferentes acabavam alinhados uns com os outros.
+            _dgvCompacto.CellPainting += DesenharCelulaDaArvore;
+
+            // Clicar na zona do [▸]/[▾] abre e fecha. É a área à esquerda do
+            // ícone, calculada a partir da profundidade — a mesma conta que o
+            // desenho usa, para o alvo do rato ser exactamente o que se vê.
+            _dgvCompacto.CellMouseDown += (s, e) =>
+            {
+                if (e.RowIndex < 0 || e.ColumnIndex != 0) return;
+                var no = _dgvCompacto.Rows[e.RowIndex].Tag as NoResultado;
+                if (no == null || no.Filhos.Count == 0) return;
+                if (e.X > RecuoDoNo(no) + PaletteTheme.LarguraTwisty) return;
+
+                _estadoResultados.Alternar(no.Id);
+                AtualizarResultadosCompactos(_raizResultados);
+            };
+
+            _dgvCompacto.SelectionChanged += (s, e) =>
+            {
+                if (_carregando) return;
+                var no = _dgvCompacto.CurrentRow == null
+                    ? null : _dgvCompacto.CurrentRow.Tag as NoResultado;
+                // Seleccionar consulta; não muda a próxima medição. Só o
+                // "Medir aqui" faz isso, e só em nós de artigo.
+                _estadoResultados.Seleccionado = no == null ? null : no.Id;
+                AtualizarPropriedadesCompactas();
+            };
+            _dgvCompacto.CellClick += (s, e) => {
+                AtualizarPropriedadesCompactas();
+                var no = e.RowIndex < 0 ? null : _dgvCompacto.Rows[e.RowIndex].Tag as NoResultado;
+                if (no != null && no.Handle != null) PaletteHost.MarcarSeleccaoGrelha();
+            };
+            _dgvCompacto.CellDoubleClick += (s, e) => {
+                if (e.RowIndex < 0) return;
+                var no = _dgvCompacto.Rows[e.RowIndex].Tag as NoResultado;
+                if (no == null || !no.EhGrupo) return;
+                _estadoResultados.Alternar(no.Id);
+                AtualizarResultadosCompactos(_raizResultados);
+            };
+            // ----- Teclado -----
+            //
+            // As setas verticais, o Ctrl e o Shift já são do DataGridView. O
+            // que falta é o que faz de uma lista uma ÁRVORE: Left/Right a
+            // fechar e abrir, Home/End aos extremos, Enter/Espaço a activar.
+            // Sem isto, quem navega por teclado chegava a um grupo fechado e
+            // não tinha como o abrir.
+            _dgvCompacto.KeyDown += (s, e) =>
+            {
+                var no = NoSeleccionado();
+
+                switch (e.KeyCode)
+                {
+                    case Keys.Enter:
+                    case Keys.Space:
+                        if (no == null) return;
+                        if (no.Filhos.Count > 0)
+                        {
+                            _estadoResultados.Alternar(no.Id);
+                            AtualizarResultadosCompactos(_raizResultados);
+                        }
+                        else if (no.PermiteMedirAqui) MedirAqui();
+                        e.Handled = e.SuppressKeyPress = true;
+                        return;
+
+                    case Keys.Left:
+                        // Fechado já, sobe ao pai — é o que se espera de uma
+                        // árvore: o Left leva sempre para "menos fundo".
+                        if (no == null) return;
+                        if (no.Filhos.Count > 0 && _estadoResultados.Expandido(no.Id))
+                        {
+                            _estadoResultados.Recolher(no.Id);
+                            AtualizarResultadosCompactos(_raizResultados);
+                        }
+                        else if (no.Pai != null) SeleccionarNo(no.Pai.Id);
+                        e.Handled = e.SuppressKeyPress = true;
+                        return;
+
+                    case Keys.Right:
+                        if (no == null || no.Filhos.Count == 0) return;
+                        if (!_estadoResultados.Expandido(no.Id))
+                        {
+                            _estadoResultados.Expandir(no.Id);
+                            AtualizarResultadosCompactos(_raizResultados);
+                        }
+                        else SeleccionarNo(no.Filhos[0].Id);
+                        e.Handled = e.SuppressKeyPress = true;
+                        return;
+
+                    case Keys.Home:
+                    case Keys.End:
+                        if (_dgvCompacto.Rows.Count == 0) return;
+                        int alvo = e.KeyCode == Keys.Home ? 0 : _dgvCompacto.Rows.Count - 1;
+                        _dgvCompacto.CurrentCell = _dgvCompacto.Rows[alvo].Cells[0];
+                        e.Handled = e.SuppressKeyPress = true;
+                        return;
+                }
+            };
+
+            var propriedades = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 96,
+                BackColor = PaletteTheme.Fundo
+            };
+
+            var cabecalhoProps = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = PaletteTheme.AlturaTituloSeccao,
+                BackColor = PaletteTheme.FundoSeccao
+            };
+
+            // Essenciais / Tudo. As propriedades de uma parede são dezassete e
+            // o painel tem três linhas de altura: sem este interruptor, ou se
+            // mostra tudo e não se lê nada, ou se escolhe por alguém o que
+            // interessa. Assim o normal é curto e o resto está a um clique.
+            _btnPropriedadesModo = new Button
+            {
+                Dock = DockStyle.Right,
+                Width = 76,
+                Text = "Essenciais",
+                FlatStyle = FlatStyle.Flat,
+                Font = PaletteTheme.Pequeno,
+                BackColor = PaletteTheme.Palido,
+                ForeColor = PaletteTheme.Acento,
+                AccessibleName = "Detalhe das propriedades"
+            };
+            _btnPropriedadesModo.FlatAppearance.BorderSize = 0;
+            _btnPropriedadesModo.Click += (s, e) =>
+            {
+                _propriedadesEssenciais = !_propriedadesEssenciais;
+                _btnPropriedadesModo.Text = _propriedadesEssenciais ? "Essenciais" : "Tudo";
+                _btnPropriedadesModo.BackColor = _propriedadesEssenciais
+                    ? PaletteTheme.Palido : PaletteTheme.Fundo;
+                _btnPropriedadesModo.ForeColor = _propriedadesEssenciais
+                    ? PaletteTheme.Acento : PaletteTheme.Apagado;
+                AtualizarPropriedadesCompactas();
+            };
+
+            // "Medir aqui" só existe em nós de artigo, e é a ÚNICA operação
+            // que muda a próxima medição. Nasce escondido: aparece quando o nó
+            // seleccionado o permite.
+            _btnMedirAqui = new Button
+            {
+                Dock = DockStyle.Right,
+                Width = 82,
+                Text = "Medir aqui",
+                FlatStyle = FlatStyle.Flat,
+                Font = PaletteTheme.PequenoNegrito,
+                ForeColor = PaletteTheme.Acento,
+                BackColor = PaletteTheme.FundoSeccao,
+                Visible = false,
+                AccessibleName = "Medir aqui",
+                AccessibleDescription =
+                    "Copia o piso, o serviço e o artigo deste nó para a próxima medição."
+            };
+            _btnMedirAqui.FlatAppearance.BorderSize = 0;
+            _btnMedirAqui.Click += (s, e) => MedirAqui();
+
+            _lblPropriedadeTitulo = new Label
+            {
+                Dock = DockStyle.Fill,
+                Text = "PROPRIEDADES — nada selecionado",
+                Padding = new Padding(PaletteTheme.Margem, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = PaletteTheme.TituloSeccao,
+                ForeColor = PaletteTheme.Tinta,
+                AutoEllipsis = true
+            };
+
+            cabecalhoProps.Controls.Add(_lblPropriedadeTitulo);
+            cabecalhoProps.Controls.Add(_btnMedirAqui);
+            cabecalhoProps.Controls.Add(_btnPropriedadesModo);
+
+            // As propriedades como MOSAICOS, e não como lista de duas colunas.
+            //
+            // O que se lê aqui são as medidas de que se desconfia — o
+            // comprimento, a altura, a área bruta, a líquida, o volume. Em
+            // lista, é preciso percorrer; em mosaico, lêem-se de uma passagem.
+            // Os que se editam trazem sublinhado tracejado e abrem ao clique.
+            _mosaico = new PalettePanelShell.MosaicoMetricas();
+            _mosaico.Editado += AoEditarMetrica;
+
+            propriedades.Controls.Add(_mosaico);
+            propriedades.Controls.Add(cabecalhoProps);
+
+            // O estado vazio é uma etiqueta por cima da árvore, e não uma
+            // linha dentro dela: uma "linha" a dizer que não há linhas seria
+            // seleccionável, contaria para os totais e podia ser alvo de uma
+            // acção.
+            _lblVazio = new Label
+            {
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = PaletteTheme.Normal,
+                ForeColor = PaletteTheme.Apagado,
+                BackColor = PaletteTheme.Fundo,
+                Visible = false,
+                AccessibleName = "Sem resultados"
+            };
+
+            _resultadosCompactos.Controls.Add(_lblVazio);
+            _resultadosCompactos.Controls.Add(_dgvCompacto);
+            _resultadosCompactos.Controls.Add(propriedades);
+            // Num Dock=Top, o último a entrar fica mais acima: a barra de
+            // pesquisa por cima, e as acções sobre os resultados por baixo dela.
+            if (_barraResultados != null) _resultadosCompactos.Controls.Add(_barraResultados);
+            _resultadosCompactos.Controls.Add(barra);
+        }
+
+        /// <summary>
+        /// Reconstrói a árvore de resultados a partir do modelo.
+        ///
+        /// A SELECÇÃO E O SCROLL VOLTAM PELO ID, NÃO PELO ÍNDICE DA LINHA.
+        /// Esta lista é refeita a cada medição, e os índices mudam todos: com
+        /// o índice, quem estava numa parede a meio da obra dava por si noutra
+        /// qualquer, e as acções contextuais iam atrás. O Id de uma medição é
+        /// o handle dela — sobrevive a reordenar, a filtrar e a reclassificar.
+        /// </summary>
+        private void AtualizarResultadosCompactos(NoResultado raiz)
+        {
+            if (_dgvCompacto == null) return;
+            _raizResultados = raiz;
+
+            // Onde estávamos, ANTES de deitar a lista abaixo.
+            string idSeleccionado = _estadoResultados.Seleccionado;
+            string idNoTopo = null;
+            try
+            {
+                int topo = _dgvCompacto.FirstDisplayedScrollingRowIndex;
+                if (topo >= 0 && topo < _dgvCompacto.Rows.Count)
+                {
+                    var noTopo = _dgvCompacto.Rows[topo].Tag as NoResultado;
+                    if (noTopo != null) idNoTopo = noTopo.Id;
+                }
+            }
+            catch { }
+
+            // Acabou de se medir: o cursor vai para a medição nova. É ela o
+            // alvo do vão e do título que venham a seguir.
+            string nova = PaletteHost.MedicaoNova;
+            bool seguirNova = false;
+            if (!string.IsNullOrEmpty(nova) && raiz != null
+                && ResultadosArvore.Handles(raiz).Contains(nova))
+            {
+                idSeleccionado = "M:" + nova;
+                seguirNova = true;
+            }
+
+            _dgvCompacto.SuspendLayout();
+            _dgvCompacto.ClearSelection();
+            _dgvCompacto.Rows.Clear();
+
+            if (raiz == null)
+            {
+                _lblResultadoResumo.Text = "0 medições";
+                _dgvCompacto.ResumeLayout();
+                ReporSeleccaoDaArvore(idSeleccionado, -1);
+                AtualizarPropriedadesCompactas();
+                return;
+            }
+
+            var vista = ResultadosArvore.Projetar(raiz, _estadoResultados);
+
+            var linhas = new List<DataGridViewRow>();
+            foreach (var item in vista.Nos)
+            {
+                var no = item.No;
+                var linha = new DataGridViewRow();
+                linha.CreateCells(_dgvCompacto,
+                    no.Rotulo,
+                    item.Quantidades == null ? "" : item.Quantidades.Texto(CultureInfo.CurrentCulture));
+                linha.Tag = no;
+                linha.Height = PaletteTheme.AlturaLinha;
+
+                if (no.EhGrupo)
+                {
+                    linha.DefaultCellStyle.BackColor = PaletteTheme.FundoGrupo;
+                    linha.DefaultCellStyle.Font = PaletteTheme.Negrito;
+                }
+                if (no.Tipo == TipoNo.Vao)
+                {
+                    // Vermelho, como as deduções no Excel: o que desconta
+                    // lê-se à primeira, sem ter de reparar no sinal.
+                    linha.DefaultCellStyle.ForeColor = PaletteTheme.VermelhoDeducao;
+                    linha.DefaultCellStyle.Font = PaletteTheme.Italico;
+                }
+                if (no.Tipo == TipoNo.Titulo)
+                    linha.DefaultCellStyle.ForeColor = PaletteTheme.Apagado;
+
+                // Os alertas não podem depender só da cor: em alto contraste
+                // ela desaparece, e há quem não a distinga. O texto da dica e
+                // a descrição acessível dizem-no por palavras.
+                if (no.Alertas != AlertaNo.Nenhum)
+                {
+                    string aviso = DescreverAlertas(no.Alertas);
+                    linha.Cells[0].ToolTipText = aviso;
+                    if ((no.Alertas & AlertaNo.PorClassificar) != 0 && !no.EhGrupo)
+                    {
+                        linha.DefaultCellStyle.BackColor = PaletteTheme.FundoPorClassificar;
+                        linha.DefaultCellStyle.ForeColor = PaletteTheme.TextoPorClassificar;
+                    }
+                    if ((no.Alertas & AlertaNo.VaosExcessivos) != 0 && no.Tipo == TipoNo.Medicao)
+                        linha.DefaultCellStyle.BackColor = Color.FromArgb(255, 224, 224);
+                }
+
+                if (item.Correspondeu && vista.AFiltrar)
+                    linha.DefaultCellStyle.BackColor = PaletteTheme.Palido;
+
+                linhas.Add(linha);
+            }
+
+            // Uma entrega só. Um Rows.Add por linha faz o DataGridView
+            // reajustar-se a cada uma — 152 ms contra 20 ms numa lista desta
+            // dimensão, medido na grelha antiga.
+            if (linhas.Count > 0) _dgvCompacto.Rows.AddRange(linhas.ToArray());
+
+            _lblResultadoResumo.Text = vista.Resumo(CultureInfo.CurrentCulture);
+            AtualizarBarraDeFiltros();
+
+            // Estado vazio: dizer POR QUE está vazio e o que fazer a seguir.
+            //
+            // Uma lista em branco lê-se como "o plugin perdeu as medições". A
+            // diferença entre "não há nada medido" e "o filtro escondeu tudo"
+            // é toda, e é a segunda que assusta quem acabou de medir a manhã.
+            if (vista.Vazia)
+            {
+                _lblVazio.Text = _estadoResultados.AFiltrar
+                    ? "Nenhum resultado corresponde à pesquisa ou aos filtros.\r\n" +
+                      "As " + vista.MedicoesTotais + " medições continuam no desenho — " +
+                      "carregue em «Limpar» para as ver todas."
+                    : "Ainda não há medições de alvenaria neste desenho.\r\n" +
+                      "Use os botões de MEDIR para começar.";
+                // A árvore SAI de cena enquanto o aviso está à vista.
+                //
+                // Os dois são Dock=Fill no mesmo painel, e com dois Fill ao
+                // mesmo tempo quem fica com o espaço depende da ordem-z — que
+                // é frágil e muda com um BringToFront de outro sítio qualquer.
+                // Um de cada vez não tem como correr mal.
+                _dgvCompacto.Visible = false;
+                _lblVazio.Visible = true;
+                _lblVazio.BringToFront();
+            }
+            else
+            {
+                _lblVazio.Visible = false;
+                _dgvCompacto.Visible = true;
+            }
+
+            ReporSeleccaoDaArvore(idSeleccionado, seguirNova ? -1 : IndiceDe(idNoTopo));
+            _dgvCompacto.ResumeLayout();
+            AtualizarPropriedadesCompactas();
+        }
+
+        /// <summary>
+        /// Abre o painel de filtros por baixo do botão que o pediu.
+        ///
+        /// O rascunho vive dentro do popup: enquanto ele estiver aberto, a
+        /// árvore não muda. Só o `Aplicar` a refaz, e uma vez só.
+        /// </summary>
+        private void AbrirFiltros()
+        {
+            if (_raizResultados == null)
+            {
+                PaletteHost.Log("Não há resultados para filtrar.");
+                return;
+            }
+
+            var popup = new FiltrosPopup(_raizResultados, _estadoResultados.Filtro,
+                novo =>
+                {
+                    _estadoResultados.Filtro = novo;
+                    AtualizarResultadosCompactos(_raizResultados);
+                });
+
+            // Devolver o foco a quem abriu, ao fechar. Sem isto o foco ficava
+            // preso num painel que já não existe e a tecla seguinte não ia
+            // para lado nenhum.
+            popup.Closed += (s, e) =>
+            {
+                try { _btnFiltros.Focus(); } catch { }
+            };
+            popup.Show(_btnFiltros, new Point(0, _btnFiltros.Height));
+        }
+
+        /// <summary>
+        /// O badge, os chips e o estado do «Limpar».
+        ///
+        /// O badge conta GRUPOS de filtro, não valores: escolher três pisos é
+        /// um filtro, não três. Dizer "3" a quem filtrou por um critério era
+        /// sugerir que havia mais dois escondidos algures.
+        /// </summary>
+        private void AtualizarBarraDeFiltros()
+        {
+            var filtro = _estadoResultados.Filtro;
+            int n = filtro.Contagem;
+
+            _btnFiltros.Text = n > 0 ? "Filtros (" + n + ")" : "Filtros";
+            _btnFiltros.Font = n > 0 ? PaletteTheme.PequenoNegrito : PaletteTheme.Pequeno;
+            _btnFiltros.BackColor = n > 0 ? PaletteTheme.Palido : PaletteTheme.Fundo;
+            _btnFiltros.ForeColor = n > 0 ? PaletteTheme.Acento : PaletteTheme.Tinta;
+            _btnFiltros.FlatAppearance.BorderColor = n > 0
+                ? PaletteTheme.Acento : PaletteTheme.BordaCampo;
+            _btnFiltros.AccessibleDescription = n == 0
+                ? "Nenhum filtro aplicado."
+                : n + " filtro(s) aplicado(s): " + string.Join("; ", filtro.Chips().ToArray());
+
+            // Até dois chips. Com mais, a barra encolhe a caixa de pesquisa e
+            // deixa de caber nada — e o badge já diz quantos são.
+            var chips = filtro.Chips();
+            if (chips.Count == 0)
+            {
+                _lblChips.Text = "";
+                _lblChips.Width = 0;
+            }
+            else
+            {
+                var mostrar = new List<string>();
+                for (int i = 0; i < chips.Count && i < 2; i++) mostrar.Add(chips[i]);
+                if (chips.Count > 2) mostrar.Add("+" + (chips.Count - 2));
+
+                _lblChips.Text = string.Join("  ·  ", mostrar.ToArray());
+                _lblChips.Width = 190;
+                _lblChips.AccessibleDescription = string.Join("; ", chips.ToArray());
+            }
+
+            // ESCONDIDO, e não desactivado.
+            //
+            // Um botão flat desactivado é pintado pelo Windows com um cinzento
+            // que ele calcula sozinho — e sobre grafite esse cinzento fica
+            // indistinguível do fundo. Lia-se como um defeito, não como uma
+            // acção indisponível. Sem nada para limpar, o botão simplesmente
+            // não existe.
+            _btnLimparFiltros.Visible = _estadoResultados.AFiltrar;
+        }
+
+        /// <summary>A linha em que este nó está agora, ou -1 se saiu da vista.</summary>
+        private int IndiceDe(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return -1;
+            for (int i = 0; i < _dgvCompacto.Rows.Count; i++)
+            {
+                var no = _dgvCompacto.Rows[i].Tag as NoResultado;
+                if (no != null && no.Id == id) return i;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Volta a pôr o cursor no mesmo NÓ e a lista onde estava.
+        ///
+        /// Se o nó já não está visível — foi apagado, ou um filtro escondeu-o —
+        /// a selecção é LIMPA, e não empurrada para o vizinho. Uma selecção
+        /// invisível é pior do que nenhuma: as acções contextuais continuavam
+        /// apontadas a uma medição que quem carrega no botão não está a ver.
+        /// </summary>
+        private void ReporSeleccaoDaArvore(string id, int scroll)
+        {
+            try
+            {
+                int linha = IndiceDe(id);
+                if (linha >= 0)
+                {
+                    _dgvCompacto.CurrentCell = _dgvCompacto.Rows[linha].Cells[0];
+                    _dgvCompacto.Rows[linha].Selected = true;
+                    _estadoResultados.Seleccionado = id;
+                }
+                else
+                {
+                    _dgvCompacto.ClearSelection();
+                    _dgvCompacto.CurrentCell = null;
+                    _estadoResultados.Seleccionado = null;
+                }
+
+                if (scroll >= 0 && scroll < _dgvCompacto.Rows.Count)
+                    _dgvCompacto.FirstDisplayedScrollingRowIndex = scroll;
+            }
+            catch { /* a lista pode ter encolhido: fica onde está */ }
+        }
+
+        /// <summary>Os alertas de um nó, por palavras.</summary>
+        private static string DescreverAlertas(AlertaNo alertas)
+        {
+            var partes = new List<string>();
+            if ((alertas & AlertaNo.PorClassificar) != 0)
+                partes.Add("Por classificar — sai no fim da folha.");
+            if ((alertas & AlertaNo.ArtigoDesconhecido) != 0)
+                partes.Add("O mapa não conhece este artigo — sai no fim da folha.");
+            if ((alertas & AlertaNo.VaosExcessivos) != 0)
+                partes.Add("Os vãos descontam mais do que a parede tem.");
+            return string.Join("\n", partes.ToArray());
+        }
+
+        /// <summary>O recuo, em píxeis, a que o conteúdo deste nó começa.</summary>
+        private static int RecuoDoNo(NoResultado no)
+        {
+            return PaletteTheme.MargemPequena + no.Profundidade * PaletteTheme.RecuoPorNivel;
+        }
+
+        /// <summary>
+        /// Desenha a coluna da estrutura: guias, [▸]/[▾], ícone do nó e texto.
+        ///
+        /// À mão porque o DataGridView não tem hierarquia nenhuma — e com
+        /// espaços não dava: a letra é proporcional, e o nível 3 acabava
+        /// alinhado com o 2 consoante o texto que estivesse por cima.
+        /// </summary>
+        private void DesenharCelulaDaArvore(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != 0) return;
+            var no = _dgvCompacto.Rows[e.RowIndex].Tag as NoResultado;
+            if (no == null) return;
+
+            e.PaintBackground(e.CellBounds, true);
+
+            var g = e.Graphics;
+            int recuo = RecuoDoNo(no);
+            Color tinta = (e.State & DataGridViewElementStates.Selected) != 0
+                ? PaletteTheme.TextoSeleccionado
+                : (e.CellStyle.ForeColor.IsEmpty ? PaletteTheme.Tinta : e.CellStyle.ForeColor);
+
+            // Guias verticais, uma por nível acima deste.
+            using (var caneta = new Pen(PaletteTheme.Guia))
+                for (int n = 1; n <= no.Profundidade; n++)
+                {
+                    int x = e.CellBounds.X + PaletteTheme.MargemPequena +
+                            (n - 1) * PaletteTheme.RecuoPorNivel + 6;
+                    g.DrawLine(caneta, x, e.CellBounds.Top, x, e.CellBounds.Bottom);
+                }
+
+            int xConteudo = e.CellBounds.X + recuo;
+
+            // O [▸]/[▾], só onde há filhos para mostrar.
+            if (no.Filhos.Count > 0)
+            {
+                bool aberto = _estadoResultados.AFiltrar || _estadoResultados.Expandido(no.Id);
+                using (var pincel = new SolidBrush(PaletteTheme.Acento))
+                    g.DrawString(aberto ? "▾" : "▸", PaletteTheme.Pequeno, pincel,
+                                 xConteudo, e.CellBounds.Y + 4);
+            }
+            xConteudo += PaletteTheme.LarguraTwisty;
+
+            // Um quadrado da cor do tipo do nó, à falta de ícones vectoriais
+            // para seis tipos. Diz o mesmo — a que família a linha pertence —
+            // e não custa um recurso do GDI por linha.
+            var corNo = PaletteTheme.CorDoNo(no.Tipo);
+            using (var pincel = new SolidBrush(corNo))
+                g.FillRectangle(pincel, xConteudo + 1, e.CellBounds.Y + 7, 7, 7);
+            xConteudo += PaletteTheme.LarguraIconeNo;
+
+            // O texto, e a marca de alerta a seguir — em texto, não só em cor.
+            string texto = no.Rotulo ?? "";
+            if ((no.Alertas & AlertaNo.PorClassificar) != 0 && !no.EhGrupo) texto += "  ⚑";
+            if ((no.Alertas & AlertaNo.VaosExcessivos) != 0) texto += "  ⚠";
+
+            var fonte = e.CellStyle.Font ?? PaletteTheme.Normal;
+
+            // A etiqueta PRÓXIMA, no artigo para onde as próximas medições
+            // vão. Desenhada à direita e o texto encurta antes dela: é o
+            // único sítio da árvore que diz o que acontece a SEGUIR, e ficar
+            // cortado por um rótulo comprido derrotava o efeito.
+            int largura = e.CellBounds.Right - xConteudo - 2;
+            if (EhProximaMedicao(no))
+            {
+                const string etiqueta = "PRÓXIMA";
+                var medida = TextRenderer.MeasureText(g, etiqueta, PaletteTheme.PequenoNegrito);
+                int x = e.CellBounds.Right - medida.Width - 6;
+                var selo = new Rectangle(x - 3, e.CellBounds.Y + 3,
+                                         medida.Width + 6, e.CellBounds.Height - 7);
+
+                using (var pincel = new SolidBrush(PaletteTheme.Acento))
+                    g.FillRectangle(pincel, selo);
+                TextRenderer.DrawText(g, etiqueta, PaletteTheme.PequenoNegrito, selo,
+                    PaletteTheme.AltoContraste ? SystemColors.HighlightText : Color.White,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+
+                largura = selo.Left - xConteudo - 4;
+            }
+
+            var caixa = new Rectangle(xConteudo, e.CellBounds.Y,
+                                      largura < 10 ? 10 : largura, e.CellBounds.Height);
+            TextRenderer.DrawText(g, texto, fonte, caixa, tinta,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis |
+                TextFormatFlags.NoPrefix);
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// É este o artigo para onde as próximas medições vão?
+        ///
+        /// Compara pela chave normalizada do artigo — a mesma que o mapa usa
+        /// para indexar —, e não pelo rótulo: o rótulo é texto para ler e uma
+        /// designação cortada faria a etiqueta desaparecer sem explicação.
+        /// </summary>
+        private static bool EhProximaMedicao(NoResultado no)
+        {
+            if (no == null || no.Tipo != TipoNo.Artigo) return false;
+            if (string.IsNullOrEmpty(Config.Artigo)) return false;
+            if (!ChaveArtigo.Compativel(no.Artigo ?? "", Config.Artigo)) return false;
+
+            // O mesmo artigo pode estar em vários pisos. A etiqueta é do nó
+            // onde a próxima medição vai MESMO cair.
+            string piso = string.IsNullOrEmpty(Config.Piso)
+                ? ResultadosArvore.SemPiso : Config.Piso;
+            return string.Equals(no.Piso ?? "", piso, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Copia piso + serviço + artigo do nó seleccionado para a próxima
+        /// medição. É a ÚNICA operação da árvore que mexe na Config — e é
+        /// explícita de propósito: seleccionar serve para consultar.
+        /// </summary>
+        private void MedirAqui()
+        {
+            var no = NoSeleccionado();
+            if (no == null || !no.PermiteMedirAqui) return;
+
+            Config.Piso = no.Piso == ResultadosArvore.SemPiso ? "" : (no.Piso ?? "");
+            Config.Servico = no.Servico == ResultadosArvore.SemServico
+                ? Config.Servico : (no.Servico ?? Config.Servico);
+            Config.Artigo = no.Artigo ?? "";
+
+            // Os campos do painel acompanham, senão o próximo SyncConfig
+            // escrevia por cima do que se acabou de escolher.
+            _carregando = true;
+            try
+            {
+                _cmbPiso.Text = Config.Piso;
+                _txtServico.Text = Config.Servico;
+                if (_txtTitulo != null)
+                    _txtTitulo.Text = PaletteHost.TextoDoArtigoCorrente();
+            }
+            finally { _carregando = false; }
+
+            AtualizarCor();
+            MostrarLayerEfectiva();
+            AtualizarResumoDaProxima();
+            PaletteHost.Log("Próxima medição: " + ResumoDaProxima());
+        }
+
+        /// <summary>Põe o cursor neste nó, se ele estiver à vista.</summary>
+        private void SeleccionarNo(string id)
+        {
+            int linha = IndiceDe(id);
+            if (linha < 0) return;
+            try { _dgvCompacto.CurrentCell = _dgvCompacto.Rows[linha].Cells[0]; }
+            catch { }
+        }
+
+        /// <summary>
+        /// Atalhos do painel inteiro: `Ctrl+F` vai para a pesquisa.
+        ///
+        /// No ProcessCmdKey e não num KeyDown porque tem de funcionar esteja o
+        /// foco onde estiver dentro da paleta — na árvore, num campo da
+        /// configuração ou num botão. Um atalho que só funciona com o foco no
+        /// sítio certo não é um atalho.
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.F))
+            {
+                if (_txtPesquisa != null)
+                {
+                    _txtPesquisa.Focus();
+                    _txtPesquisa.SelectAll();
+                    return true;
+                }
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        /// <summary>O nó em que a árvore está, ou nulo.</summary>
+        private NoResultado NoSeleccionado()
+        {
+            if (_dgvCompacto == null || _dgvCompacto.CurrentRow == null) return null;
+            return _dgvCompacto.CurrentRow.Tag as NoResultado;
+        }
+
+        /// <summary>O valor de uma propriedade do nó, pelo identificador do campo.</summary>
+        private static string ValorPropriedade(List<Propriedade> propriedades, string campo)
+        {
+            if (propriedades == null) return "";
+            foreach (var p in propriedades)
+                if (p.Campo == campo) return p.Valor;
+            return "";
+        }
+
+
+        /// <summary>
+        /// Grava no desenho o que se escreveu em PROPRIEDADES.
+        ///
+        /// Passa pelos MESMOS métodos do <see cref="AlvRepo"/> que a grelha
+        /// larga usava — não há um segundo caminho de escrita — e valida antes
+        /// de chamar: uma medida que não se lê não chega a tocar no desenho.
+        ///
+        /// A EDIÇÃO EM LOTE CONTINUA A VALER. Com várias medições escolhidas na
+        /// árvore, o que se escreve numa vale para todas. Sem isso, tirar o
+        /// piso a trinta medições eram trinta edições — e a árvore reagrupa-se
+        /// a cada uma, porque agrupa POR piso: a medição que se acabou de mudar
+        /// salta para outro sítio e a seguinte já não está onde estava.
+        /// </summary>
+        private void AplicarEdicaoDePropriedade(NoResultado no, Propriedade p,
+                                                string bruto, List<string> alvos)
+        {
+            if (_carregando) return;
+            if (p == null || !p.Editavel || no == null || no.EhGrupo) return;
+
+            string handle = no.Handle;
+            if (handle == null) return;
+
+            bruto = (bruto ?? "").Trim();
+            if (alvos == null) alvos = HandlesSeleccionados();
+
+            // Com várias linhas escolhidas na árvore, a escrita vale para
+            // todas — mas só se a que estamos a editar for uma delas.
+            bool emBloco = alvos.Count > 1 && alvos.Contains(handle);
+
+            switch (p.Campo)
+            {
+                // ---- parede -------------------------------------------------
+                case "servico":
+                    if (!AlvRepo.DefinirServico(handle, bruto))
+                        PaletteHost.Log("Serviço inválido — a medição não foi alterada.");
+                    break;
+
+                case "artigo":
+                {
+                    string chave = ChaveEscrita(handle, bruto);
+                    if (emBloco)
+                        Relatar(AlvRepo.DefinirArtigoEmVarias(alvos, chave), alvos.Count, "artigo");
+                    else
+                        Confirmar(AlvRepo.DefinirArtigo(handle, chave), "artigo");
+                    break;
+                }
+
+                case "piso":
+                    if (emBloco)
+                        Relatar(AlvRepo.DefinirPisoEmVarias(alvos, bruto), alvos.Count,
+                                bruto.Length == 0 ? "piso (removido)" : "piso «" + bruto + "»");
+                    else
+                        Confirmar(AlvRepo.DefinirPiso(handle, bruto), "piso");
+                    break;
+
+                case "altura":
+                case "largura":
+                case "espessura":
+                {
+                    double valor;
+                    if (!TentarMedida(bruto, out valor)) return;
+
+                    // O AlvRepo conhece estas dimensões por nomes curtos — os
+                    // mesmos que as colunas da grelha larga usavam.
+                    string campo = p.Campo == "altura" ? "alt"
+                                 : p.Campo == "largura" ? "larg" : "esp";
+                    if (emBloco)
+                        Relatar(AlvRepo.AlterarDimensaoEmVarias(alvos, campo, valor),
+                                alvos.Count, p.Nome);
+                    else
+                        Confirmar(AlvRepo.AlterarDimensao(handle, campo, valor), p.Nome);
+                    break;
+                }
+
+                // ---- vão ----------------------------------------------------
+                case "designacao":
+                    if (no.Indice < 0) return;
+                    AlvRepo.DefinirDesignacaoVao(handle, no.Indice, bruto);
+                    break;
+
+                case "larguraVao":
+                case "alturaVao":
+                case "quantidadeVao":
+                {
+                    if (no.Indice < 0) return;
+                    double medida;
+                    if (!TentarMedida(bruto, out medida)) return;
+
+                    // "qt", e não "qtd": é o nome que o AlvRepo.AlterarVao
+                    // reconhece. Um nome errado não dá erro nenhum — o método
+                    // simplesmente não faz nada, e a quantidade do vão ficava
+                    // como estava sem uma única mensagem.
+                    string campo = p.Campo == "larguraVao" ? "larg"
+                                 : p.Campo == "alturaVao" ? "alt" : "qt";
+                    Confirmar(AlvRepo.AlterarVao(handle, no.Indice, campo, medida), p.Nome);
+                    break;
+                }
+
+                // ---- título -------------------------------------------------
+                case "codigoTitulo":
+                case "descricaoTitulo":
+                {
+                    if (no.Indice < 0) return;
+
+                    // O código e a descrição viajam juntos num campo só,
+                    // separados pelo 0x1F. Editar um tem de conservar o outro
+                    // — a grelha larga mostrava a descrição cortada e gravá-la
+                    // de volta apagava o resto do artigo.
+                    string codigo = ValorPropriedade(no.Propriedades, "codigoTitulo");
+                    string descricao = ValorPropriedade(no.Propriedades, "descricaoTitulo");
+                    if (p.Campo == "codigoTitulo") codigo = bruto; else descricao = bruto;
+
+                    AlvRepo.DefinirTextoDeTitulo(handle, no.Indice,
+                        codigo + ChaveArtigo.Sep + descricao);
+                    break;
+                }
+
+                default:
+                    return;
+            }
+
+            AplicarNaFolha();
+        }
+
+        /// <summary>
+        /// O que vai sair na próxima medição, em texto — para o cabeçalho e
+        /// para o resumo da CONFIGURAÇÃO recolhida.
+        /// </summary>
+        private static string ResumoDaProxima()
+        {
+            var partes = new List<string>();
+            if (!string.IsNullOrEmpty(Config.Piso)) partes.Add(Config.Piso);
+            if (!string.IsNullOrEmpty(Config.Servico)) partes.Add(Config.Servico);
+
+            string codigo = ChaveArtigo.Codigo(Config.Artigo ?? "").Trim();
+            partes.Add(codigo.Length > 0 ? codigo : ResultadosArvore.PorClassificar);
+
+            partes.Add("h " + Config.Altura.ToString("N2", CultureInfo.CurrentCulture) + " m");
+            partes.Add("e " + Config.Espessura.ToString("N2", CultureInfo.CurrentCulture) + " m");
+            return string.Join(" · ", partes.ToArray());
+        }
+
+        /// <summary>Põe o resumo da próxima medição nos dois sítios que o mostram.</summary>
+        private void AtualizarResumoDaProxima()
+        {
+            string resumo = ResumoDaProxima();
+            if (_lblProximaMedicao != null)
+            {
+                _lblProximaMedicao.Text = "Próxima medição: " + resumo;
+                _lblProximaMedicao.AccessibleDescription = _lblProximaMedicao.Text;
+            }
+            if (_btnConfigToggle != null)
+                _btnConfigToggle.Text = (_configExpandida ? "▼" : "▶") +
+                                        "  CONFIGURAÇÃO   " + resumo;
+            AtualizarDesenhoActivo();
+        }
+
+        /// <summary>
+        /// Diz que desenho está activo. Sem nenhum aberto di-lo por palavras,
+        /// em vez de ficar em branco — um cabeçalho vazio lê-se como um erro.
+        /// </summary>
+        private void AtualizarDesenhoActivo()
+        {
+            if (_lblDwg == null) return;
+            string nome = null;
+            try
+            {
+                var doc = AcadApp.DocumentManager.MdiActiveDocument;
+                if (doc != null)
+                    nome = System.IO.Path.GetFileName(doc.Name);
+            }
+            catch { }
+
+            bool ha = !string.IsNullOrWhiteSpace(nome);
+            _lblDwg.Text = ha ? "● " + nome : "○ sem desenho";
+            _lblDwg.ForeColor = ha ? PaletteTheme.AcentoEscuro : PaletteTheme.Apagado;
+            _lblDwg.AccessibleDescription = ha ? "Desenho activo: " + nome : "Sem desenho aberto";
+            ToolTipDoCabecalho().SetToolTip(_lblDwg, _lblDwg.AccessibleDescription);
+        }
+
+        private ToolTip _dicaCabecalho;
+        private ToolTip ToolTipDoCabecalho()
+        {
+            return _dicaCabecalho ?? (_dicaCabecalho = new ToolTip { AutoPopDelay = 15000 });
+        }
+
+        private void AtualizarPropriedadesCompactas()
+        {
+            if (_mosaico == null) return;
+
+            var no = NoSeleccionado();
+            _lblPropriedadeTitulo.Text = no == null
+                ? "PROPRIEDADES — nada selecionado"
+                : "PROPRIEDADES — " + no.Rotulo;
+
+            // "Medir aqui" só em nós de artigo, como o plano manda.
+            if (_btnMedirAqui != null)
+                _btnMedirAqui.Visible = no != null && no.PermiteMedirAqui;
+
+            _mosaico.No = no;
+            _mosaico.Handles = HandlesSeleccionados();
+
+            if (no == null || no.Propriedades == null)
+            {
+                _mosaico.Definir(null);
+                return;
+            }
+
+            var mostrar = new List<Propriedade>();
+            foreach (var p in no.Propriedades)
+            {
+                // O modo "Essenciais" esconde só o acessório — bloco, alçado,
+                // layer, handle. As DIMENSÕES ficam sempre à vista: saíram da
+                // árvore para aqui, e escondê-las atrás de um modo obrigava a
+                // dois cliques para tirar uma dúvida sobre um número.
+                if (_propriedadesEssenciais && !p.Essencial) continue;
+                mostrar.Add(p);
+            }
+            _mosaico.Definir(mostrar);
+
+            // A faixa cresce com o que tem de mostrar, em vez de cortar. Uma
+            // parede com dez métricas não cabe na altura de seis.
+            var painel = _mosaico.Parent;
+            if (painel != null)
+                painel.Height = PaletteTheme.AlturaTituloSeccao + _mosaico.AlturaNecessaria;
+        }
+
+        /// <summary>
+        /// Grava o que se escreveu num mosaico de métrica.
+        ///
+        /// Reencaminha para o mesmo caminho de escrita da grelha antiga — os
+        /// métodos do <see cref="AlvRepo"/> —, porque um segundo caminho de
+        /// escrita é como as duas metades de um programa começam a discordar.
+        /// </summary>
+        private void AoEditarMetrica(object sender, PropriedadeEditadaEventArgs e)
+        {
+            AplicarEdicaoDePropriedade(e.No, e.Propriedade, e.Valor, e.Handles);
+        }
+
+        /// <summary>
+        /// Rótulo de campo da CONFIGURAÇÃO.
+        ///
+        /// Passa pelo tema em vez de herdar a cor do painel. A herança
+        /// funcionava enquanto o fundo era branco e o preto do sistema servia;
+        /// em grafite, um rótulo que não declare a sua cor fica à mercê do que
+        /// o AutoCAD tenha posto no controlo pai — e foi assim que os nomes dos
+        /// campos ficaram cinzento-escuro sobre cinzento-escuro.
+        /// </summary>
+        private static Label Rot(string t)
+        {
+            return new Label
+            {
+                Text = t,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Dock = DockStyle.Fill,
+                ForeColor = PaletteTheme.Apagado,
+                BackColor = Color.Transparent,
+                Font = PaletteTheme.Normal,
+                AccessibleName = t.TrimEnd(':', ' ')
+            };
+        }
+
+        /// <summary>
+        /// Item do menu «Mais», com o clique protegido pela mesma razão dos
+        /// botões: um erro vai para a linha de comandos, não abre uma caixa
+        /// vermelha por cima do desenho.
+        /// </summary>
+        private static ToolStripMenuItem ItemDeMenu(string texto, Image icone,
+                                                    string descricao, Action accao)
+        {
+            var item = new ToolStripMenuItem(texto, icone);
+            item.ToolTipText = descricao;
+            item.AccessibleName = texto;
+            item.AccessibleDescription = descricao;
+            item.Click += (s, e) =>
+            {
+                try { accao(); }
+                catch (Exception ex) { PaletteHost.Log(texto + ": " + ex.Message); }
+            };
+            return item;
+        }
+
+        /// <summary>
+        /// Botão de barra compacto: ícone pequeno ao LADO do texto, numa linha
+        /// só. Para as acções sobre resultados — frequentes, mas secundárias.
+        /// </summary>
+        private static ToolStripButton BotaoDeBarra(string texto, Image icone,
+                                                    EventHandler aoClicar)
+        {
+            EventHandler seguro = (s, e) =>
+            {
+                try { aoClicar(s, e); }
+                catch (Exception ex) { PaletteHost.Log(texto + ": " + ex.Message); }
+            };
+            return new ToolStripButton(texto, icone, seguro)
+            {
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
+                ImageScaling = ToolStripItemImageScaling.SizeToFit,
+                AutoSize = true,
+                Font = PaletteTheme.Pequeno,
+                Padding = new Padding(3, 1, 3, 1),
+                Margin = new Padding(0, 0, 2, 0),
+                ToolTipText = texto,
+                AccessibleName = texto
+            };
+        }
 
         /// <summary>Botão com o clique protegido: um erro nunca abre caixa vermelha.</summary>
         private static ToolStripButton MakeButton(string text, Image icon, EventHandler onClick)
@@ -1005,9 +2542,10 @@ namespace TSKTakeOff
                 // para a chave "", e este lado ia lê-la a "PISO 0": a caixa
                 // abria, escolhia-se, e não mudava nada. Duas chaves para a
                 // mesma coisa.
-                var cor = FachadaConfig.CorDoPiso(PisoDaCor());
-                _btnCor.BackColor = cor;
-                _btnCor.ForeColor = cor.GetBrightness() < 0.5 ? Color.White : Color.Black;
+                _corDoPiso = FachadaConfig.CorDoPiso(PisoDaCor());
+                _btnCor.AccessibleDescription =
+                    "Cor do piso " + PisoDaCor() + ". Vale para as próximas medições.";
+                _btnCor.Invalidate();   // é o Paint que desenha a pastilha
             }
             catch { }
         }
@@ -1257,17 +2795,31 @@ namespace TSKTakeOff
             var handles = new List<string>();
 
             var linhas = new SortedSet<int>();
-            foreach (DataGridViewCell c in _dgv.SelectedCells) linhas.Add(c.RowIndex);
-            foreach (DataGridViewRow r in _dgv.SelectedRows) linhas.Add(r.Index);
-            if (linhas.Count == 0 && _dgv.CurrentRow != null)
-                linhas.Add(_dgv.CurrentRow.Index);
+            foreach (DataGridViewCell c in _dgvCompacto.SelectedCells) linhas.Add(c.RowIndex);
+            foreach (DataGridViewRow r in _dgvCompacto.SelectedRows) linhas.Add(r.Index);
+            if (linhas.Count == 0 && _dgvCompacto.CurrentRow != null)
+                linhas.Add(_dgvCompacto.CurrentRow.Index);
 
             foreach (int i in linhas)
             {
-                if (i < 0 || i >= _dgv.Rows.Count) continue;
-                if (_linhasTitulo.Contains(i)) continue;
-                string h = _dgv.Rows[i].Tag as string;
-                if (h != null && vistos.Add(h)) handles.Add(h);
+                if (i < 0 || i >= _dgvCompacto.Rows.Count) continue;
+                var no = _dgvCompacto.Rows[i].Tag as NoResultado;
+                if (no == null) continue;
+
+                // Um GRUPO não entra. Não tem handle nenhum — não há entidade
+                // no desenho para onde apontar — e é isso que o impede de ser
+                // removido, editado ou reclassificado. Deixá-lo arrastar os
+                // filhos consigo transformava um clique num piso numa operação
+                // sobre a obra inteira.
+                if (no.EhGrupo) continue;
+
+                // Um TÍTULO é texto da folha, não uma medição. Fica de fora
+                // das operações em lote, como sempre esteve.
+                if (no.Tipo == TipoNo.Titulo) continue;
+
+                // Um VÃO aponta para a parede a que pertence: seleccionar o
+                // vão vale seleccionar a parede, que é o que se espera.
+                if (no.Handle != null && vistos.Add(no.Handle)) handles.Add(no.Handle);
             }
             return handles;
         }
@@ -1549,16 +3101,17 @@ namespace TSKTakeOff
         private string DescreverAlvo(string handle)
         {
             if (handle == null) return "nenhuma";
-            foreach (DataGridViewRow linha in _dgv.Rows)
-            {
-                if ((linha.Tag as string) != handle) continue;
-                if (_linhasVao.Contains(linha.Index) ||
-                    _linhasTitulo.Contains(linha.Index)) continue;
 
-                return string.Format("Nº {0} ({1}, {2} m)",
-                    linha.Cells["num"].Value,
-                    linha.Cells["servico"].Value,
-                    linha.Cells["comp"].Value);
+            // Lido da lista em memória e não da árvore: um filtro pode ter
+            // escondido a linha, e a medição continua a ser o alvo legítimo —
+            // o alvo pode vir da célula do Excel ou da última medição.
+            foreach (var p in _paredes)
+            {
+                if (p.Handle != handle) continue;
+                return string.Format("{0} ({1}, {2} m)",
+                    string.IsNullOrEmpty(p.Nota) ? "handle " + handle : p.Nota,
+                    string.IsNullOrEmpty(p.Servico) ? "sem serviço" : p.Servico,
+                    N2(p.ComprimentoTotal));
             }
             return "handle " + handle;
         }
@@ -1739,7 +3292,16 @@ namespace TSKTakeOff
                 linha.Cells[Col(c)].Style = _celEditavel;
         }
 
-        public void BindData(List<Parede> paredes)
+        /// <summary>
+        /// Recebe TUDO o que está medido no desenho — já não só a alvenaria.
+        ///
+        /// O painel deixou de ter quatro abas: o tipo de medida passou a ser um
+        /// nível da árvore, e por isso as quatro listas entram aqui e saem numa
+        /// hierarquia só. É o que permite ler o total de um piso nas quatro
+        /// unidades sem somar de cabeça entre separadores.
+        /// </summary>
+        public void BindData(List<Parede> paredes, List<MedFachada> fachadas,
+                             List<MedItem> lineares, List<MedContagem> contagens)
         {
             // O mapa pode ter acabado de ser importado, ou o utilizador pode
             // ter mudado de desenho. Refazer a lista aqui é o que faz a lista
@@ -1747,161 +3309,101 @@ namespace TSKTakeOff
             FiltrarArtigos();
 
             // Pela ordem da folha, não pela ordem por que foram desenhadas.
-            // Assim o Nº da grelha é o mesmo sítio que a linha do Excel, e o
-            // "última medição" dos botões quer dizer o mesmo nos dois lados.
+            // Assim a árvore e o Excel dizem o mesmo, e o "última medição" dos
+            // botões quer dizer o mesmo nos dois lados.
             _paredes = FolhaMedicao.OrdenarComoFolha(paredes ?? new List<Parede>());
             paredes = _paredes;
 
-            // Guardar onde estávamos ANTES de deitar a grelha abaixo. Cada
-            // medição refaz esta lista, e sem isto a selecção perdia-se de cada
-            // vez — ficava-se sem alvo, tudo caía na última medição, e parecia
-            // que os botões ignoravam a escolha.
-            string handleSel = null;
-            int vaoSel = -1;
-            var linhaAntes = LinhaSeleccionada();
-            if (linhaAntes != null)
-            {
-                handleSel = linhaAntes.Tag as string;
-                if (!_indiceVao.TryGetValue(linhaAntes.Index, out vaoSel)) vaoSel = -1;
-                if (!_linhasVao.Contains(linhaAntes.Index)) vaoSel = -1;
-            }
+            _fachadas = FolhaMedicao.OrdenarComoFolha(fachadas ?? new List<MedFachada>());
+            _lineares = lineares ?? new List<MedItem>();
+            _contagens = contagens ?? new List<MedContagem>();
 
-            // Acabou de se medir: o cursor vai para a medição nova, não para
-            // onde estava. É ela o alvo do vão e do título que venham a seguir.
-            // Só se for MESMO desta grelha — pode ser um pano dos Materiais, e
-            // aí ficava-se sem selecção nenhuma dos dois lados.
-            string nova = PaletteHost.MedicaoNova;
-            bool seguirNova = nova != null && paredes.Exists(p => p.Handle == nova);
-            if (seguirNova)
-            {
-                handleSel = nova;
-                vaoSel = -1;
-            }
+            // TUDO NUMA ÁRVORE SÓ.
+            //
+            // As quatro listas — paredes, panos, lineares e contagens — vêm da
+            // mesma travessia do desenho e passam pelos mesmos adaptadores.
+            // Cada uma declara o seu TIPO DE MEDIDA, e é esse que faz o segundo
+            // nível: é o tipo que fixa a unidade, e é por isso que um piso pode
+            // mostrar m², m³, m e un. lado a lado sem nunca os somar.
+            var medicoes = ResultadosArvore.DeParedes(
+                paredes, Config.Regra,
+                MapaQuantidades.Existe
+                    ? (Func<string, bool>)(a => MapaQuantidades.Procurar(a) != null)
+                    : null,
+                CultureInfo.CurrentCulture);
+            medicoes.AddRange(ResultadosAdaptadores.DeMateriais(
+                _fachadas,
+                MapaQuantidades.Existe
+                    ? (Func<string, bool>)(a => MapaQuantidades.Procurar(a) != null)
+                    : null,
+                CultureInfo.CurrentCulture));
+            medicoes.AddRange(ResultadosAdaptadores.DeLineares(
+                _lineares, CultureInfo.CurrentCulture));
+            medicoes.AddRange(ResultadosAdaptadores.DeContagens(
+                _contagens, CultureInfo.CurrentCulture));
 
-            int scroll = _dgv.FirstDisplayedScrollingRowIndex;
-
+            // A ÁRVORE COMPACTA É A ÚNICA VISTA DE RESULTADOS.
+            //
+            // Aqui enchia-se também a grelha larga de dezassete colunas, com
+            // uma linha por parede, por vão e por título. Deixou de se fazer:
+            // eram duas listas a dizer o mesmo, duas selecções a divergir e
+            // dois caminhos de escrita para o desenho — e a que se via era a
+            // de baixo. A edição vive agora em PROPRIEDADES, que escreve pelos
+            // mesmos métodos do AlvRepo.
+            //
+            // O _carregando protege o painel de propriedades: reconstruir a
+            // árvore muda a selecção, e sem isto o CellEndEdit disparava
+            // sozinho e regravava valores que ninguém escreveu.
             _carregando = true;
-            GarantirEstilos();
+            try
+            {
+                AtualizarResultadosCompactos(
+                    ResultadosArvore.Construir(medicoes, CultureInfo.CurrentCulture));
+            }
+            catch (Exception ex)
+            {
+                PaletteHost.Log("Resultados: " + ex.Message);
+            }
+            finally
+            {
+                _carregando = false;
+            }
 
-            // Sem isto, cada Rows.Add dispara um ciclo de layout e um redesenho
-            // da paleta. Numa reconstrução de duzentas linhas são duzentos.
-            _dgv.SuspendLayout();
-            // E nada de medir larguras a meio do enchimento: mede-se uma vez
-            // no fim, quando as linhas já lá estão todas.
-            _dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
-            _dgv.Rows.Clear();
-            _pendentes.Clear();
-            _linhasVao.Clear();
-            _indiceVao.Clear();
-            _linhasTitulo.Clear();
-            _indiceTitulo.Clear();
-            int n = 1, excesso = 0, semArtigo = 0;
+            // Contadores dos avisos do rodapé. Saíam do ciclo que enchia a
+            // grelha; agora contam-se aqui, sobre a mesma lista e com as
+            // mesmas regras.
+            //
             // Só faz sentido apontar o dedo às medições sem artigo quando há um
             // mapa onde as pôr. Sem mapa, não ter artigo é o normal.
             bool comMapa = MapaQuantidades.Existe;
-
+            int excesso = 0, semArtigo = 0;
             foreach (var p in paredes)
             {
-                var linha = NovaLinha(
-                    n++,
-                    MarcaNaGrelha(p),
-                    p.Servico,
-                    CodigoArtigo(p.Artigo),
-                    p.Alcado,
-                    p.Bloco,
-                    p.Piso,
-                    // O total, não só o da geometria: numa hachura que pára nos
-                    // vãos, o número que interessa é a parede inteira — e é
-                    // esse que vai para o Excel. Mostrar outro aqui punha a
-                    // paleta e a folha a discordar.
-                    N2(p.ComprimentoTotal),
-                    N2(p.Altura),
-                    N2(p.Largura),
-                    N2(p.Espessura),
-                    N2(p.AreaBruta),
-                    N2(p.DescontoVaos(Config.Regra)),
-                    N2(p.AreaLiquida(Config.Regra)),
-                    N2(p.AreaLiquida(Config.Regra)) + " " + Unid(p.Unidade),
-                    N2(p.Volume(Config.Regra)),
-                    p.PreAroUn,
-                    N2(p.PreAroMl));
-                linha.Tag = p.Handle;
-
-                if (comMapa && string.IsNullOrEmpty(p.Artigo))
-                {
-                    var cel = linha.Cells[Col("artigo")];
-                    cel.Value = SemArtigo;
-                    cel.Style = _celSemArtigo;
-                    cel.ToolTipText =
-                        "Esta medição ainda não pertence a nenhum artigo do mapa, " +
-                        "por isso sai no fim da folha.\nClique para escolher o artigo.";
+                if (comMapa && (string.IsNullOrEmpty(p.Artigo) ||
+                                MapaQuantidades.Procurar(p.Artigo) == null))
                     semArtigo++;
-                }
-                else if (comMapa && MapaQuantidades.Procurar(p.Artigo) == null)
-                {
-                    // Tem artigo escrito, mas o mapa não o conhece. Não tem
-                    // lugar no articulado e sai no fim da folha — tal como as
-                    // que não têm artigo nenhum, mas por um motivo diferente e
-                    // muito mais difícil de ver: o código está lá escrito, com
-                    // ar de estar tudo certo. Foi assim que uma designação
-                    // cortada aos 255 caracteres desligou o mapa inteiro sem
-                    // dar um único sinal.
-                    var cel = linha.Cells[Col("artigo")];
-                    cel.Value = CodigoArtigo(p.Artigo) + " ?";
-                    cel.Style = _celSemArtigo;
-                    cel.ToolTipText =
-                        "O mapa importado não conhece este artigo, por isso a " +
-                        "medição sai no fim da folha.\nClique em Reclassificar " +
-                        "para a ligar a um artigo do mapa.";
-                    semArtigo++;
-                }
 
-                // Alerta quando os vãos excedem a parede — erro de medição,
-                // não pode passar despercebido.
                 if (p.DescontoVaos(Config.Regra) > p.AreaBruta + 1e-9)
-                {
-                    linha.DefaultCellStyle = _estAlerta;
-                    linha.Cells[Col("vaos")].Style = _celAlerta;
                     excesso++;
-                }
-
-                // Vãos por baixo da parede, indentados — para se ver de onde
-                // vem o desconto sem ter de abrir nada. São só de leitura: a
-                // parede é que manda, o vão é detalhe dela.
-                int ordemVao = 1;
-                foreach (var v in p.Vaos)
-                    AcrescentarLinhaVao(p, v, n - 1, ordemVao++);
-
-                // O título sai por baixo da medição e dos seus vãos, como na
-                // folha. A grelha passa a ser o espelho do Excel.
-                var marcas = p.Marcas;
-                for (int mi = 0; mi < marcas.Count; mi++)
-                    AcrescentarLinhaTitulo(p, n - 1, marcas[mi], p.TextoDaMarca(mi), mi);
             }
-            // Só agora é que a grelha vê as linhas, e vê-as todas de uma vez.
-            // Tem de ser ANTES do RestaurarSeleccao: ele trabalha sobre linhas
-            // da grelha, e enquanto elas estiverem na fila não há lá nada para
-            // seleccionar nem para onde deslocar o scroll.
-            if (_pendentes.Count > 0) _dgv.Rows.AddRange(_pendentes.ToArray());
-            _pendentes.Clear();
 
-            RestaurarSeleccao(handleSel, vaoSel, scroll, seguirNova);
-            _dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
-            _dgv.ResumeLayout();
-            _carregando = false;
-
-            // Um total por unidade, nunca as duas na mesma soma. Estava
-            // "Área líq.: {soma de todas} m²", e as camadas — que faturam m³ —
-            // entravam nessa conta: o número não era m² nem m³.
-            var totais = TotaisMedicao.PorUnidade(paredes, Config.Regra);
-            var partes = new List<string>();
-            foreach (var t in totais)
-                partes.Add(N2(t.Value) + " " + Unid(t.Key));
+            // O TOTAL DO PAINEL É O DA RAIZ DA ÁRVORE.
+            //
+            // Era calculado só sobre as paredes, o que fazia sentido quando o
+            // painel só via alvenaria. Com tudo na mesma árvore, o rodapé tem
+            // de dizer o mesmo que a linha de topo — senão são dois totais no
+            // mesmo ecrã a discordarem um do outro.
+            //
+            // A regra de nunca somar unidades diferentes é a de sempre; agora
+            // vem do próprio acumulador da raiz.
+            string total = _raizResultados == null || _raizResultados.Quantidades.Vazio
+                ? "0,00 m²"
+                : _raizResultados.Quantidades.Texto(CultureInfo.CurrentCulture);
 
             _lblTotais.Text = string.Format(
                 "Medições: {0}   |   Total: {1}   |   Volume: {2} m³   |   Pré-aros: {3} un / {4} m",
-                paredes.Count,
-                partes.Count == 0 ? "0,00 m²" : string.Join("  ·  ", partes.ToArray()),
+                medicoes.Count,
+                total,
                 N2(paredes.Sum(p => p.Volume(Config.Regra))),
                 paredes.Sum(p => p.PreAroUn),
                 N2(paredes.Sum(p => p.PreAroMl)));
@@ -1948,32 +3450,28 @@ namespace TSKTakeOff
         /// chama tem outras alternativas antes de desistir.</summary>
         private string SelectedHandleSilencioso()
         {
-            // Sem escolha explícita não há "linha seleccionada": a grelha está
+            // Sem escolha explícita não há "linha seleccionada": a árvore está
             // pousada na primeira linha, não foi ninguém que a pôs lá.
             if (!PaletteHost.GrelhaFoiEscolhida) return null;
 
-            var row = _dgv.CurrentRow;
-            if (row == null && _dgv.SelectedRows.Count > 0) row = _dgv.SelectedRows[0];
-            if (row == null && _dgv.SelectedCells.Count > 0)
-                row = _dgv.Rows[_dgv.SelectedCells[0].RowIndex];
-            return row?.Tag as string;
+            var no = NoSeleccionado();
+            // Um grupo não é alvo de nada: não tem handle. Quem tem a raiz
+            // seleccionada não escolheu medição nenhuma.
+            return no == null || no.EhGrupo ? null : no.Handle;
         }
 
         private string SelectedHandle()
         {
-            var row = _dgv.CurrentRow;
-            if (row == null && _dgv.SelectedRows.Count > 0) row = _dgv.SelectedRows[0];
-            if (row == null && _dgv.SelectedCells.Count > 0)
-                row = _dgv.Rows[_dgv.SelectedCells[0].RowIndex];
+            var no = NoSeleccionado();
+            if (no != null && !no.EhGrupo && no.Handle != null) return no.Handle;
 
-            string handle = row?.Tag as string;
-            if (handle == null)
-            {
-                MessageBox.Show("Clique numa linha da grade primeiro.", "TSK TakeOff",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return null;
-            }
-            return handle;
+            MessageBox.Show(
+                no != null && no.EhGrupo
+                    ? "«" + no.Rotulo + "» é um grupo, não uma medição.\n\n" +
+                      "Escolha uma medição, um vão ou um título dentro dele."
+                    : "Escolha primeiro uma linha na árvore de resultados.",
+                "TSK TakeOff", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return null;
         }
 
         /// <summary>Copia os campos da paleta para a Config antes de medir.</summary>
@@ -2119,6 +3617,7 @@ namespace TSKTakeOff
             // O artigo entra no nome calculado da layer: mostrar já o que vai
             // sair evita a surpresa de medir e só depois ver onde foi parar.
             MostrarLayerEfectiva();
+            AtualizarResumoDaProxima();
         }
 
         /// <summary>Diz, por baixo do campo, qual é a layer que vai mesmo ser usada.</summary>
@@ -2186,6 +3685,40 @@ namespace TSKTakeOff
         }
 
         /// <summary>
+        /// Dispara um comando de outro tipo de medida — pano, linear, contagem.
+        ///
+        /// O SyncConfig antes de enviar é pela mesma razão de sempre: o piso, a
+        /// altura e o alçado do painel têm de chegar ao comando. Escrever
+        /// TSKRET à mão media com os valores antigos, e ninguém percebia porquê.
+        ///
+        /// Cada tipo tem ainda ajustes próprios — o material de um pano, o raio
+        /// de uma contagem — que vivem nas Definições e não em cada botão: são
+        /// coisas que se escolhem uma vez e valem para a sessão.
+        /// </summary>
+        private void MedirNoutroTipo(string comando)
+        {
+            SyncConfig();
+            PaletteHost.RunCommand(comando);
+        }
+
+        /// <summary>
+        /// As definições dos tipos que não têm campos próprios no painel:
+        /// material e altura de piso dos panos, nome/categoria/raio das
+        /// contagens.
+        ///
+        /// Fica num diálogo em vez de encher a CONFIGURAÇÃO com campos que só
+        /// servem um tipo de cada vez — metade ficaria sempre cinzenta,
+        /// consoante o que se estivesse a medir. Grava directamente nas
+        /// classes estáticas que o TSKRET, o TSKPOLF e o TSKCONTAR já lêem, e
+        /// por isso não há mais nada a fazer aqui depois de fechar o diálogo.
+        /// </summary>
+        private void AbrirDefinicoesDoTipo()
+        {
+            using (var dlg = new DefinicoesTipoDialog())
+                dlg.ShowDialog(this);
+        }
+
+        /// <summary>
         /// Mede o que já está desenhado. O SyncConfig antes de enviar garante
         /// que o serviço, a altura e a espessura do painel chegam ao comando —
         /// era isso que faltava quando se escrevia TSKMEDSEL à mão.
@@ -2244,20 +3777,16 @@ namespace TSKTakeOff
             PaletteHost.RefreshData();
         }
 
-        /// <summary>Verdadeiro se a linha seleccionada é um vão, não uma parede.</summary>
-        private bool LinhaSeleccionadaEhVao()
-        {
-            var row = LinhaSeleccionada();
-            return row != null && _linhasVao.Contains(row.Index);
-        }
-
         /// <summary>
-        /// A linha em que se está, venha a selecção por linha ou por célula.
-        /// A grelha está em modo CellSelect, portanto na prática vem quase
-        /// sempre por célula — procurar só em SelectedRows não encontrava nada.
+        /// A linha da grelha larga antiga em que se está.
+        ///
+        /// Só lá é usada, e sai com ela quando a edição estiver toda em
+        /// PROPRIEDADES. As acções da paleta já não passam por aqui: usam
+        /// <see cref="NoSeleccionado"/>.
         /// </summary>
         private DataGridViewRow LinhaSeleccionada()
         {
+            if (_dgv == null) return null;
             var row = _dgv.CurrentRow;
             if (row == null && _dgv.SelectedRows.Count > 0) row = _dgv.SelectedRows[0];
             if (row == null && _dgv.SelectedCells.Count > 0)
@@ -2265,23 +3794,31 @@ namespace TSKTakeOff
             return row;
         }
 
-        /// <summary>Apaga o vão da linha seleccionada da parede a que pertence.</summary>
+        /// <summary>Verdadeiro se o nó seleccionado é um vão, não uma parede.</summary>
+        private bool LinhaSeleccionadaEhVao()
+        {
+            var no = NoSeleccionado();
+            return no != null && no.Tipo == TipoNo.Vao;
+        }
+
+        /// <summary>Apaga o vão do nó seleccionado da parede a que pertence.</summary>
         private void RemoverVaoSeleccionado()
         {
-            var row = LinhaSeleccionada();
-            if (row == null) return;
+            var no = NoSeleccionado();
+            if (no == null || no.Tipo != TipoNo.Vao) return;
 
-            string handle = row.Tag as string;
-            int indice;
-            if (handle == null || !_indiceVao.TryGetValue(row.Index, out indice))
+            string handle = no.Handle;
+            int indice = no.Indice;
+            if (handle == null || indice < 0)
             {
                 PaletteHost.Log("Não consegui identificar o vão desta linha. " +
                                 "Carregue em Atualizar e tente outra vez.");
                 return;
             }
 
-            string nome = (row.Cells["servico"].Value ?? "").ToString()
-                            .Replace("↳", "").Trim();
+            // O rótulo do nó é "Vão · P01": tira-se o prefixo para a pergunta
+            // ficar em português corrente.
+            string nome = (no.Rotulo ?? "").Replace("Vão ·", "").Trim();
             if (nome.Length == 0) nome = "este vão";
 
             var resp = MessageBox.Show(
@@ -2300,21 +3837,37 @@ namespace TSKTakeOff
 
         private void RemoverParede()
         {
-            // Linha de título: tira-se o título, a medição fica.
-            var sel = LinhaSeleccionada();
-            if (sel != null && _linhasTitulo.Contains(sel.Index))
+            // Um grupo não se remove: não é uma medição, é uma arrumação. Sem
+            // isto, «Remover» com um piso seleccionado ou não fazia nada ou —
+            // pior — apagava a primeira medição lá de dentro.
+            var sel = NoSeleccionado();
+            if (sel != null && sel.EhGrupo)
             {
-                string h = sel.Tag as string;
+                PaletteHost.Log("«" + sel.Rotulo + "» é um grupo. Escolha a medição, " +
+                                "o vão ou o título que quer remover.");
+                return;
+            }
+
+            // Nó de título: tira-se o título, a medição fica.
+            if (sel != null && sel.Tipo == TipoNo.Titulo)
+            {
+                string h = sel.Handle;
                 if (h == null) return;
 
-                string nivel = (sel.Cells["sep"].Value ?? "título").ToString();
+                // O nível vem do modelo, não do texto da célula: o rótulo é
+                // para ler, e lê-lo de volta para decidir o que apagar era
+                // fazer depender uma escrita no desenho de uma cadeia de UI.
+                string marcaT = ValorPropriedade(sel.Propriedades, "nivelTitulo") == "Capítulo"
+                    ? "CAP" : "ART";
+                string nivel = marcaT == "CAP" ? "Capítulo" : "Artigo";
+
                 if (MessageBox.Show("Apagar esta linha de " + nivel.ToLowerInvariant() + "?",
                         "TSK TakeOff", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
                         MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
 
-                // DefinirMarca com marca vazia leva o texto com ela — senão
-                // reaparecia sozinho da próxima vez que se pusesse um título.
-                string marcaT = nivel.StartsWith("CAP") ? "CAP" : "ART";
+                // AlternarTitulo com a marca presente leva o texto com ela —
+                // senão reaparecia sozinho da próxima vez que se pusesse um
+                // título.
                 AlvRepo.AlternarTitulo(h, marcaT);
                 PaletteHost.Log(nivel + " apagado.");
                 PaletteHost.RefreshData();
@@ -2459,21 +4012,24 @@ namespace TSKTakeOff
         /// por isso que um vão acrescentado logo a seguir a medir descontava
         /// noutra parede qualquer.
         ///
-        /// Confirma-se que ainda está na grelha: pode ter sido apagada, ou ser
-        /// de outro desenho, e nesse caso volta-se ao que isto sempre fez.
+        /// Confirma-se que ainda existe: pode ter sido apagada, ou ser de outro
+        /// desenho, e nesse caso volta-se ao que isto sempre fez.
+        ///
+        /// LIDO DA FONTE, NÃO DA ÁRVORE VISÍVEL. Um filtro é uma lente: a
+        /// medição que se acabou de fazer continua a ser o alvo do vão
+        /// seguinte, mesmo que o filtro em vigor a esteja a esconder. Ir buscá-la
+        /// às linhas visíveis punha um filtro a mudar onde o vão descontava.
         /// </summary>
         private string UltimoHandle()
         {
             string acabada = PaletteHost.UltimaMedicao;
             if (acabada != null)
-                for (int i = 0; i < _dgv.Rows.Count; i++)
-                    if ((_dgv.Rows[i].Tag as string) == acabada) return acabada;
+                foreach (var p in _paredes)
+                    if (p.Handle == acabada) return acabada;
 
-            for (int i = _dgv.Rows.Count - 1; i >= 0; i--)
-            {
-                string h = _dgv.Rows[i].Tag as string;
-                if (h != null) return h;
-            }
+            for (int i = _paredes.Count - 1; i >= 0; i--)
+                if (_paredes[i].Handle != null) return _paredes[i].Handle;
+
             return null;
         }
 
@@ -2487,28 +4043,47 @@ namespace TSKTakeOff
         /// <summary>Apaga todas as medições de alvenaria do desenho, com confirmação.</summary>
         private void LimparTudo()
         {
-            int n = _dgv.Rows.Count;
-            if (n == 0)
+            // A FONTE COMPLETA, NUNCA AS LINHAS VISÍVEIS.
+            //
+            // São duas armadilhas na mesma operação. A primeira: com um filtro
+            // aplicado, percorrer as linhas à vista apagava só essas — e o
+            // botão diz «limpar tudo», portanto quem o carrega fica convencido
+            // de que o desenho ficou limpo. A segunda: a árvore repete o handle
+            // da parede nos vãos e nos títulos dela, por isso a mesma medição
+            // aparecia várias vezes e era apagada várias vezes, inflacionando a
+            // contagem que sai no fim.
+            var handles = new List<string>();
+            var vistos = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var p in _paredes)
+                if (p.Handle != null && vistos.Add(p.Handle)) handles.Add(p.Handle);
+
+            if (handles.Count == 0)
             {
                 PaletteHost.Log("Não há medições de alvenaria para limpar.");
                 return;
             }
 
+            // Dizer que o filtro NÃO protege nada. Quem tem o PISO 1 filtrado
+            // à frente e carrega em «Limpar tudo» tem de saber, ANTES de
+            // confirmar, que também vão os outros pisos.
+            string aviso = _estadoResultados != null && _estadoResultados.AFiltrar
+                ? "\n\nATENÇÃO: há um filtro aplicado, mas isto apaga TODAS as " +
+                  "medições do desenho, não só as que estão à vista."
+                : "";
+
             var resp = MessageBox.Show(
-                string.Format("Apagar as {0} medição(ões) de alvenaria deste desenho?\n\n" +
+                string.Format("Apagar as {0} medição(ões) de alvenaria deste desenho?{1}\n\n" +
                               "Esta acção não pode ser desfeita pelo painel " +
-                              "(mas o CTRL+Z do AutoCAD ainda funciona).", n),
+                              "(mas o CTRL+Z do AutoCAD ainda funciona).",
+                              handles.Count, aviso),
                 "TSK TakeOff — limpar tudo",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button2);
             if (resp != DialogResult.Yes) return;
 
             int apagadas = 0;
-            foreach (DataGridViewRow row in _dgv.Rows)
-            {
-                string handle = row.Tag as string;
-                if (handle != null && AlvRepo.RemoverParede(handle)) apagadas++;
-            }
+            foreach (string handle in handles)
+                if (AlvRepo.RemoverParede(handle)) apagadas++;
 
             PaletteHost.Log(apagadas + " medição(ões) de alvenaria apagada(s).");
             PaletteHost.RefreshData();

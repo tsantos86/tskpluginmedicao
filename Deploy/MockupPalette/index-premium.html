@@ -1,0 +1,685 @@
+<title>TSK TakeOff · Painel de Medições</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* ──────────────────────────────────────────────────────────────
+   TSK TakeOff — painel de medições
+   Escuro por omissão: a paleta vive ancorada dentro do AutoCAD, e
+   um painel branco naquela moldura lê-se como uma janela estranha.
+   ────────────────────────────────────────────────────────────── */
+:root{
+  --void:#080A0E;        /* fora do painel */
+  --panel:#101620;       /* o painel */
+  --bar:#161E29;         /* barras e cabeçalhos de secção */
+  --sunk:#0C1219;        /* campos e mostradores */
+  --edge:#242E3B;        /* fios */
+  --edge-soft:#1B242F;
+  --ink:#E4EBF2;
+  --ink-2:#AEBCCB;
+  --mute:#7C8B9C;
+  --accent:#4EC3E8;
+  --accent-2:#2A9BC4;
+  --pick:#17457E;        /* linha escolhida */
+  --pick-edge:#2E6FBF;
+  --green:#3FB577;
+  --amber:#D9A03C;
+  --rose:#E07C7C;
+  --shadow:rgba(0,0,0,.5);
+}
+:root[data-mock="claro"]{
+  --void:#B9C6CF;
+  --panel:#FFFFFF;
+  --bar:#F1F5F8;
+  --sunk:#FAFCFD;
+  --edge:#C9D5DD;
+  --edge-soft:#E3EAEF;
+  --ink:#0E151C;
+  --ink-2:#394856;
+  --mute:#5C6B79;
+  --accent:#0C7DAE;
+  --accent-2:#0A6288;
+  --pick:#CFE4F8;
+  --pick-edge:#3E86C8;
+  --green:#1C7A4E;
+  --amber:#8E6407;
+  --rose:#B24A4A;
+  --shadow:rgba(20,35,45,.2);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;background:var(--void);color:var(--ink);
+  font:400 13px/1.35 "Barlow Semi Condensed","Segoe UI",Tahoma,sans-serif;
+  -webkit-font-smoothing:antialiased;padding:24px 16px 56px;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+.stage{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.pitch{max-width:64ch}
+.pitch h1{font-size:25px;font-weight:600;margin:0 0 5px;text-wrap:balance}
+.pitch p{margin:0;color:var(--mute);font-size:14px;line-height:1.5}
+.controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--edge);background:var(--bar)}
+.seg button{
+  appearance:none;border:0;background:transparent;color:var(--mute);font:inherit;
+  font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:6px 13px;cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#061019;font-weight:600}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.hint{color:var(--mute);font-size:12px}
+
+/* ═══ o painel ═══════════════════════════════════════════════ */
+.panel{
+  width:min(660px,100%);
+  background:var(--panel);border:1px solid var(--edge);
+  box-shadow:0 16px 44px var(--shadow);
+  display:flex;flex-direction:column;position:relative;
+}
+
+/* título */
+.titlebar{
+  display:flex;align-items:center;gap:9px;height:32px;padding:0 12px;
+  background:var(--bar);border-bottom:1px solid var(--edge);
+}
+.titlebar .t{font-size:12.5px;font-weight:700;letter-spacing:.15em}
+.titlebar .v{color:var(--mute);font-size:11px}
+.titlebar .dwg{
+  margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--ink-2);font-size:11.5px;
+  max-width:44%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.dot{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:var(--green)}
+
+/* barra de ícones + próxima medição */
+.iconbar{
+  display:flex;align-items:center;gap:4px;padding:5px 10px;
+  border-bottom:1px solid var(--edge);
+}
+.ib{
+  appearance:none;width:28px;height:26px;display:grid;place-items:center;
+  border:1px solid transparent;background:transparent;color:var(--ink-2);cursor:pointer;
+}
+.ib:hover{background:var(--sunk);border-color:var(--edge);color:var(--ink)}
+.ib[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#061019}
+.ib:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.nextline{
+  margin-left:7px;padding-left:11px;border-left:1px solid var(--edge);
+  color:var(--mute);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.nextline b{color:var(--accent);font-weight:500}
+
+/* pesquisa global */
+.findbar{display:flex;gap:7px;padding:7px 10px;border-bottom:1px solid var(--edge)}
+.find{position:relative;flex:1 1 auto;min-width:0}
+.find svg{position:absolute;left:8px;top:6px;width:13px;height:13px;color:var(--mute);pointer-events:none}
+.find input{
+  width:100%;height:26px;padding:2px 8px 2px 26px;background:var(--sunk);color:var(--ink);
+  border:1px solid var(--edge);font:inherit;font-size:12px;
+}
+.find input::placeholder{color:var(--mute)}
+.find input:focus,.sel:focus,.fld:focus{border-color:var(--accent);outline:1px solid var(--accent-2)}
+.sel{
+  height:26px;background:var(--sunk);color:var(--ink);border:1px solid var(--edge);
+  font:inherit;font-size:12px;padding:2px 6px;max-width:190px;
+}
+
+/* cabeçalho de secção */
+.sech{
+  width:100%;appearance:none;border:0;border-bottom:1px solid var(--edge);
+  background:var(--bar);color:var(--ink);font:inherit;text-align:left;
+  display:flex;align-items:center;gap:8px;height:29px;padding:0 12px;cursor:pointer;
+}
+.sech:hover{background:var(--sunk)}
+.sech:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sech .cv{color:var(--mute);font-size:10px;width:10px;transition:transform .12s}
+@media (prefers-reduced-motion:reduce){.sech .cv{transition:none}}
+.sech[aria-expanded="false"] .cv{transform:rotate(-90deg)}
+.sech .nm{font-size:12px;font-weight:600;letter-spacing:.02em}
+.sech .sub{color:var(--mute);font-size:11.5px;font-weight:400}
+.sech .rt{margin-left:auto;color:var(--mute);font-size:11px}
+
+/* configuração — pares rótulo·campo, duas colunas de pares */
+.cfg{
+  display:grid;grid-template-columns:82px minmax(0,1fr) 82px minmax(0,1fr);
+  gap:7px 10px;padding:11px 12px;border-bottom:1px solid var(--edge);align-items:center;
+}
+.cfg[hidden]{display:none}
+.cfg label{color:var(--mute);font-size:11.5px}
+.cfg .span3{grid-column:2/5}
+.fld{
+  width:100%;height:26px;padding:2px 7px;background:var(--sunk);color:var(--ink);
+  border:1px solid var(--edge);font:inherit;font-size:12px;min-width:0;
+}
+.pair{display:flex;gap:6px;min-width:0}
+.pair .fld:first-child{flex:1 1 auto}
+.pair .fld.unit{flex:0 0 44px;text-align:right;color:var(--mute)}
+.swatch{
+  flex:0 0 88px;height:26px;background:var(--sunk);border:1px solid var(--edge);
+  display:flex;align-items:center;gap:6px;padding:0 7px;cursor:pointer;color:var(--ink);
+  font:inherit;font-size:12px;
+}
+.swatch i{width:12px;height:12px;flex:0 0 12px;background:#3B7DD8;display:block}
+
+/* medir — 3 × 2, ícone à esquerda, texto alinhado */
+.grid6{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--edge);border-bottom:1px solid var(--edge);
+}
+.act{
+  appearance:none;border:0;background:var(--panel);color:var(--ink-2);
+  font:inherit;font-size:12px;cursor:pointer;
+  min-height:32px;display:flex;align-items:center;gap:8px;padding:0 11px;text-align:left;
+}
+.act:hover{background:var(--sunk);color:var(--ink)}
+.act:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.act[aria-pressed="true"]{background:var(--sunk);color:var(--ink)}
+.act[aria-pressed="true"] .ic{color:var(--accent)}
+.ic{width:14px;height:14px;flex:0 0 14px;stroke:currentColor;fill:none;stroke-width:1.5;
+    stroke-linecap:round;stroke-linejoin:round;color:var(--mute)}
+.act:hover .ic{color:var(--accent)}
+
+/* ferramentas dos resultados */
+.rtools{display:flex;align-items:center;gap:2px;padding:5px 9px;border-bottom:1px solid var(--edge)}
+.tool{
+  appearance:none;border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:11.5px;
+  height:24px;padding:0 8px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+}
+.tool:hover{background:var(--sunk);color:var(--ink)}
+.tool:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tool .ic{width:14px;height:14px;flex:0 0 14px}
+.tool.live .ic{color:var(--green)}
+.tool.last{margin-left:auto}
+
+/* árvore */
+.thead,.row{display:grid;grid-template-columns:minmax(0,1fr) 74px 74px 104px}
+.thead{
+  background:var(--sunk);border-bottom:1px solid var(--edge);
+  color:var(--mute);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+}
+.thead span{padding:5px 9px}
+.thead span:not(:first-child){text-align:right}
+.tree{flex:1 1 auto;overflow:auto;max-height:400px}
+.row{
+  min-height:28px;align-items:stretch;cursor:pointer;
+  border-bottom:1px solid var(--edge-soft);
+}
+.row:hover{background:var(--sunk)}
+.row[aria-selected="true"]{background:var(--pick);box-shadow:inset 0 0 0 1px var(--pick-edge)}
+.row[aria-selected="true"] .num{color:#fff}
+.row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.cell{padding:5px 9px;display:flex;align-items:center;min-width:0}
+.nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.num{
+  justify-content:flex-end;text-align:right;
+  font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink-2);
+  border-left:1px solid var(--edge-soft);white-space:nowrap;overflow:hidden;
+}
+.num.q{color:var(--ink)}
+.num .u{color:var(--mute);font-size:10px;margin-left:1px}
+.num .sep{color:var(--edge);margin:0 3px}
+.num.dash{color:var(--edge)}
+
+.tw{
+  width:15px;flex:0 0 15px;display:grid;place-items:center;
+  color:var(--mute);font-size:9px;
+}
+.tw.leaf{color:transparent}
+.gl{width:15px;height:15px;flex:0 0 15px;margin-right:8px;color:var(--mute);
+    stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.gl.art{color:var(--green)}
+.gl.wall{color:var(--ink-2)}
+.gl.void{color:var(--amber)}
+.gl.svc,.gl.floor{color:var(--mute)}
+
+.row.grp .nm{font-weight:600}
+.row.void{color:var(--rose)}
+.row.void .num{color:var(--rose)}
+.row.unc .nm{color:var(--amber)}
+.badge{
+  margin-left:8px;flex:0 0 auto;
+  border:1px solid var(--accent);color:var(--accent);
+  font-family:"IBM Plex Mono",monospace;font-size:8.5px;font-weight:600;
+  letter-spacing:.1em;padding:1px 5px;
+}
+
+/* propriedades — mosaicos de métrica */
+.selbar{
+  display:flex;align-items:center;height:26px;padding:0 12px;
+  background:var(--sunk);border-bottom:1px solid var(--edge);
+  color:var(--mute);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+}
+.selbar b{margin-left:auto;color:var(--accent);font-weight:500;
+  letter-spacing:0;text-transform:none;font-size:11.5px}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--edge)}
+.metrics[hidden]{display:none}
+.mt{padding:7px 10px;border-right:1px solid var(--edge-soft);min-width:0}
+.mt:last-child{border-right:0}
+.mt small{display:block;color:var(--mute);font-size:10px;margin-bottom:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt b{
+  font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+  font-size:13px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;
+}
+.mt b .u{color:var(--mute);font-size:10px;font-weight:400;margin-left:1px}
+.mt.edit b{border-bottom:1px dashed var(--accent-2);cursor:text}
+.mt.neg b{color:var(--rose)}
+
+/* aviso e estado */
+.warn{
+  display:flex;align-items:center;gap:8px;padding:6px 12px;
+  background:color-mix(in srgb,var(--amber) 12%,var(--panel));
+  border-bottom:1px solid var(--edge);color:var(--amber);font-size:11.5px;
+}
+.warn[hidden]{display:none}
+.statebar{
+  display:flex;align-items:center;height:24px;padding:0 12px;
+  background:var(--bar);color:var(--mute);font-size:11px;
+}
+.statebar .r{margin-left:auto}
+
+.notes{max-width:74ch;color:var(--mute);font-size:13px;line-height:1.6;
+  display:flex;flex-direction:column;gap:9px}
+.notes h2{color:var(--ink);font-size:15px;font-weight:600;margin:8px 0 0}
+.notes b{color:var(--ink-2);font-weight:600}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.notes table{border-collapse:collapse;font-size:12.5px;width:100%}
+.notes th,.notes td{text-align:left;padding:4px 10px 4px 0;border-bottom:1px solid var(--edge-soft)}
+.notes th{color:var(--ink-2);font-weight:600}
+
+.toast{
+  position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(8px);
+  background:var(--bar);border:1px solid var(--accent);color:var(--ink);
+  padding:7px 14px;font-size:12.5px;opacity:0;pointer-events:none;
+  transition:opacity .16s,transform .16s;z-index:50;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+@media (max-width:700px){
+  .cfg{grid-template-columns:82px minmax(0,1fr)}
+  .cfg .span3{grid-column:2/3}
+  .grid6{grid-template-columns:repeat(2,1fr)}
+  .metrics{grid-template-columns:repeat(3,1fr)}
+  .thead,.row{grid-template-columns:minmax(0,1fr) 62px 62px 88px}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 10-2.3 5.6"/><path d="M20 5v6h-6"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></symbol>
+  <symbol id="i-find" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="i-rect" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12"/><path d="M7 6v12"/></symbol>
+  <symbol id="i-poly" viewBox="0 0 24 24"><path d="M3 18l5-9 5 5 8-9"/></symbol>
+  <symbol id="i-area" viewBox="0 0 24 24"><path d="M4 4l16 16M4 4h16v16H4z"/></symbol>
+  <symbol id="i-areasel" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 12h8"/></symbol>
+  <symbol id="i-medsel" viewBox="0 0 24 24"><path d="M5 3l7 18 2.5-7.5L22 11z"/></symbol>
+  <symbol id="i-void" viewBox="0 0 24 24"><path d="M4 20V5h10v15"/><path d="M14 11h6v9"/><circle cx="11" cy="13" r=".9"/></symbol>
+  <symbol id="i-excel" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18"/><path d="M9 8l6 8M15 8l-6 8"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v11M8 10l4 4 4-4M4 18v3h16v-3"/></symbol>
+  <symbol id="g-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></symbol>
+  <symbol id="g-floor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M3 12h18"/></symbol>
+  <symbol id="g-svc" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16M8 3v18"/></symbol>
+  <symbol id="g-art" viewBox="0 0 24 24"><path d="M6 4h9l4 4v12H6z"/><path d="M9 12h7M9 16h5"/></symbol>
+  <symbol id="g-wall" viewBox="0 0 24 24"><path d="M3 7h18v10H3z"/><path d="M3 12h18M9 7v5M15 12v5"/></symbol>
+  <symbol id="g-void" viewBox="0 0 24 24"><path d="M5 20V5h9v15"/><path d="M14 10h5v10"/></symbol>
+</defs></svg>
+
+<div class="stage">
+
+  <header class="pitch">
+    <h1>Painel de medições</h1>
+    <p>Sobre o método que aprovou: configuração em pares, geometrias em 3×2, três colunas numéricas na árvore e as propriedades como mosaicos de métrica. Escuro por omissão, porque o painel vive ancorado dentro do AutoCAD.</p>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Variante">
+      <button type="button" data-theme="escuro" aria-pressed="true">Escuro</button>
+      <button type="button" data-theme="claro" aria-pressed="false">Claro</button>
+    </div>
+    <span class="hint">Clique numa linha, recolha um piso, abra e feche as secções.</span>
+  </div>
+
+  <div class="panel">
+
+    <div class="titlebar">
+      <span class="t">MEDIÇÕES</span>
+      <span class="v">TSK TakeOff 1.2.6</span>
+      <span class="dwg"><i class="dot"></i>Edifício_A.dwg</span>
+    </div>
+
+    <div class="iconbar">
+      <button class="ib" title="Guardar"><svg class="ic"><use href="#i-save"/></svg></button>
+      <button class="ib" title="Atualizar"><svg class="ic"><use href="#i-refresh"/></svg></button>
+      <button class="ib" aria-pressed="true" title="Definições"><svg class="ic"><use href="#i-gear"/></svg></button>
+      <span class="nextline">Próxima: <b id="nextTxt">ALV_11 · Parede interior</b></span>
+    </div>
+
+    <!-- Sem filtro de "especialidade": não há nenhuma para escolher. O que
+         varia é o TIPO DE MEDIDA, e esse é um nível da árvore — filtra-se
+         recolhendo o grupo, que já é o gesto natural. -->
+    <div class="findbar">
+      <span class="find">
+        <svg class="ic"><use href="#i-find"/></svg>
+        <input id="q" placeholder="Pesquisar piso, artigo, medida ou handle…" aria-label="Pesquisar">
+      </span>
+      <select class="sel" id="tipo" aria-label="Tipo de medida">
+        <option>Todos os tipos</option>
+        <option>Alvenaria · m²</option>
+        <option>Camadas · m³</option>
+        <option>Lineares · m</option>
+        <option>Contagens · un.</option>
+      </select>
+    </div>
+
+    <!-- ── configuração ──────────────────────────────────────── -->
+    <button class="sech" id="cfgH" aria-expanded="true" aria-controls="cfg">
+      <span class="cv">▼</span>
+      <span class="nm">Configuração</span>
+      <span class="sub">· Alvenaria / 11.2.1</span>
+      <span class="rt">Destino da próxima medição</span>
+    </button>
+
+    <div class="cfg" id="cfg">
+      <label for="c1">Artigo do mapa</label>
+      <select class="fld span3" id="c1">
+        <option>11.2.1 · Parede interior em tijolo</option>
+        <option>7.4.2 · Betonilha de enchimento</option>
+        <option>Por classificar</option>
+      </select>
+
+      <label for="c2">Serviço</label>
+      <select class="fld" id="c2"><option>Alvenaria</option><option>Betonilhas</option></select>
+      <label for="c3">Bloco / etiqueta</label>
+      <select class="fld" id="c3"><option>ALV_11</option><option>—</option></select>
+
+      <label for="c4">Piso / cor</label>
+      <span class="pair">
+        <select class="fld" id="c4"><option>Piso 0</option><option>Piso 1</option></select>
+        <button class="swatch" type="button"><i></i>Azul 151</button>
+      </span>
+      <label for="c5">Alçado / zona</label>
+      <select class="fld" id="c5"><option>Zona A</option><option>—</option></select>
+
+      <label for="c6">Altura</label>
+      <span class="pair"><input class="fld" id="c6" value="2,80"><span class="fld unit">m</span></span>
+      <label for="c7">Espessura</label>
+      <span class="pair"><input class="fld" id="c7" value="0,15"><span class="fld unit">m</span></span>
+
+      <label for="c8">Regra de vãos</label>
+      <select class="fld span3" id="c8">
+        <option>Detetar e descontar automaticamente</option>
+        <option>SINAPI · descontar acima de 2 m²</option>
+        <option>Não descontar</option>
+      </select>
+
+      <label for="c9">Título</label>
+      <input class="fld" id="c9" value="Parede interior">
+      <label for="c10">Layer</label>
+      <input class="fld" id="c10" value="MED_ALV_P0">
+    </div>
+
+    <!-- ── medir ─────────────────────────────────────────────── -->
+    <button class="sech" id="medH" aria-expanded="true" aria-controls="med">
+      <span class="cv">▼</span><span class="nm">MEDIR</span>
+      <span class="rt">Escolha a geometria</span>
+    </button>
+
+    <div class="grid6" id="med" role="group" aria-label="Geometria da medição">
+      <button class="act"><svg class="ic"><use href="#i-rect"/></svg>Retângulo</button>
+      <button class="act" aria-pressed="true"><svg class="ic"><use href="#i-poly"/></svg>Polyline</button>
+      <button class="act"><svg class="ic"><use href="#i-area"/></svg>Área</button>
+      <button class="act"><svg class="ic"><use href="#i-areasel"/></svg>Área seleção</button>
+      <button class="act"><svg class="ic"><use href="#i-medsel"/></svg>Medir seleção</button>
+      <button class="act"><svg class="ic"><use href="#i-void"/></svg>Adicionar vão</button>
+    </div>
+
+    <!-- ── resultados ────────────────────────────────────────── -->
+    <button class="sech" id="resH" aria-expanded="true" aria-controls="resBox">
+      <span class="cv">▼</span><span class="nm">RESULTADOS</span>
+      <span class="rt" id="resCount">9 medições · 2 vãos</span>
+    </button>
+
+    <div id="resBox">
+      <div class="rtools">
+        <button class="tool live"><svg class="ic"><use href="#i-excel"/></svg>Excel ao vivo</button>
+        <button class="tool"><svg class="ic"><use href="#i-export"/></svg>Exportar</button>
+        <button class="tool"><svg class="ic"><use href="#i-refresh"/></svg>Atualizar</button>
+        <button class="tool last">⋯ Mais</button>
+      </div>
+
+      <div class="thead">
+        <span>Estrutura / elemento</span><span>Comp.</span><span>Altura</span><span>Quantidade</span>
+      </div>
+      <div class="tree" id="tree" role="tree" aria-label="Resultados"></div>
+    </div>
+
+    <!-- ── propriedades ──────────────────────────────────────── -->
+    <button class="sech" id="propH" aria-expanded="true" aria-controls="propBox">
+      <span class="cv">▼</span><span class="nm">PROPRIEDADES</span>
+    </button>
+
+    <div id="propBox">
+      <div class="selbar">Seleção <b id="selName">Parede P-001</b></div>
+      <div class="metrics" id="metrics"></div>
+    </div>
+
+    <div class="warn" id="warn">⚠ 1 elemento aguarda classificação no PISO 0.</div>
+
+    <div class="statebar">
+      <span>Pronto · desenho sincronizado</span>
+      <span class="r">Escala 1:100</span>
+    </div>
+  </div>
+
+  <section class="notes">
+    <h2>Não há especialidades — há tipos de medida</h2>
+    <p>Mede-se arquitetura, e mais nada. O filtro de «especialidade» saiu: dividia por uma coisa que não existe.</p>
+    <p>O que varia dentro de arquitetura é <b>como</b> se mede, e é isso que passou a ser o segundo nível da árvore. Não é uma etiqueta: <b>o tipo de medida determina a unidade</b> de tudo o que tem por baixo, e por isso o nível traz a unidade no próprio nome.</p>
+    <table>
+      <tr><th>Tipo</th><th>Os factores são</th><th>Fatura</th></tr>
+      <tr><td>Alvenaria</td><td>comprimento × altura</td><td class="mono">m²</td></tr>
+      <tr><td>Camadas</td><td>área em planta × espessura</td><td class="mono">m³</td></tr>
+      <tr><td>Lineares</td><td>— o percurso É a quantidade</td><td class="mono">m</td></tr>
+      <tr><td>Contagens</td><td>— cada marca vale uma</td><td class="mono">un.</td></tr>
+    </table>
+    <p>Filtrar por tipo deixa de precisar de um menu: recolhe-se o grupo, que já é o gesto natural da árvore. O selector no topo continua lá para quem quiser ir directo.</p>
+
+    <h2>As três colunas e as unidades</h2>
+    <p>Foi a ressalva que levantou: nem todos os artigos faturam m². Com três colunas fixas, o risco é o cabeçalho mentir — foi assim que uma contagem de duas portas apareceu debaixo de «Comp.».</p>
+    <p>A regra que resolve é uma só: <b>a unidade viaja dentro da célula</b>, e a coluna que não se aplica mostra <b>—</b>, nunca um zero nem um número emprestado.</p>
+    <table>
+      <tr><th>Artigo</th><th>Comp.</th><th>Altura</th><th>Quantidade</th></tr>
+      <tr><td>Parede (m²)</td><td class="mono">5,20 m</td><td class="mono">2,80 m</td><td class="mono">12,67 m²</td></tr>
+      <tr><td>Vão (dedução)</td><td class="mono">0,90 m</td><td class="mono">2,10 m</td><td class="mono">−1,89 m²</td></tr>
+      <tr><td>Camada (m³)</td><td class="mono">48,50 m²</td><td class="mono">0,08 m</td><td class="mono">3,88 m³</td></tr>
+      <tr><td>Rodapé (m)</td><td class="mono">29,15 m</td><td class="mono">—</td><td class="mono">29,15 m</td></tr>
+      <tr><td>Contagem (un.)</td><td class="mono">—</td><td class="mono">—</td><td class="mono">2 un.</td></tr>
+      <tr><td>Grupo</td><td class="mono">15,55 m</td><td class="mono">2,80 m</td><td class="mono">40,33 m² · 29,15 m</td></tr>
+    </table>
+    <p>Na <b>camada</b>, o «Comp.» traz <span class="mono">48,50 m²</span> — área em planta, não comprimento — e é a unidade na célula que impede a leitura errada. Nos <b>grupos</b> que misturam unidades, a quantidade lista-as lado a lado, nunca somadas.</p>
+
+    <h2>O que mudou face à proposta anterior</h2>
+    <ul>
+      <li><b>Configuração em pares.</b> Rótulo·campo · rótulo·campo em vez de uma coluna. Serviço fica ao lado de Bloco, Altura ao lado de Espessura — metade das linhas, e os campos que se leem juntos ficam juntos.</li>
+      <li><b>Geometrias em 3×2, ícone à esquerda.</b> Seis colunas centradas cortavam «Área da Selecção» a meio; assim o texto cabe por extenso e lê-se de uma passagem.</li>
+      <li><b>Propriedades como mosaicos.</b> Comprimento, Altura, Área bruta, Área líquida, Volume e Pré-aros numa faixa horizontal — o que se confere lê-se sem percorrer uma lista.</li>
+      <li><b>Pesquisa no topo</b>, com o selector de tipo de medida ao lado, em vez de espremida na barra dos resultados.</li>
+      <li><b>Aviso e estado no rodapé</b>, separados: um diz o que falta fazer, o outro diz que está sincronizado.</li>
+    </ul>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* Cada nó traz os factores COM a unidade. É isso que permite três
+   colunas fixas sem o cabeçalho mentir quando o artigo muda de
+   grandeza — e "—" onde a coluna não se aplica. */
+const N = [
+ {id:'r',  d:0,t:'Pavimentos',            g:1,k:'folder',c:'',       a:'',      q:'51,53 m²·3,88 m³·29,15 m·2 un.'},
+ {id:'p0', d:1,t:'PISO 0',                g:1,k:'floor', c:'',       a:'',      q:'40,33 m²·3,88 m³·29,15 m·2 un.',p:'r'},
+ /* O segundo nível é o TIPO DE MEDIDA — é ele que determina a unidade
+    de tudo o que tem por baixo. Não há "especialidade" nenhuma para
+    dividir: mede-se arquitetura, e o que varia é como se mede. */
+ {id:'sv', d:2,t:'Alvenaria · m²',        g:1,k:'svc',   c:'15,55 m',a:'2,80 m',q:'40,33 m²',p:'p0'},
+ {id:'a1', d:3,t:'11.2.1 · Parede interior em tijolo',g:1,k:'art',c:'11,45 m',a:'2,80 m',q:'28,85 m²',p:'sv',next:1},
+ {id:'m1', d:4,t:'Parede P-001',          k:'wall',c:'5,20 m',a:'2,80 m',q:'12,67 m²',p:'a1',
+   mt:[['Comprimento','5,20','m',0],['Altura','2,80','m',1],['Área bruta','14,56','m²',0],
+       ['Área líquida','12,67','m²',0],['Volume','1,90','m³',0],['Pré-aros','1','un.',0]]},
+ {id:'v1', d:5,t:'Vão · Porta P01',       k:'void',c:'0,90 m',a:'2,10 m',q:'−1,89 m²',p:'m1',v:1,
+   mt:[['Largura','0,90','m',1],['Altura','2,10','m',1],['Quantidade','1','un.',1],
+       ['Área','1,89','m²',0],['Desconto','−1,89','m²',2],['Pré-aro','5,10','m',0]]},
+ {id:'m2', d:4,t:'Parede P-002',          k:'wall',c:'3,45 m',a:'2,80 m',q:'8,34 m²',p:'a1',
+   mt:[['Comprimento','3,45','m',0],['Altura','2,80','m',1],['Área bruta','9,66','m²',0],
+       ['Área líquida','8,34','m²',0],['Volume','1,25','m³',0],['Pré-aros','1','un.',0]]},
+ {id:'v2', d:5,t:'Vão · Janela J03',      k:'void',c:'1,20 m',a:'1,10 m',q:'−1,32 m²',p:'m2',v:1,
+   mt:[['Largura','1,20','m',1],['Altura','1,10','m',1],['Quantidade','1','un.',1],
+       ['Área','1,32','m²',0],['Desconto','−1,32','m²',2],['Pré-aro','4,60','m',0]]},
+ {id:'m3', d:4,t:'Parede P-004',          k:'wall',c:'2,80 m',a:'2,80 m',q:'7,84 m²',p:'a1',
+   mt:[['Comprimento','2,80','m',0],['Altura','2,80','m',1],['Área bruta','7,84','m²',0],
+       ['Área líquida','7,84','m²',0],['Volume','1,18','m³',0],['Pré-aros','0','un.',0]]},
+ {id:'a2', d:3,t:'Por classificar',       g:1,k:'art',c:'4,10 m',a:'2,80 m',q:'11,48 m²',p:'sv',u:1},
+ {id:'m4', d:4,t:'Parede P-003',          k:'wall',c:'4,10 m',a:'2,80 m',q:'11,48 m²',p:'a2',u:1,
+   mt:[['Estado','Por classificar','',0],['Comprimento','4,10','m',0],['Altura','2,80','m',1],
+       ['Área líquida','11,48','m²',0],['Volume','1,72','m³',0],['Pré-aros','0','un.',0]]},
+ /* CAMADAS — o tipo que parte colunas fixas: os factores são ÁREA EM
+    PLANTA × ESPESSURA, e por isso o resultado é m³ e não m². */
+ {id:'sb', d:2,t:'Camadas · m³',          g:1,k:'svc',c:'48,50 m²',a:'0,08 m',q:'3,88 m³',p:'p0'},
+ {id:'a3', d:3,t:'7.4.2 · Betonilha de enchimento',g:1,k:'art',c:'48,50 m²',a:'0,08 m',q:'3,88 m³',p:'sb'},
+ {id:'m5', d:4,t:'Camada C-001',          k:'wall',c:'48,50 m²',a:'0,08 m',q:'3,88 m³',p:'a3',
+   mt:[['Área em planta','48,50','m²',0],['Espessura','0,08','m',1],['Volume','3,88','m³',0],
+       ['Unidade','m³','',0],['Vértices','18','',0],['Handle','C001','',0]]},
+ /* LINEARES — sem altura: a quantidade É o comprimento. É esta
+    distinção que impede um rodapé de ir ao mesmo balde que o
+    comprimento de uma parede. */
+ {id:'sr', d:2,t:'Lineares · m',          g:1,k:'svc',c:'29,15 m',a:'—',q:'29,15 m',p:'p0'},
+ {id:'a4', d:3,t:'12.1.3 · Rodapé cerâmico',g:1,k:'art',c:'29,15 m',a:'—',q:'29,15 m',p:'sr'},
+ {id:'m6', d:4,t:'Rodapé R-001',          k:'wall',c:'29,15 m',a:'—',q:'29,15 m',p:'a4',
+   mt:[['Comprimento','29,15','m',0],['Altura','—','',0],['Quantidade','29,15','m',0],
+       ['Unidade','m','',0],['Vértices','14','',0],['Handle','3F2','',0]]},
+ /* CONTAGENS — sem dimensões nenhumas: uma marca no desenho é uma
+    unidade, e é o grupo que faz a soma. */
+ {id:'sc', d:2,t:'Contagens · un.',       g:1,k:'svc',c:'—',a:'—',q:'2 un.',p:'p0'},
+ {id:'a5', d:3,t:'14.2.1 · Porta interior',g:1,k:'art',c:'—',a:'—',q:'2 un.',p:'sc'},
+ {id:'c1', d:4,t:'Porta P.01',            k:'void',c:'—',a:'—',q:'1 un.',p:'a5',
+   mt:[['Nome','P.01','',0],['Tipo de medida','Contagem','',0],['Quantidade','1','un.',0],
+       ['Piso','PISO 0','',0],['Bloco','PORTA_INT','',0],['Handle','C101','',0]]},
+ {id:'c2', d:4,t:'Porta P.02',            k:'void',c:'—',a:'—',q:'1 un.',p:'a5',
+   mt:[['Nome','P.02','',0],['Tipo de medida','Contagem','',0],['Quantidade','1','un.',0],
+       ['Piso','PISO 0','',0],['Bloco','PORTA_INT','',0],['Handle','C102','',0]]},
+ {id:'p1', d:1,t:'PISO 1',                g:1,k:'floor',c:'4,00 m',a:'2,80 m',q:'11,20 m²',p:'r'},
+ {id:'sv2',d:2,t:'Alvenaria · m²',        g:1,k:'svc',c:'4,00 m',a:'2,80 m',q:'11,20 m²',p:'p1'},
+ {id:'a6', d:3,t:'11.2.1 · Parede interior em tijolo',g:1,k:'art',c:'4,00 m',a:'2,80 m',q:'11,20 m²',p:'sv2'},
+ {id:'m7', d:4,t:'Parede P-005',          k:'wall',c:'4,00 m',a:'2,80 m',q:'11,20 m²',p:'a6',
+   mt:[['Comprimento','4,00','m',0],['Altura','2,80','m',1],['Área bruta','11,20','m²',0],
+       ['Área líquida','11,20','m²',0],['Volume','1,68','m³',0],['Pré-aros','0','un.',0]]}
+];
+
+const fechados = new Set();
+let sel = 'm1';
+const tree = document.getElementById('tree');
+const tem = id => N.some(n => n.p === id);
+const visivel = n => { let p=n.p; while(p){ if(fechados.has(p)) return false;
+  p=(N.find(x=>x.id===p)||{}).p; } return true; };
+
+/* "12,67 m²" → número + unidade em corpo menor. Vários valores
+   separados por "·" ficam lado a lado, nunca somados. */
+const cell = v => !v || v==='—'
+  ? '<div class="cell num dash">—</div>'
+  : '<div class="cell num">' + v.split('·').map(s=>{
+      const m = s.trim().match(/^(−?[\d.,]+)\s*(.*)$/);
+      return m ? m[1]+'<span class="u">'+m[2]+'</span>' : s;
+    }).join('<span class="sep">·</span>') + '</div>';
+
+function pintar(){
+  tree.innerHTML = '';
+  N.filter(visivel).forEach(n => {
+    const r = document.createElement('div');
+    r.className = 'row' + (n.g?' grp':'') + (n.v?' void':'') + (n.u?' unc':'');
+    r.setAttribute('role','treeitem'); r.tabIndex = 0;
+    if (n.id === sel) r.setAttribute('aria-selected','true');
+
+    const filhos = tem(n.id);
+    const tw = filhos
+      ? `<span class="tw">${fechados.has(n.id)?'❯':'⌄'}</span>`
+      : '<span class="tw leaf">·</span>';
+
+    r.innerHTML =
+      `<div class="cell" style="padding-left:${9 + n.d*15}px">${tw}` +
+      `<svg class="gl ${n.k}"><use href="#g-${n.k}"/></svg>` +
+      `<span class="nm">${n.t}</span>${n.next?'<span class="badge">PRÓXIMA</span>':''}</div>` +
+      cell(n.c) + cell(n.a) +
+      cell(n.q).replace('class="cell num"','class="cell num q"');
+
+    r.addEventListener('click', e => {
+      if (filhos && e.target.closest('.tw')){
+        fechados.has(n.id) ? fechados.delete(n.id) : fechados.add(n.id);
+        pintar(); return;
+      }
+      sel = n.id; pintar(); props();
+    });
+    r.addEventListener('keydown', e => {
+      if (e.key==='Enter'||e.key===' '){ e.preventDefault();
+        if (filhos){ fechados.has(n.id)?fechados.delete(n.id):fechados.add(n.id); pintar(); }
+        else { sel=n.id; pintar(); props(); } }
+    });
+    tree.appendChild(r);
+  });
+}
+
+function props(){
+  const n = N.find(x => x.id === sel);
+  const box = document.getElementById('metrics');
+  document.getElementById('selName').textContent = n ? n.t : 'nada selecionado';
+  box.innerHTML = '';
+  if (!n || !n.mt){
+    box.innerHTML = '<div class="mt" style="grid-column:1/-1"><small>Sem seleção</small>' +
+                    '<b style="font-size:11.5px;color:var(--mute)">Escolha uma linha da árvore</b></div>';
+    return;
+  }
+  n.mt.forEach(([k,v,u,tipo]) => {
+    const d = document.createElement('div');
+    d.className = 'mt' + (tipo===1?' edit':'') + (tipo===2?' neg':'');
+    d.innerHTML = `<small>${k}</small><b>${v}${u?'<span class="u">'+u+'</span>':''}</b>`;
+    box.appendChild(d);
+  });
+}
+
+/* secções recolhíveis */
+[['cfgH','cfg'],['medH','med'],['resH','resBox'],['propH','propBox']].forEach(([h,c])=>{
+  const bh = document.getElementById(h), bc = document.getElementById(c);
+  bh.addEventListener('click', () => {
+    const aberto = bh.getAttribute('aria-expanded') === 'true';
+    bh.setAttribute('aria-expanded', String(!aberto));
+    bc.hidden = aberto;
+  });
+});
+
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x===b));
+  document.documentElement.setAttribute('data-mock', b.dataset.theme);
+}));
+
+document.querySelectorAll('.act').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.act').forEach(x => x.removeAttribute('aria-pressed'));
+  b.setAttribute('aria-pressed','true');
+  diz(b.textContent.trim() + ' — a próxima medição usa esta geometria.');
+}));
+
+const toast = document.getElementById('toast'); let tm;
+function diz(t){ toast.textContent = t; toast.classList.add('on');
+  clearTimeout(tm); tm = setTimeout(()=>toast.classList.remove('on'),1900); }
+
+document.getElementById('q').addEventListener('input', e => {
+  const v = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('.row').forEach(r => {
+    r.style.display = !v || r.textContent.toLowerCase().includes(v) ? '' : 'none';
+  });
+  document.getElementById('resCount').textContent =
+    v ? [...document.querySelectorAll('.row')].filter(r=>r.style.display!=='none').length +
+        ' visíveis de ' + N.length : '9 medições · 2 vãos';
+});
+
+pintar(); props();
+</script>
