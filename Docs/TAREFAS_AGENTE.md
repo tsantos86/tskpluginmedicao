@@ -46,25 +46,88 @@ a implementação da paleta de resultados compacta.
       código morto (`ResultadosPainel.cs` e as três abas antigas, que nunca
       são acrescentadas ao `PaletteSet`) em
       `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`, Fase 3.
-- [ ] Fase 3 — Garantir que expandir/recolher grupos e `Atualizar` preservam
+- [x] Fase 3 — Garantir que expandir/recolher grupos e `Atualizar` preservam
       a seleção e a posição de scroll sempre que o nó selecionado ainda
       existir depois da reconstrução da árvore.
-- [ ] Fase 3 — Garantir que a medição acabada de criar recebe o foco na
+      **Feito 2026-09-18**: confirmado por leitura cuidadosa, sem necessidade
+      de código novo. `AtualizarResultadosCompactos` (chamada por TODOS os
+      gatilhos — duplo-clique, `Enter/Espaço/Left/Right`, `AbrirFiltros` e
+      `BindData`/`Atualizar`, um único caminho) captura o Id seleccionado e o
+      Id do nó no topo do scroll ANTES de limpar as linhas, e repõe os dois
+      por Id (`IndiceDe` + `ReporSeleccaoDaArvore`) depois de reconstruir.
+      Os Ids são determinísticos (handle para medições, caminho de rótulos
+      para grupos — `ResultadosArvore.Grupo`), confirmado pelos testes
+      `Os_Ids_sao_estaveis_ao_reconstruir_a_arvore` e
+      `Os_Ids_sobrevivem_a_recolher_e_filtrar`. **Não implica código WinForms
+      novo — não há nada para compilar além do que já existe.**
+- [x] Fase 3 — Garantir que a medição acabada de criar recebe o foco na
       árvore sem alterar a configuração da próxima medição (`Config`).
-- [ ] Fase 5 — Rever paridade completa entre os campos/comandos da grelha
+      **Feito 2026-09-18**: confirmado por leitura cuidadosa. O mecanismo
+      (`PaletteHost.MedicaoNova`/`RegistarMedicao`/`LimparMedicaoNova`) é
+      totalmente independente de `Config` — só marca o Id a seguir na árvore
+      (`"M:" + handle`) e consome-se uma vez. Revistos TODOS os pontos que
+      escrevem em `Config` a partir da árvore: o único é `MedirAqui()`
+      (comentário no próprio código: "É a ÚNICA operação da árvore que mexe
+      na Config"). Nenhuma alteração necessária.
+- [x] Fase 5 — Rever paridade completa entre os campos/comandos da grelha
       antiga (já removida do painel) e o local novo em `PROPRIEDADES`/barras
       de ação; fechar qualquer lacuna encontrada.
-- [ ] Fase 5 — Terminar `Reclassificar` (item `[~]`): confirmar que aceita
+      **Feito 2026-09-18**: comparadas as colunas do `_dgv` morto
+      (`servico, artigo, alcado, bloco, piso, comp, alt, larg, esp, bruta,
+      vaos, liq, qtd, vol, aroUn, aroMl`) com as `Propriedade` de
+      `ResultadosArvore.PropriedadesDaParede`/vão/título. Sem lacunas: `num`
+      e `sep` eram artefactos da grelha (número de linha e uma coluna nunca
+      lida por `Col(...)`, nem sequer dentro do próprio código morto); `comp`
+      numa linha de parede estava marcada editável na UI mas `OnCellEndEdit`
+      nunca a gravava (só `alt/larg/esp` — o novo painel corrige isto ao
+      deixar Comprimento só de leitura, como o plano já decidira). Título
+      ganhou mesmo uma capacidade nova (editar a Descrição, não só o
+      Código). Nenhuma lacuna a fechar.
+- [x] Fase 5 — Terminar `Reclassificar` (item `[~]`): confirmar que aceita
       `Ctrl`/`Shift` para selecionar vários handles de uma vez e que aplica
       a reclassificação a todos eles.
-- [ ] Fase 5 — Terminar `Remover` (item `[~]`): confirmar que distingue
+      **Feito 2026-09-18**: confirmado por leitura. `_dgvCompacto` tem
+      `MultiSelect = true` e `SelectionMode = FullRowSelect` (nativo do
+      WinForms — Ctrl/Shift já funcionam sem código adicional), e
+      `Reclassificar()` → `HandlesSeleccionados()` agrega
+      `SelectedCells`/`SelectedRows`, ignora grupos e títulos, e junta vãos à
+      parede-mãe sem repetir handles. `ClassificarMedicoes` aplica a todos
+      via `AlvRepo.DefinirArtigoEmVarias`. O plano mantinha `[~]` por
+      cautela; não havia nada por terminar.
+- [x] Fase 5 — Terminar `Remover` (item `[~]`): confirmar que distingue
       corretamente entre remover uma medição, um vão e um título, sem
       confundir o alvo quando a seleção mistura tipos.
-- [ ] Fase 5 — Confirmar/fechar que **só** `Medir aqui` altera a próxima
+      **Feito 2026-09-18**: confirmado por leitura. `RemoverParede()` (o
+      único ponto de entrada do botão «Remover») despacha por `NoSeleccionado()`:
+      grupo → recusa com mensagem; título → `AlvRepo.AlternarTitulo` (só o
+      título sai, a medição fica); vão → `RemoverVaoSeleccionado()`; caso
+      contrário → apaga a medição. Opera sobre um único nó
+      (`NoSeleccionado()`), não sobre multisselecção — por isso não há
+      "seleção mista" possível de confundir: o Remover nunca olhou para
+      `HandlesSeleccionados()`.
+- [x] Fase 5 — Confirmar/fechar que **só** `Medir aqui` altera a próxima
       medição (item `[~]`): rever todos os outros pontos de seleção/edição
       para garantir que nenhum deles muda `Config` por engano.
-- [ ] Fase 7 — Definir `AccessibleName`, `AccessibleDescription`, `TabIndex`,
+      **Feito 2026-09-18**: ver nota da Fase 3 acima (mesma verificação,
+      revistos todos os `Config.` de `Palette.cs`) — confirmado que só
+      `MedirAqui()` escreve `Config.Piso/Servico/Artigo`.
+- [x] Fase 7 — Definir `AccessibleName`, `AccessibleDescription`, `TabIndex`,
       `TabStop` e `ToolTipText` nos controlos principais do painel (árvore,
       pesquisa, filtros, propriedades, barras de ação).
+      **Feito 2026-09-18**: `AccessibleName`/`AccessibleDescription`/
+      `ToolTipText` já existiam nos cinco controlos principais (herdados da
+      passagem de 2026-08-29). Faltava `TabIndex`/`TabStop`: os quatro
+      filhos directos de `_resultadosCompactos` (`barra` de
+      pesquisa/filtros, `_barraResultados`, `_dgvCompacto` e o painel
+      `propriedades`) eram acrescentados por `Controls.Add` numa ordem que,
+      para `Dock=Top`, é o INVERSO da ordem visual (o próprio código já
+      comentava isto: "o último a entrar fica mais acima") — o Tab entrava
+      pela árvore antes da pesquisa. Acrescentado `TabIndex` explícito
+      (0=pesquisa/filtros, 1=barra de ações, 2=árvore, 3=propriedades) e
+      `TabStop = true` em `_barraResultados` (`ToolStrip` nasce fora da
+      ordem de Tab por omissão). **Implementado, aguarda build manual** —
+      só toca em propriedades de inicialização (`TabIndex`/`TabStop`), sem
+      lógica nova; revisto por leitura contra o resto do ficheiro.
 - [ ] Fase 7 — Uniformizar o foco visual (contorno/realce ao navegar por
       teclado) entre abas, filtros, árvore, propriedades e barras de ação.
+      Não iniciado nesta sessão (2026-09-18); fica para a próxima.

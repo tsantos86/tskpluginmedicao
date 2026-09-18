@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-09
+Última atualização: 2026-09-18
 
 Estado geral: **Painel único em grafite, com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; falta só a matriz manual da Fase 8**
 
@@ -181,9 +181,26 @@ Objetivo: substituir a grelha larga por uma árvore achatada compacta sem perder
 
 ### Critérios de conclusão
 
-- [ ] Expandir/recolher e atualizar preservam seleção e posição sempre que o nó ainda existe.
+- [~] Expandir/recolher e atualizar preservam seleção e posição sempre que o nó ainda existe.
+
+  > **Nota 2026-09-18.** Confirmado por leitura cuidadosa, sem código novo.
+  > `AtualizarResultadosCompactos` é o ÚNICO caminho de reconstrução (duplo-
+  > clique, `Enter/Espaço/Left/Right`, filtros e `BindData`/`Atualizar`
+  > convergem nele) e captura o Id seleccionado e o Id do nó no topo do
+  > scroll ANTES de limpar as linhas, repondo os dois por Id depois. Os Ids
+  > são determinísticos (handle para medições; caminho de rótulos para
+  > grupos), como os testes `Os_Ids_sao_estaveis_ao_reconstruir_a_arvore` e
+  > `Os_Ids_sobrevivem_a_recolher_e_filtrar` já garantem no modelo. Fica
+  > `[~]` e não `[x]` só porque `Palette.cs` não compila neste sandbox — não
+  > há aqui nenhuma alteração de código, é confirmação de comportamento já
+  > existente.
 - [x] Uma seleção escondida por filtros não fica como alvo invisível de ações; a seleção visual e as ações são limpas/desativadas.
-- [ ] A nova medição recebe foco sem mudar a configuração da próxima medição.
+- [~] A nova medição recebe foco sem mudar a configuração da próxima medição.
+
+  > **Nota 2026-09-18.** Confirmado por leitura cuidadosa: `MedicaoNova` é
+  > totalmente independente de `Config`, e `MedirAqui()` é a única operação
+  > da árvore que escreve em `Config.Piso/Servico/Artigo` (comentário no
+  > próprio código). `[~]` pela mesma razão do critério acima.
 - [x] Alertas de artigo desconhecido, por classificar e vãos excessivos continuam visíveis sem depender só da cor.
 - [x] A árvore apresenta apenas quantidades; todas as dimensões vivem em Propriedades.
 
@@ -239,11 +256,41 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 
 ### Critérios de conclusão
 
-- [ ] Existe paridade entre todos os campos/comandos atuais e o respetivo local novo.
+- [~] Existe paridade entre todos os campos/comandos atuais e o respetivo local novo.
+
+  > **Nota 2026-09-18.** Comparadas as colunas do `_dgv` morto (`servico,
+  > artigo, alcado, bloco, piso, comp, alt, larg, esp, bruta, vaos, liq,
+  > qtd, vol, aroUn, aroMl`) com as `Propriedade` de
+  > `PropriedadesDaParede`/vão/título em `ResultadosArvore.cs`. Sem lacunas:
+  > `num` e `sep` eram artefactos da grelha antiga (número de linha e uma
+  > coluna que nem o próprio código morto lia); `comp` numa linha de parede
+  > parecia editável na UI antiga mas `OnCellEndEdit` nunca a gravava (só
+  > `alt/larg/esp`) — o painel novo, ao deixar Comprimento só de leitura,
+  > corrige esse aparente-mas-falso campo editável. Título ganhou uma
+  > capacidade a mais (editar a Descrição, não só o Código).
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
+
+  > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
+  > e `SelectionMode = FullRowSelect` (Ctrl/Shift nativos do WinForms), e
+  > `HandlesSeleccionados()` agrega `SelectedCells`/`SelectedRows` ignorando
+  > grupos/títulos e deduplicando vão→parede. Nada por terminar.
 - [~] Remover distingue corretamente medição, vão e título.
+
+  > **Nota 2026-09-18.** Confirmado: `RemoverParede()` despacha por
+  > `NoSeleccionado()` — grupo recusa, título usa `AlternarTitulo` (só o
+  > título sai), vão delega em `RemoverVaoSeleccionado()`, resto apaga a
+  > medição. Opera sobre um nó só, nunca sobre multisselecção, por isso não
+  > há "seleção mista" para confundir.
 - [x] Atualizar continua a forçar a escrita imediata no Excel quando este está ligado.
 - [~] Apenas `Medir aqui` altera a próxima medição.
+
+  > **Nota 2026-09-18.** Confirmado por leitura de todos os `Config.` em
+  > `Palette.cs`: o único ponto que escreve `Config.Piso/Servico/Artigo` a
+  > partir da árvore é `MedirAqui()`.
+
+  Os quatro critérios acima ficam `[~]` e não `[x]` porque a verificação foi
+  só por leitura — `Palette.cs` não compila neste sandbox (sem AutoCAD/
+  WinForms). Nenhum deles precisou de código novo.
 
 ## Fase 6 — Unificação num painel só [x]
 
@@ -312,7 +359,24 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
 - [x] `Enter/Espaço` ativam a ação válida do nó.
 - [x] `Ctrl/Shift` mantêm multisseleção.
 - [x] `Escape` fecha filtros/menu e devolve foco ao botão que os abriu.
-- [ ] Definir `AccessibleName`, `AccessibleDescription`, `TabIndex`, `TabStop` e `ToolTipText`.
+- [~] Definir `AccessibleName`, `AccessibleDescription`, `TabIndex`, `TabStop` e `ToolTipText`.
+
+  > **Nota 2026-09-18.** `AccessibleName`/`AccessibleDescription`/
+  > `ToolTipText` já existiam nos cinco controlos principais (árvore,
+  > pesquisa, filtros, propriedades, barra de ações), da passagem de
+  > 2026-08-29. Faltava `TabIndex`/`TabStop`: os quatro filhos diretos de
+  > `_resultadosCompactos` (`barra` de pesquisa/filtros, `_barraResultados`,
+  > `_dgvCompacto`, painel `propriedades`) entravam em `Controls.Add` numa
+  > ordem que, para `Dock=Top`, é o inverso da ordem visual — o próprio
+  > código já comentava isto ("o último a entrar fica mais acima") — e o
+  > Tab entrava pela árvore antes da pesquisa. Acrescentado `TabIndex`
+  > explícito (0=pesquisa/filtros, 1=barra de ações, 2=árvore,
+  > 3=propriedades) e `TabStop = true` em `_barraResultados` (`ToolStrip`
+  > nasce fora da ordem de Tab por omissão). `[~]`: só propriedades de
+  > inicialização, sem lógica nova, mas não compilado neste sandbox — aguarda
+  > build manual. Falta ainda ordenar os controlos DENTRO de cada um destes
+  > quatro grupos (por exemplo, os botões da barra de pesquisa) se a matriz
+  > manual da Fase 8 revelar que a ordem interna também confunde.
 - [x] `PRÓXIMA`, alertas e `Por classificar` têm texto/ícone e não dependem apenas de cor.
 - [ ] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
 
@@ -401,6 +465,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-05 | 0, 2, 3, 6 | **Painel único.** As quatro abas foram substituídas por uma, e o 2.º nível da árvore passou a ser o TIPO DE MEDIDA (`Alvenaria · m²`, `Camadas · m³`, `Lineares · m`, `Contagens · un.`) — é ele que fixa a unidade. Tema **grafite** aprovado (`index-premium.html`), com `AplicarTema` a descer a árvore de controlos. Colunas `COMP.`/`ALTURA` na árvore, com `NaN` = "não se aplica" e a unidade dentro da célula. Propriedades como **mosaicos de métrica** desenhados. Configuração em **pares** (4 colunas). Botões de MEDIR em 3×2 com desenho próprio | `dotnet test` 304/304 (8 testes novos dos factores, 5 do tipo de medida); compilação `net48` sem erros nem avisos; testado no AutoCAD 2021 a partir da 1.2.6.62 |
 | 2026-09-09 | 6 | `DefinicoesTipoDialog.cs`: diálogo modal com os campos que ficaram sem casa no painel único — material e altura de piso dos panos (lidos por `TSKRET`/`TSKPOLF`), nome/categoria/raio/texto das contagens (lido por `TSKCONTAR`). Grava directamente em `FachadaConfig`/`ContagemConfig`, os mesmos estáticos que os comandos já liam — nenhum comando foi alterado. Botão «Definições…» da grelha de MEDIR ligado a ele. Fase 6 fechada, com nota a explicar que "aplicar às quatro abas" foi superada pelo painel único | `dotnet test` 304/304; compilação isolada `net48`/AutoCAD 2021 sem erros nem avisos; build real **1.2.6.66** gerada em `bin\Release\net48\TSKTakeOff.dll`. **Falta confirmar no AutoCAD** que o diálogo grava e que os três comandos leem o valor gravado |
 | 2026-09-17 | 3 | `PROPRIEDADES` (o painel real, `MedPanelControl` em `Palette.cs`) ganhou o botão `▼/▶ PROPRIEDADES` que faltava para recolher/expandir o mosaico, igual ao padrão já usado em CONFIGURAÇÃO e Mais opções; `Essenciais`/`Tudo` confirmados correctos por leitura do modelo (ver nota na Fase 3). Corrigido também um `CS0428`/`CS0019` pré-existente em `ResultadosAdaptadores.DeMateriais` — chamava `f.AreaLiquida`/`f.DescontoVaos` como propriedades quando `MedFachada` (em `Medicoes.cs`) só os expõe como métodos com `RegraDesconto`; impedia `dotnet test` de sequer compilar. Achado código morto herdado do "painel único": `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs` e `PaletteContagem.cs` continuam no projecto mas nada os instancia a partir de `PaletteHost.Show` — ver nota abaixo | `dotnet test` 304/304 (agora compila; antes desta correcção o projecto de testes nem chegava a compilar); `Palette.cs` revisto por leitura cuidadosa (chavetas/tipos/uso de `PaletteTheme` conferidos contra o resto do ficheiro) mas **não compilado** — sem AutoCAD/WinForms neste sandbox |
+| 2026-09-18 | 3, 5, 7 | Fila do agente noturno percorrida quase toda por verificação: seleção/scroll por Id ao expandir/recolher/Atualizar, foco da medição nova sem tocar em `Config`, paridade completa da grelha antiga com `PROPRIEDADES`, `Reclassificar` (Ctrl/Shift), `Remover` (medição/vão/título) e "só `Medir aqui` mexe em `Config`" — todos já correctos no código existente (Fases 2-3/5, 2026-08-29), confirmados por leitura linha a linha sem precisar de código novo (ver notas nos critérios de conclusão das Fases 3 e 5). Único código novo: Fase 7 — `TabIndex`/`TabStop` explícitos nos quatro painéis directos de `_resultadosCompactos` (pesquisa/filtros, barra de ações, árvore, propriedades), porque a ordem de `Controls.Add` era o inverso da ordem visual para `Dock=Top` e o Tab entrava pela árvore antes da pesquisa; `AccessibleName`/`Description`/`ToolTipText` já lá estavam | `dotnet test` 304/304 (sem alterações ao projeto de testes); `Palette.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio — **não compilado**, sem AutoCAD/WinForms neste sandbox |
 
 ### Decisões desta passagem
 

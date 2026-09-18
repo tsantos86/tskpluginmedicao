@@ -971,7 +971,12 @@ namespace TSKTakeOff
                 ShowItemToolTips = true,
                 RenderMode = ToolStripRenderMode.System,
                 BackColor = PaletteTheme.FundoBarra,
-                AutoSize = true
+                AutoSize = true,
+                // ToolStrip nasce fora da ordem de Tab (TabStop = false por
+                // omissão): sem isto, "Excel ao Vivo"/"Exportar"/"Atualizar"/
+                // "Mais" só se alcançavam com o rato.
+                TabStop = true,
+                TabIndex = 1
             };
 
             _btnExcel = BotaoDeBarra("Excel ao Vivo", IconFactory.Excel(), (s, e) => ToggleExcel());
@@ -1350,7 +1355,13 @@ namespace TSKTakeOff
             // que ocupa o espaço que sobra. Em Bottom ficava uma faixa vazia
             // do tamanho da grelha que já lá não está.
             _resultadosCompactos = new Panel { Dock = DockStyle.Fill, BackColor = PaletteTheme.Fundo };
-            var barra = new Panel { Dock = DockStyle.Top, Height = PaletteTheme.AlturaBarra, BackColor = PaletteTheme.FundoSeccao };
+            // TabIndex explícito nos quatro filhos directos, na ordem em que se
+            // LEEM (pesquisa/filtros, depois as acções, depois a árvore, depois
+            // propriedades). Sem isto, o Tab seguia a ordem de Controls.Add, que
+            // para Dock=Top é o INVERSO da ordem visual — ver o comentário mais
+            // abaixo sobre "o último a entrar fica mais acima". Resultado: quem
+            // navegava por teclado entrava pela árvore, não pela pesquisa.
+            var barra = new Panel { Dock = DockStyle.Top, Height = PaletteTheme.AlturaBarra, BackColor = PaletteTheme.FundoSeccao, TabIndex = 0 };
             var titulo = new Label { Dock = DockStyle.Left, Width = 95, Text = "RESULTADOS", Padding = new Padding(8, 0, 0, 0), TextAlign = ContentAlignment.MiddleLeft, Font = PaletteTheme.TituloSeccao };
             _lblResultadoResumo = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 8, 0), ForeColor = PaletteTheme.Apagado };
             // «Limpar» apaga pesquisa E filtros — as duas coisas que escondem
@@ -1453,6 +1464,7 @@ namespace TSKTakeOff
             _dgvCompacto = new DataGridView {
                 Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
                 RowHeadersVisible = false,
+                TabIndex = 2,
                 // Multi-selecção por causa do «Reclassificar» e da edição em
                 // lote: um artigo trocado a meio da obra são dezenas de
                 // medições, e passá-las uma a uma é onde se desiste e se vai
@@ -1619,7 +1631,8 @@ namespace TSKTakeOff
             {
                 Dock = DockStyle.Bottom,
                 Height = 96,
-                BackColor = PaletteTheme.Fundo
+                BackColor = PaletteTheme.Fundo,
+                TabIndex = 3
             };
 
             var cabecalhoProps = new Panel
