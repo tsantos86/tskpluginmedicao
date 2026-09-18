@@ -795,6 +795,109 @@ namespace TSKTakeOff
             return bmp;
         }
 
+        // Variantes exclusivas da Ribbon ---------------------------------------
+
+        /// <summary>
+        /// Vão introduzido manualmente: a porta mantém a leitura arquitetónica
+        /// e o lápis distingue este comando da simples deteção de aberturas.
+        /// </summary>
+        public static Bitmap RibbonVao()
+        {
+            var bmp = NewCanvas(out Graphics g);
+
+            Line(g, SlateDeep, DetailStroke, 6, 54, 58, 54);
+            Line(g, Cobalt, 3.6f, 18, 53, 18, 14);
+            using (var arc = new GraphicsPath())
+            {
+                arc.AddArc(-11, 15, 58, 76, 270, 82);
+                InnerStrokePath(g, arc, Cobalt, DetailStroke);
+            }
+
+            var corpo = new[]
+            {
+                new PointF(36, 43), new PointF(49, 30),
+                new PointF(55, 36), new PointF(42, 49)
+            };
+            using (var path = PolygonPath(corpo))
+            {
+                using (var fill = new SolidBrush(Amber)) g.FillPath(fill, path);
+                InnerStrokePath(g, path, Amber, DetailStroke);
+            }
+
+            var ponta = new[]
+            {
+                new PointF(36, 43), new PointF(42, 49), new PointF(34, 51)
+            };
+            using (var path = PolygonPath(ponta))
+            using (var fill = new SolidBrush(Paper))
+            {
+                g.FillPath(fill, path);
+                InnerStrokePath(g, path, SlateDeep, 1.8f);
+            }
+
+            Node(g, 18, 53, Cobalt);
+            g.Dispose();
+            return bmp;
+        }
+
+        /// <summary>Blocos CAD acompanhados por um contador inequívoco.</summary>
+        public static Bitmap RibbonContagem()
+        {
+            var bmp = NewCanvas(out Graphics g);
+
+            Panel(g, new RectangleF(8, 31, 17, 17), 1.5f, Slate, 86, 30);
+            Panel(g, new RectangleF(23, 12, 17, 17), 1.5f, Amber, 118, 42);
+            Panel(g, new RectangleF(34, 35, 15, 15), 1.5f, Slate, 86, 30);
+            Highlight(g, 26, 15, 36, 15);
+
+            Ellipse(g, new RectangleF(37, 29, 23, 23), Amber, 205, 112, DetailStroke);
+            FittedMonogram(g, "3", new RectangleF(39, 30, 19, 20), Ink);
+
+            g.Dispose();
+            return bmp;
+        }
+
+        /// <summary>Chave de licença com confirmação visual de ativação.</summary>
+        public static Bitmap RibbonLicenca()
+        {
+            var bmp = NewCanvas(out Graphics g);
+
+            Ellipse(g, new RectangleF(5, 12, 29, 29), Amber, 146, 46, MainStroke);
+            Ellipse(g, new RectangleF(14, 21, 11, 11), Ink, 255, 255, DetailStroke);
+            Line(g, Amber, 4f, 32, 27, 56, 27);
+            Line(g, Amber, MainStroke, 47, 27, 47, 37);
+            Line(g, Amber, MainStroke, 55, 27, 55, 34);
+
+            Ellipse(g, new RectangleF(37, 36, 22, 22), Emerald, 218, 132, DetailStroke);
+            InnerPolyline(g, Paper, new[]
+            {
+                new PointF(42, 47), new PointF(47, 52), new PointF(55, 42)
+            }, 3f);
+
+            g.Dispose();
+            return bmp;
+        }
+
+        /// <summary>Marca do produto com um pequeno indicador de informação.</summary>
+        public static Bitmap RibbonSobre()
+        {
+            var bmp = NewCanvas(out Graphics g);
+
+            Panel(g, new RectangleF(5, 12, 50, 39), 3f, Slate, 84, 28);
+            FittedMonogram(g, "TSK", new RectangleF(8, 17, 43, 26), Cobalt);
+            InnerLine(g, SlateDeep, 1.8f, 11, 45, 39, 45);
+
+            Ellipse(g, new RectangleF(40, 37, 20, 20), Cobalt, 225, 145, DetailStroke);
+            using (var brush = new SolidBrush(Paper))
+            {
+                g.FillEllipse(brush, 48, 41, 4, 4);
+                g.FillRectangle(brush, 48, 47, 4, 7);
+            }
+
+            g.Dispose();
+            return bmp;
+        }
+
         /// <summary>
         /// Roda dentada — o botão «Definições…» do painel único.
         ///

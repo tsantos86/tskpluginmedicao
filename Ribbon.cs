@@ -56,7 +56,7 @@ namespace TSKTakeOff
                 var pProjeto = NovoPainel(tab, "Projeto");
                 pProjeto.Items.Add(BotaoGrande("Painel de\nMedições", IconFactory.Painel(),
                     "TSKPAINEL ", "Abre o painel lateral com as medições do desenho."));
-                pProjeto.Items.Add(BotaoGrande("Licença", IconFactory.Licenca(),
+                pProjeto.Items.Add(BotaoGrande("Licença", IconFactory.RibbonLicenca(),
                     "TSKLICENCA ", "Activar ou consultar a licença deste posto."));
 
                 // ---------- Alvenaria ----------
@@ -78,7 +78,7 @@ namespace TSKTakeOff
                     "TSKMEDSEL ", "Mede polylines, linhas ou hachuras existentes no desenho."));
                 pAlv.Items.Add(BotaoGrande("Medição\nLinear", IconFactory.Linear(),
                     "TSKLINEAR ", "Medição linear simples por categoria (tubos, rodapés…)."));
-                pAlv.Items.Add(BotaoGrande("Vãos à\nmão", IconFactory.Vao(),
+                pAlv.Items.Add(BotaoGrande("Vãos à\nmão", IconFactory.RibbonVao(),
                     "TSKVAO ", "Escolhe a medição e seleciona os textos/blocos dos vãos."));
 
                 // ---------- Fachadas / ETICS ----------
@@ -90,7 +90,7 @@ namespace TSKTakeOff
 
                 // ---------- Contagens ----------
                 var pCont = NovoPainel(tab, "Contagens");
-                pCont.Items.Add(BotaoGrande("Contar\nBlocos", IconFactory.Contagem(),
+                pCont.Items.Add(BotaoGrande("Contar\nBlocos", IconFactory.RibbonContagem(),
                     "TSKCONTAR ", "Conta os blocos seleccionados (portas, janelas, tomadas, " +
                     "luminárias…) e marca cada um com um círculo. Aceita a selecção do QSELECT."));
 
@@ -117,7 +117,7 @@ namespace TSKTakeOff
                     "TSKEO ", "Corre a macro CriarEO_Final: estimativa orçamental."));
                 pMacros.Items.Add(BotaoGrande("QT", IconFactory.Macro("QT"),
                     "TSKQT ", "Corre a macro CriarQT: mapa de quantidades."));
-                pMacros.Items.Add(BotaoGrande("TSK\nDIGITAL", IconFactory.Sobre(),
+                pMacros.Items.Add(BotaoGrande("TSK\nDIGITAL", IconFactory.RibbonSobre(),
                     "TSKSOBRE ", "Sobre o TSK TakeOff: versão, build e informação do produto."));
 
                 _construida = true;
@@ -140,18 +140,26 @@ namespace TSKTakeOff
         private static RibbonButton BotaoGrande(string texto, System.Drawing.Bitmap icone,
             string comando, string dica)
         {
-            // Uma conversão só, e o bitmap GDI+ vai-se embora a seguir: o
-            // BitmapSource.Create copia os bits, não fica preso ao original.
-            ImageSource imagem = ToImageSource(icone);
-            icone.Dispose();
+            // A Ribbon usa 32 px no botão grande e 16 px quando o painel é
+            // compactado. Criar os dois tamanhos evita que o AutoCAD reduza
+            // o mesmo bitmap de 64 px de forma diferente em cada versão.
+            ImageSource imagemGrande;
+            ImageSource imagemPequena;
+            using (icone)
+            using (var grande = RibbonIconRenderer.Preparar(icone, 32))
+            using (var pequena = RibbonIconRenderer.Preparar(icone, 16))
+            {
+                imagemGrande = ToImageSource(grande);
+                imagemPequena = ToImageSource(pequena);
+            }
 
             var btn = new RibbonButton
             {
                 Text = texto,
                 ShowText = true,
                 ShowImage = true,
-                LargeImage = imagem,
-                Image = imagem,
+                LargeImage = imagemGrande,
+                Image = imagemPequena,
                 Size = RibbonItemSize.Large,
                 Orientation = System.Windows.Controls.Orientation.Vertical,
                 CommandParameter = comando,

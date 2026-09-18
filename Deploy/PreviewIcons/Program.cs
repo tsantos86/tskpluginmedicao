@@ -23,6 +23,14 @@ namespace PreviewIcons
             "Atualizar", "Capitulo", "Artigo", "Reclassificar", "LinhaBranca", "Limpar", "Remover"
         };
 
+        private static readonly string[] NomesRibbon =
+        {
+            "Painel", "Licenca", "ParedeRet", "ParedePoly", "Area",
+            "AreaSel", "MedirSel", "Linear", "Vao", "Retangulo",
+            "Polf", "Contagem", "Excel", "Exportar", "Modelo",
+            "Mapa", "Macro MD", "Macro EO", "Macro QT", "Sobre"
+        };
+
         private static void Main()
         {
             int cols = 7, cell = 158, faixa = 30;
@@ -46,6 +54,67 @@ namespace PreviewIcons
                 bmp.Save(saida, ImageFormat.Png);
                 Console.WriteLine("Gravado: " + System.IO.Path.GetFullPath(saida));
             }
+
+            GerarPreviewRibbon();
+        }
+
+        private static void GerarPreviewRibbon()
+        {
+            const int cols = 10;
+            const int cellW = 110;
+            const int cellH = 82;
+            const int faixa = 26;
+            int rows = (NomesRibbon.Length + cols - 1) / cols;
+            int alturaTema = faixa + rows * cellH;
+
+            using (var bmp = new Bitmap(cols * cellW, alturaTema * 2))
+            using (var g = Graphics.FromImage(bmp))
+            using (var fonteTitulo = new Font("Segoe UI", 9f, FontStyle.Bold))
+            using (var fonte = new Font("Segoe UI", 7.5f))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                var fundos = new[] { Color.FromArgb(56, 56, 62), Color.FromArgb(238, 238, 242) };
+                var textos = new[] { Color.White, Color.Black };
+                var tipo = typeof(IconFactory);
+
+                for (int tema = 0; tema < 2; tema++)
+                {
+                    int topo = tema * alturaTema;
+                    using (var fundo = new SolidBrush(fundos[tema]))
+                    using (var texto = new SolidBrush(textos[tema]))
+                    {
+                        g.FillRectangle(fundo, 0, topo, bmp.Width, alturaTema);
+                        g.DrawString(tema == 0 ? "RIBBON — TEMA ESCURO" : "RIBBON — TEMA CLARO",
+                                     fonteTitulo, texto, 8, topo + 4);
+
+                        for (int i = 0; i < NomesRibbon.Length; i++)
+                        {
+                            string nome = NomesRibbon[i];
+                            using (var origem = CriarIcone(tipo, nome))
+                            using (var grande = RibbonIconRenderer.Preparar(origem, 32))
+                            using (var pequena = RibbonIconRenderer.Preparar(origem, 16))
+                            {
+                                ValidarRibbon(nome, grande, 32);
+                                ValidarRibbon(nome, pequena, 16);
+
+                                int x = (i % cols) * cellW + 8;
+                                int y = (i / cols) * cellH + topo + faixa + 8;
+                                g.DrawImageUnscaled(grande, x, y);
+                                g.DrawImageUnscaled(pequena, x + 42, y + 8);
+                                g.DrawString(nome, fonte, texto, x, y + 39);
+                            }
+                        }
+                    }
+                }
+
+                string saida = System.IO.Path.Combine(
+                    AppContext.BaseDirectory, "..\\..\\..\\..", "preview-ribbon.png");
+                bmp.Save(saida, ImageFormat.Png);
+                Console.WriteLine("Gravado: " + System.IO.Path.GetFullPath(saida));
+            }
         }
 
         private static void Painel(Graphics g, int topo, int cols, int cell, int faixa,
@@ -64,25 +133,45 @@ namespace PreviewIcons
                 for (int i = 0; i < Nomes.Length; i++)
                 {
                     string nome = Nomes[i];
-                    Bitmap icone = nome.StartsWith("Macro ")
-                        ? (Bitmap)tipo.GetMethod("Macro").Invoke(null, new object[] { nome.Substring(6) })
-                        : (Bitmap)tipo.GetMethod(nome).Invoke(null, null);
+                    Bitmap icone = CriarIcone(tipo, nome);
 
                     ValidarIcone(nome, icone);
 
                     int x = (i % cols) * cell + 8;
                     int y = (i / cols) * cell + topo + faixa + 8;
 
-                    // Escala ótica real: fonte, ribbon, palette e ribbon colapsada.
+                    // Fonte de 64 px e os dois tamanhos que a Ribbon recebe de
+                    // verdade. Os 24 px continuam a simular o uso na palette.
                     g.DrawImage(icone, x, y, 64, 64);
-                    g.DrawImage(icone, x + 68, y + 16, 32, 32);
+                    using (var ribbon32 = RibbonIconRenderer.Preparar(icone, 32))
+                    {
+                        ValidarRibbon(nome, ribbon32, 32);
+                        g.DrawImageUnscaled(ribbon32, x + 68, y + 16);
+                    }
                     g.DrawImage(icone, x + 104, y + 20, 24, 24);
-                    g.DrawImage(icone, x + 132, y + 24, 16, 16);
+                    using (var ribbon16 = RibbonIconRenderer.Preparar(icone, 16))
+                    {
+                        ValidarRibbon(nome, ribbon16, 16);
+                        g.DrawImageUnscaled(ribbon16, x + 132, y + 24);
+                    }
 
                     g.DrawString(nome, fonte, pincel, x, y + 68);
                     icone.Dispose();
                 }
             }
+        }
+
+        private static Bitmap CriarIcone(Type tipo, string nome)
+        {
+            string metodo = nome;
+            if (nome == "Vao") metodo = "RibbonVao";
+            else if (nome == "Contagem") metodo = "RibbonContagem";
+            else if (nome == "Licenca") metodo = "RibbonLicenca";
+            else if (nome == "Sobre") metodo = "RibbonSobre";
+
+            return nome.StartsWith("Macro ")
+                ? (Bitmap)tipo.GetMethod("Macro").Invoke(null, new object[] { nome.Substring(6) })
+                : (Bitmap)tipo.GetMethod(metodo).Invoke(null, null);
         }
 
         private static void ValidarIcone(string nome, Bitmap icone)
@@ -95,6 +184,25 @@ namespace PreviewIcons
             if (icone.GetPixel(0, 0).A != 0 || icone.GetPixel(63, 0).A != 0 ||
                 icone.GetPixel(0, 63).A != 0 || icone.GetPixel(63, 63).A != 0)
                 throw new InvalidOperationException(nome + " ocupa os cantos do canvas transparente.");
+        }
+
+        private static void ValidarRibbon(string nome, Bitmap icone, int lado)
+        {
+            if (icone.Width != lado || icone.Height != lado)
+                throw new InvalidOperationException(nome + " não foi preparado em " + lado + " × " + lado + ".");
+            if (!Image.IsAlphaPixelFormat(icone.PixelFormat))
+                throw new InvalidOperationException(nome + " perdeu o canal alfa em " + lado + " px.");
+
+            bool visivel = false;
+            for (int y = 0; y < lado && !visivel; y++)
+                for (int x = 0; x < lado; x++)
+                    if (icone.GetPixel(x, y).A > 8) { visivel = true; break; }
+
+            if (!visivel)
+                throw new InvalidOperationException(nome + " ficou vazio em " + lado + " px.");
+            if (icone.GetPixel(0, 0).A != 0 || icone.GetPixel(lado - 1, 0).A != 0 ||
+                icone.GetPixel(0, lado - 1).A != 0 || icone.GetPixel(lado - 1, lado - 1).A != 0)
+                throw new InvalidOperationException(nome + " perdeu a margem transparente em " + lado + " px.");
         }
     }
 }
