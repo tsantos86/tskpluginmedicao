@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TSK Digital — TakeOff · Claro refinado</title>
+<!--
+  MOCKUP DE TRABALHO — não é a referência aprovada por omissão.
+
+  Objetivo: um passo visual acima do tema claro já implementado
+  (Deploy/MockupPalette/index-resultados-compacto.html, aprovado e em
+  produção), mantendo TODAS as funções do painel real — nada aqui é
+  novo, é reorganização/acabamento do que já existe em Palette.cs.
+
+  Inventário coberto (conferido contra o código a 2026-09-19):
+  - Cabeçalho: DWG activo, resumo da próxima medição.
+  - CONFIGURAÇÃO: Artigo do mapa, Serviço, Bloco, Piso+Cor,
+    Alçado/zona, Altura, Espessura, Regra de vãos, Mais opções
+    (Texto do título, Layer).
+  - MEDIR: as 12 acções reais — Retângulo, Polyline, Área, Área da
+    selecção, Medir selecção, Adicionar vão, Pano retângulo,
+    Pano × altura, Linear, Contar blocos, QSELECT, Definições…
+  - RESULTADOS: pesquisa, filtros (Pavimento/Serviço/Artigo/
+    Tipo-unidade/Estado + Aplicar/Repor), Excel ao vivo/Exportar/
+    Atualizar/Mais (Remover, Linha branca, Artigo, Reclassificar,
+    Limpar tudo), árvore com Estrutura/Comp./Altura/Quantidade.
+  - PROPRIEDADES: Essenciais/Tudo, mosaico de métricas, Medir aqui.
+
+  O QUE É SEGURO CONSTRUIR EM WINFORMS TAL COMO DESENHADO AQUI (já
+  provado no código real desta paleta):
+  - Cartões com borda de 1px e risco de acento no topo/à esquerda —
+    PaletteTheme.Cartao() já desenha a borda; o risco de acento já foi
+    feito com sucesso em _btnConfigToggle.Paint (2026-09-19).
+  - Ícones e mosaicos pintados à mão (IconFactory.cs,
+    PalettePanelShell.MosaicoMetricas) — é a técnica que já sustenta
+    todos os ícones e os mosaicos de PROPRIEDADES.
+  - Cor de fundo diferenciada nos campos (FundoCampo) — é só uma
+    propriedade, sem risco. Cor ao ganhar foco também é segura DESDE
+    QUE feita por BackColor em Enter/Leave, nunca por um Panel-wrapper
+    à volta do campo (ver nota abaixo).
+  - Fundo geral fora do cartão mais escuro que o cartão (como o
+    body:#eef2f4 abaixo) — só cor, sem custo.
+
+  O QUE ESTE MOCKUP DELIBERADAMENTE NÃO PEDE, PORQUE JÁ SE PROVOU
+  ARRISCADO NESTA MESMA PALETA:
+  - Bordas coloridas próprias em TextBox/NumericUpDown via um Panel
+    wrapper com padding de 1px: tentado e revertido a 2026-09-19
+    (commit 1377f0b → d71fbe7) — o wrapper sem AutoSize/altura própria
+    incha a linha de uma TableLayoutPanel com AutoSize=true para o
+    DefaultSize (200×100) do Panel. Por isso os campos aqui usam
+    fundo tintado, não borda colorida.
+  - Sombras difusas tipo CSS box-shadow — GDI+ não tem; o "sombra" que
+    já existe no código é sempre uma borda de 1px (SombraCartao).
+  - ComboBox com borda colorida — FlatStyle.Flat já é o máximo
+    provado sem desenho próprio do controlo.
+-->
+<style>
+:root{--blue:#bfe7fb;--accent:#168ac4;--accent-deep:#116f9d;--pale:#eaf7fd;--ink:#111820;--muted:#5b6872;--line:#cbd7dd;--line-soft:#e5ecef;--white:#fff;--green:#258b62;--ochre:#b17d05;--wall:#657f8e;--danger:#b94a43;--field:#f4f9fc}
+*{box-sizing:border-box}button,input,select{font:inherit}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+body{margin:0;background:#e4eaec;color:var(--ink);font:12px/1.4 "Segoe UI",Tahoma,sans-serif}
+.panel{width:min(600px,100%);margin:16px auto;background:#eef2f4;padding:10px;display:flex;flex-direction:column;gap:8px}
+.top{background:linear-gradient(180deg,#d6f0fb,var(--blue));border:1px solid #8bc9e8;border-radius:6px;padding:0}
+.brand{height:44px;display:flex;align-items:center;padding:0 12px;gap:9px}
+.mark{width:26px;height:26px;border-radius:6px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:800;letter-spacing:.02em}
+.brand strong{font-size:14px;letter-spacing:.02em}.brand small{display:block;color:#34586a;font-size:10px}
+.file{margin-left:auto;font-size:10px;color:#1c4257;display:flex;align-items:center;gap:4px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.next-row{height:30px;display:flex;align-items:center;padding:0 12px;gap:8px;background:rgba(255,255,255,.45);border-top:1px solid #8bc9e8;border-radius:0 0 6px 6px}
+.next-row .lbl{color:#1c4257;font-size:10.5px}.next-row b{color:var(--accent-deep);font-size:10.5px}
+
+/* Cartão — mesma técnica que PaletteTheme.Cartao(): borda de 1px, sem sombra difusa */
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.card-head{position:relative;height:30px;display:flex;align-items:center;gap:7px;padding:0 10px 0 14px;background:#f7fafb;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.card-head::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}
+.card-head .ico{width:14px;height:14px;color:var(--accent-deep);flex:0 0 auto}
+.card-head .chev{width:11px;color:var(--accent);font-size:9px;transition:transform .12s}
+.card-head[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.card-head .title{font-size:11px;font-weight:700;letter-spacing:.04em}
+.card-head .summary{font-weight:400;color:#4a6472;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:2px}
+.card-head .meta{margin-left:auto;color:var(--muted);font-size:9.5px;font-weight:400}
+
+/* Campos — fundo tintado em vez de borda própria (a lição de 2026-09-19) */
+.grid{display:grid;grid-template-columns:78px 1fr 78px 1fr;gap:7px 8px;padding:10px}
+.grid label{align-self:center;color:var(--muted);font-size:10.5px}
+.grid .wide{grid-column:span 3}
+input,select{width:100%;height:26px;border:1px solid var(--line);border-radius:4px;padding:2px 7px;background:var(--field);color:var(--ink)}
+input:focus,select:focus{background:var(--pale);border-color:var(--accent);outline:1px solid #8bc9e8}
+.hint{grid-column:2/5;margin-top:-3px;color:var(--muted);font-size:9.5px}
+.piso-cor{display:flex;gap:6px}
+.piso-cor select{flex:1}
+.swatch-btn{width:60px;height:26px;border:1px solid var(--line);border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;gap:5px;font-size:9.5px;color:var(--muted);cursor:pointer}
+.swatch{width:12px;height:12px;border-radius:3px;background:#2e7dd1;border:1px solid #1c4257}
+.more-toggle{grid-column:1/5;display:flex;align-items:center;gap:5px;border:0;background:transparent;color:var(--accent-deep);font:inherit;font-weight:600;font-size:10.5px;padding:4px 0;cursor:pointer}
+.more{grid-column:1/5;display:grid;grid-template-columns:78px 1fr;gap:7px 8px}
+.readonly-note{grid-column:2;color:var(--muted);font-size:9.5px;margin-top:-2px}
+
+/* MEDIR — grelha de mosaicos com ícone pintado, igual à técnica de PalettePanelShell.Accao */
+.measure-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+.action{background:#fff;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;cursor:pointer;font-size:9.5px;color:var(--ink)}
+.action:hover{background:var(--pale)}
+.action:active{background:#d9f0fc}
+.action .icon{width:18px;height:18px;color:var(--accent-deep);stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.action.secondary .icon{color:var(--wall)}
+.action .lbl{text-align:center;line-height:1.15;padding:0 4px}
+
+/* RESULTADOS */
+.results-bar{height:36px;display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--line);background:#f7fafb}
+.search-wrap{position:relative;flex:1;min-width:0;max-width:150px}
+.search-wrap .icon{position:absolute;left:6px;top:6px;width:13px;height:13px;color:var(--muted);pointer-events:none}
+.search-wrap input{height:26px;padding-left:23px;font-size:10.5px;background:#fff}
+.filter-btn{height:26px;padding:0 8px;display:flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;font-size:10.5px;color:var(--ink)}
+.filter-btn.active{border-color:var(--accent);background:var(--pale);color:var(--accent-deep);font-weight:600}
+.badge{min-width:15px;height:15px;padding:0 4px;display:inline-grid;place-items:center;background:var(--accent);color:#fff;font-size:9px;font-weight:700;border-radius:8px}
+.result-count{margin-left:auto;color:var(--muted);font-size:9.5px;white-space:nowrap}
+.result-tools{height:32px;display:flex;align-items:center;padding:2px 8px;gap:4px;border-bottom:1px solid var(--line)}
+.result-tools button{height:24px;padding:0 8px;border:1px solid var(--line);border-radius:4px;background:#fff;font-size:10px;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:4px}
+.result-tools button:hover{background:var(--pale);border-color:#8bc9e8}
+.result-tools .excel{color:var(--green);border-color:#bfe3cf}
+.result-tools .more{position:relative}
+.more-menu{position:absolute;top:28px;right:0;width:150px;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 10px #0002;padding:4px;display:none;z-index:5}
+.more-menu.open{display:block}
+.more-menu a{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:4px;color:var(--ink);text-decoration:none;font-size:10.5px}
+.more-menu a:hover{background:var(--pale)}
+.more-menu .icon{width:13px;height:13px;color:var(--wall)}
+
+.tree-head{display:grid;grid-template-columns:minmax(210px,1fr) 64px 60px 84px;height:23px;background:#eef4f6;color:var(--muted);font-size:8.5px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--line)}
+.tree-head span{padding:6px 7px;border-right:1px solid #dde5e8}
+.tree-head span:not(:first-child){text-align:right}
+.tree{max-height:230px;overflow:auto}
+.row{display:grid;grid-template-columns:minmax(210px,1fr) 64px 60px 84px;min-height:26px;border-bottom:1px solid var(--line-soft);align-items:stretch}
+.row:hover{background:var(--pale)}
+.row.selected{background:#d9f0fc;box-shadow:inset 0 0 0 1px #82c9e7}
+.cell{padding:4px 7px;display:flex;align-items:center;font-variant-numeric:tabular-nums}
+.cell.num{justify-content:flex-end;color:#3a4d57}
+.row.group{font-weight:600;background:#fafcfd}
+.name{gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.indent1{padding-left:20px}.indent2{padding-left:35px}.indent3{padding-left:50px}.indent4{padding-left:65px}
+.twisty{width:11px;color:var(--accent);font-size:9px;flex:0 0 auto}
+.node{width:13px;height:13px;flex:0 0 auto;color:var(--wall);stroke:currentColor;fill:none;stroke-width:1.5}
+.node.article{color:var(--green)}.node.opening{color:var(--ochre)}
+.tag-next{margin-left:6px;padding:1px 5px;border-radius:8px;background:var(--accent);color:#fff;font-size:8px;font-weight:700;letter-spacing:.03em}
+.row.opening-row{color:#7a5f2d}
+.row.opening-row .cell.num:last-child{color:var(--danger);font-weight:600}
+.unclassified{color:#8a6608;background:#fffaea;padding:1px 5px;border-radius:3px}
+
+.props-head{height:28px;display:flex;align-items:center;gap:6px;padding:0 9px;border-top:1px solid var(--line);background:#f7fafb}
+.props-head .name-sel{color:var(--accent-deep);font-weight:600}
+.toggle-pill{margin-left:auto;display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.toggle-pill button{border:0;background:#fff;padding:3px 9px;font-size:9.5px;color:var(--muted);cursor:pointer}
+.toggle-pill button.active{background:var(--accent);color:#fff;font-weight:600}
+.measure-here{border:0;background:transparent;color:var(--accent-deep);font-weight:600;font-size:10px;cursor:pointer;padding:3px 6px;border-radius:4px}
+.measure-here:hover{background:var(--pale)}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr)}
+.metric{padding:7px 8px;border-right:1px solid var(--line);border-top:1px solid var(--line);position:relative}
+.metric small{display:block;color:var(--muted);font-size:8.5px}
+.metric b{font-size:11.5px}
+.metric.editable::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ochre)}
+.warning{margin:7px 8px;padding:6px 8px;border-left:3px solid #f4b72b;background:#fff8df;color:#765700;font-size:9.5px;border-radius:0 4px 4px 0}
+
+footer{height:22px;display:flex;align-items:center;padding:0 10px;color:var(--muted);font-size:9.5px}
+footer span:last-child{margin-left:auto}
+</style>
+</head>
+<body>
+<main class="panel">
+
+  <header class="top">
+    <div class="brand">
+      <div class="mark">TSK</div>
+      <div><strong>TSK TAKEOFF</strong><small>Medições</small></div>
+      <div class="file"><span class="dot"></span>2026.07.10 - Moradia Barreiro.dwg</div>
+    </div>
+    <div class="next-row"><span class="lbl">Próxima medição:</span> <b>PISO 01 · Alvenaria · Por classificar · h 2,80 m · e 0,15 m</b></div>
+  </header>
+
+  <section class="card">
+    <button class="card-head" aria-expanded="true">
+      <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="3"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3M4 4l2 2M14 14l2 2M16 4l-2 2M6 14l-2 2"/></svg>
+      <span class="chev">▼</span>
+      <span class="title">CONFIGURAÇÃO</span>
+      <span class="summary">PISO 01 · ALVENARIA · Por classificar · h 2.80 m · e 0.15 m</span>
+    </button>
+    <div class="grid">
+      <label>Artigo do mapa:</label>
+      <select class="wide"><option>sem mapa importado — use o TSKMQT</option></select>
+
+      <label>Serviço:</label><input value="ALVENARIA">
+      <label>Bloco:</label><input placeholder="">
+
+      <label>Piso:</label>
+      <div class="piso-cor">
+        <select><option>PISO 01</option></select>
+        <button class="swatch-btn" type="button"><span class="swatch"></span>Cor…</button>
+      </div>
+      <label>Alçado / zona:</label><select><option value=""></option></select>
+
+      <label>Altura (m):</label><input value="2.80">
+      <label>Espessura (m):</label><input value="0.15">
+
+      <label>Regra de vãos:</label>
+      <select class="wide"><option>Descontar todos os vãos</option></select>
+
+      <button class="more-toggle" type="button" id="moreToggle"><span id="moreChev">▶</span> Mais opções</button>
+      <div class="more" id="moreFields" hidden>
+        <label>Texto do título:</label><input placeholder="">
+        <label>Layer (opcional):</label><input placeholder="">
+        <div class="readonly-note">MED_ALVENARIA &nbsp;(calculada do artigo + bloco)</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head" style="cursor:default">
+      <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17 17 3M3 17h6M11 3h6"/></svg>
+      <span class="title">MEDIR</span>
+      <span class="meta">Escolha o tipo de medição</span>
+    </div>
+    <div class="measure-grid">
+      <button class="action"><svg class="icon" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1"/></svg><span class="lbl">Retângulo</span></button>
+      <button class="action"><svg class="icon" viewBox="0 0 20 20"><path d="m3 15 4-10 6 7 4-8"/><circle cx="3" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="7" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="13" cy="12" r="1" fill="currentColor" stroke="none"/></svg><span class="lbl">Polyline</span></button>
+      <button class="action"><svg class="icon" viewBox="0 0 20 20"><path d="M4 15 6 4l10 3-2 9z"/></svg><span class="lbl">Área</span></button>
+
+      <button class="action"><svg class="icon" viewBox="0 0 20 20"><path d="M4 2v15l4-4 3 5 2-2-3-5h6z"/></svg><span class="lbl">Área da seleção</span></button>
+      <button class="action"><svg class="icon" viewBox="0 0 20 20"><path d="M4 2v15l4-4 3 5 2-2-3-5h6z" opacity=".55"/><path d="M13 4h4v4M17 4l-5 5"/></svg><span class="lbl">Medir seleção</span></button>
+      <button class="action"><svg class="icon" viewBox="0 0 20 20"><path d="M4 17V3h11v14M7 17V6h5v11"/></svg><span class="lbl">Adicionar vão</span></button>
+
+      <button class="action secondary"><svg class="icon" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="1"/><path d="M3 8h14"/></svg><span class="lbl">Pano retângulo</span></button>
+      <button class="action secondary"><svg class="icon" viewBox="0 0 20 20"><path d="m3 15 4-10 6 7 4-8"/><path d="M3 15h14"/></svg><span class="lbl">Pano × altura</span></button>
+      <button class="action secondary"><svg class="icon" viewBox="0 0 20 20"><path d="M3 15 17 5"/><circle cx="3" cy="15" r="1.4" fill="currentColor" stroke="none"/><circle cx="17" cy="5" r="1.4" fill="currentColor" stroke="none"/></svg><span class="lbl">Linear</span></button>
+
+      <button class="action secondary"><svg class="icon" viewBox="0 0 20 20"><circle cx="6" cy="7" r="2.4"/><circle cx="14" cy="7" r="2.4"/><circle cx="10" cy="14" r="2.4"/></svg><span class="lbl">Contar blocos</span></button>
+      <button class="action secondary"><svg class="icon" viewBox="0 0 20 20"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="m8 10 2 2 3-4"/></svg><span class="lbl">QSELECT</span></button>
+      <button class="action secondary"><svg class="icon" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3M4 4l2 2M14 14l2 2M16 4l-2 2M6 14l-2 2"/></svg><span class="lbl">Definições…</span></button>
+    </div>
+  </section>
+
+  <section class="card" id="resultsCard">
+    <div class="results-bar">
+      <span class="title" style="font-size:11px">RESULTADOS</span>
+      <div class="search-wrap"><svg class="icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input placeholder="Pesquisar…"></div>
+      <button class="filter-btn active">Filtros <span class="badge">2</span></button>
+      <span class="result-count">1 medição</span>
+    </div>
+
+    <div class="result-tools">
+      <button class="excel">▣ Excel ao Vivo</button>
+      <button>↥ Exportar</button>
+      <button>↻ Atualizar</button>
+      <div class="more">
+        <button id="moreResultsBtn">••• Mais</button>
+        <div class="more-menu" id="moreResultsMenu">
+          <a href="#"><svg class="icon" viewBox="0 0 20 20"><path d="M5 6h10M8 6V4h4v2M6 6l1 10h6l1-10"/></svg>Remover</a>
+          <a href="#"><svg class="icon" viewBox="0 0 20 20"><path d="M3 10h14"/></svg>Linha branca</a>
+          <a href="#"><svg class="icon" viewBox="0 0 20 20"><rect x="3" y="6" width="14" height="10"/><path d="M6 3v6M10 3v6M14 3v6"/></svg>Artigo</a>
+          <a href="#"><svg class="icon" viewBox="0 0 20 20"><path d="M4 10a6 6 0 0 1 10-4.5M16 5v4h-4M16 10a6 6 0 0 1-10 4.5M4 15v-4h4"/></svg>Reclassificar…</a>
+          <a href="#"><svg class="icon" viewBox="0 0 20 20"><path d="M4 6h12l-1 10H5z"/><path d="M8 6V4h4v2"/></svg>Limpar tudo…</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="tree-head"><span>Estrutura / elemento</span><span>Comp.</span><span>Altura</span><span>Quantidade</span></div>
+    <div class="tree">
+      <div class="row group"><div class="cell name"><span class="twisty">▾</span><svg class="node" viewBox="0 0 20 20"><path d="M3 5h12v10H3zM6 8h11v8H6"/></svg>Pavimentos</div><div class="cell num">—</div><div class="cell num">—</div><div class="cell num">33.52 m²</div></div>
+      <div class="row group"><div class="cell name indent1"><span class="twisty">▾</span><svg class="node" viewBox="0 0 20 20"><path d="M3 5h12v10H3zM6 8h11v8H6"/></svg>PISO 0</div><div class="cell num">—</div><div class="cell num">—</div><div class="cell num">33.52 m²</div></div>
+      <div class="row group"><div class="cell name indent2"><span class="twisty">▾</span><svg class="node article" viewBox="0 0 20 20"><path d="M3 6h14v10H3zM6 3v6M10 3v6M14 3v6"/></svg>Alvenaria · m²</div><div class="cell num">—</div><div class="cell num">—</div><div class="cell num">33.52 m²</div></div>
+      <div class="row group"><div class="cell name indent3"><span class="twisty">▾</span><svg class="node article" viewBox="0 0 20 20"><path d="M3 6h14v10H3zM6 3v6M10 3v6M14 3v6"/></svg><span class="unclassified">Por classificar</span></div><div class="cell num">—</div><div class="cell num">—</div><div class="cell num">33.52 m²</div></div>
+      <div class="row selected"><div class="cell name indent4"><span class="twisty">└</span><svg class="node" viewBox="0 0 20 20"><path d="M2 5h16v10H2zM2 10h16M7 5v5M13 10v5"/></svg><b>Parede B5559</b><span class="tag-next">PRÓXIMA</span></div><div class="cell num">11.97 m</div><div class="cell num">2.80 m</div><div class="cell num"><b>33.52 m²</b></div></div>
+      <div class="row" style="opacity:0"><div class="cell name"></div><div class="cell num"></div><div class="cell num"></div><div class="cell num"></div></div>
+    </div>
+
+    <div class="props-head">
+      <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:13px;height:13px"><path d="M3 17V3h11v14M6 17V6h5v11"/></svg>
+      <span class="title" style="font-size:10.5px">PROPRIEDADES</span>
+      <span class="name-sel">— Parede B5559</span>
+      <div class="toggle-pill"><button class="active">Essenciais</button><button>Tudo</button></div>
+      <button class="measure-here">Medir aqui</button>
+    </div>
+    <div class="metrics">
+      <div class="metric"><small>Comprimento</small><b>—</b></div>
+      <div class="metric"><small>Altura</small><b>2.80 m</b></div>
+      <div class="metric editable"><small>Artigo</small><b>Por classificar</b></div>
+      <div class="metric"><small>Quantidade</small><b>33.52 m²</b></div>
+    </div>
+    <div class="warning">⚠ 1 elemento por classificar no PISO 0 · atribua um artigo ou mantenha para revisão.</div>
+  </section>
+
+  <footer><span>Pronto · desenho sincronizado</span><span>Escala 1:100</span></footer>
+</main>
+
+<script>
+document.getElementById('moreToggle').addEventListener('click', function(){
+  var f = document.getElementById('moreFields');
+  var c = document.getElementById('moreChev');
+  var open = f.hidden;
+  f.hidden = !open;
+  c.textContent = open ? '▾' : '▶';
+});
+document.getElementById('moreResultsBtn').addEventListener('click', function(){
+  document.getElementById('moreResultsMenu').classList.toggle('open');
+});
+document.addEventListener('click', function(e){
+  if (!e.target.closest('#moreResultsBtn') && !e.target.closest('#moreResultsMenu'))
+    document.getElementById('moreResultsMenu').classList.remove('open');
+});
+</script>
+</body>
+</html>
