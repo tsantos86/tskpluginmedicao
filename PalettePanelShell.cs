@@ -460,6 +460,10 @@ namespace TSKTakeOff
             private int _aEditar = -1;
             private int _sobre = -1;
 
+            /// <summary>O mosaico "com foco" por teclado — Left/Right/Up/Down move-o,
+            /// Enter/Espaço edita-o. Independente de <see cref="_sobre"/> (rato).</summary>
+            private int _foco = -1;
+
             /// <summary>Largura a que um mosaico deixa de caber com folga.</summary>
             private const int LarguraMinima = 104;
             private const int AlturaMosaico = 38;
@@ -473,6 +477,11 @@ namespace TSKTakeOff
                 BackColor = PaletteTheme.Fundo;
                 DoubleBuffered = true;
                 SetStyle(ControlStyles.ResizeRedraw, true);
+                // Um Panel normal não entra na ordem de Tab nem aceita foco: é
+                // um canvas pintado à mão, sem controlos filho por mosaico.
+                // Sem isto, PROPRIEDADES ficava fora do alcance do teclado.
+                SetStyle(ControlStyles.Selectable, true);
+                TabStop = true;
 
                 // Um editor só, reposicionado sobre o mosaico que se está a
                 // editar. Criar uma caixa por mosaico seria doze caixas
@@ -487,8 +496,8 @@ namespace TSKTakeOff
                 };
                 _editor.KeyDown += (s, e) =>
                 {
-                    if (e.KeyCode == Keys.Enter) { Confirmar(); e.Handled = e.SuppressKeyPress = true; }
-                    else if (e.KeyCode == Keys.Escape) { Cancelar(); e.Handled = e.SuppressKeyPress = true; }
+                    if (e.KeyCode == Keys.Enter) { Confirmar(); VoltarAoMosaico(); e.Handled = e.SuppressKeyPress = true; }
+                    else if (e.KeyCode == Keys.Escape) { Cancelar(); VoltarAoMosaico(); e.Handled = e.SuppressKeyPress = true; }
                 };
                 _editor.Leave += (s, e) => Confirmar();
                 Controls.Add(_editor);
@@ -505,7 +514,10 @@ namespace TSKTakeOff
                 MouseDown += (s, e) =>
                 {
                     int i = MosaicoEm(e.Location);
-                    if (i >= 0 && _metricas[i].Editavel) Editar(i);
+                    if (i < 0) return;
+                    _foco = i;
+                    if (_metricas[i].Editavel) Editar(i);
+                    else Invalidate();
                 };
             }
 
@@ -515,6 +527,7 @@ namespace TSKTakeOff
                 Cancelar();
                 _metricas.Clear();
                 if (metricas != null) _metricas.AddRange(metricas);
+                _foco = _metricas.Count > 0 ? 0 : -1;
                 Invalidate();
             }
 
@@ -626,11 +639,104 @@ namespace TSKTakeOff
                     g.DrawLine(fio, r.Right - 1, r.Y + 5, r.Right - 1, r.Bottom - 5);
                     g.DrawLine(fio, r.X, r.Bottom - 1, r.Right, r.Bottom - 1);
                 }
+
+                // O mesmo contorno de acento usado em todo o resto da paleta
+                // (PaletteTheme.ComFoco), aqui à volta do mosaico alvo em vez
+                // do controlo inteiro — é o mosaico, não o painel, que se edita.
+                if (Focused && _foco >= 0 && _foco < _caixas.Count)
+                {
+                    var rFoco = _caixas[_foco];
+                    using (var caneta = new Pen(PaletteTheme.Acento, 2f))
+                        g.DrawRectangle(caneta, rFoco.X + 1, rFoco.Y + 1, rFoco.Width - 3, rFoco.Height - 3);
+                }
+
+                // Por último, e não ao início: é assim que o resto da paleta
+                // sobrepõe o contorno de PaletteTheme.ComFoco ao desenho do
+                // próprio controlo (botão, grelha, caixa). Ao início, o
+                // FillRectangle do fundo, logo a seguir, apagava-o.
+                base.OnPaint(e);
             }
 
             private static bool Negativo(string valor)
             {
                 return !string.IsNullOrEmpty(valor) && valor.TrimStart().StartsWith("−");
+            }
+
+            // ----------------------------------------------------------
+            // Teclado
+            // ----------------------------------------------------------
+
+            /// <summary>
+            /// Sem isto, um Panel devolve as setas/Enter/Espaço ao ciclo de
+            /// navegação por Tab do formulário (viram mnemónicas ou saltos de
+            /// foco) em vez de chegarem a <see cref="OnKeyDown"/>.
+            /// </summary>
+            protected override bool IsInputKey(Keys keyData)
+            {
+                switch (keyData)
+                {
+                    case Keys.Left:
+                    case Keys.Right:
+                    case Keys.Up:
+                    case Keys.Down:
+                    case Keys.Home:
+                    case Keys.End:
+                    case Keys.Enter:
+                    case Keys.Space:
+                        return true;
+                    default:
+                        return base.IsInputKey(keyData);
+                }
+            }
+
+            protected override void OnKeyDown(KeyEventArgs e)
+            {
+                base.OnKeyDown(e);
+                Medir();
+                if (_caixas.Count == 0) return;
+
+                int cols = Colunas();
+                switch (e.KeyCode)
+                {
+                    case Keys.Left:
+                        MoverFoco(-1);
+                        break;
+                    case Keys.Right:
+                        MoverFoco(1);
+                        break;
+                    case Keys.Up:
+                        MoverFoco(-cols);
+                        break;
+                    case Keys.Down:
+                        MoverFoco(cols);
+                        break;
+                    case Keys.Home:
+                        DefinirFoco(0);
+                        break;
+                    case Keys.End:
+                        DefinirFoco(_caixas.Count - 1);
+                        break;
+                    case Keys.Enter:
+                    case Keys.Space:
+                        if (_foco >= 0 && _foco < _metricas.Count && _metricas[_foco].Editavel)
+                            Editar(_foco);
+                        break;
+                    default:
+                        return;
+                }
+                e.Handled = e.SuppressKeyPress = true;
+            }
+
+            private void MoverFoco(int passo)
+            {
+                DefinirFoco((_foco < 0 ? 0 : _foco) + passo);
+            }
+
+            private void DefinirFoco(int indice)
+            {
+                if (_caixas.Count == 0) { _foco = -1; return; }
+                _foco = Math.Max(0, Math.Min(_caixas.Count - 1, indice));
+                Invalidate();
             }
 
             // ----------------------------------------------------------
@@ -656,6 +762,19 @@ namespace TSKTakeOff
             {
                 _aEditar = -1;
                 _editor.Visible = false;
+            }
+
+            /// <summary>
+            /// Devolve o foco ao mosaico depois de Enter/Escape no editor —
+            /// só quando é o PRÓPRIO utilizador a terminar a edição por
+            /// teclado. Um Tab ou um clique fora do editor dispara o mesmo
+            /// <see cref="Confirmar"/> por <c>_editor.Leave</c>, mas aí o
+            /// destino do foco já é a escolha do utilizador; roubar-lho de
+            /// volta para o mosaico prendia quem tentasse sair por Tab.
+            /// </summary>
+            private void VoltarAoMosaico()
+            {
+                if (CanFocus) { try { Focus(); } catch { } }
             }
 
             private void Confirmar()

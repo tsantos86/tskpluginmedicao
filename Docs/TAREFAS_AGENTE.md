@@ -128,6 +128,35 @@ a implementação da paleta de resultados compacta.
       ordem de Tab por omissão). **Implementado, aguarda build manual** —
       só toca em propriedades de inicialização (`TabIndex`/`TabStop`), sem
       lógica nova; revisto por leitura contra o resto do ficheiro.
-- [ ] Fase 7 — Uniformizar o foco visual (contorno/realce ao navegar por
+- [x] Fase 7 — Uniformizar o foco visual (contorno/realce ao navegar por
       teclado) entre abas, filtros, árvore, propriedades e barras de ação.
       Não iniciado nesta sessão (2026-09-18); fica para a próxima.
+      **Feito 2026-09-19**: não há "abas" (painel único, ver nota da Fase 2);
+      dos quatro grupos que restavam — pesquisa/filtros, árvore, ações — já
+      tinham o mesmo contorno de acento a 2px (`PaletteTheme.ComFoco`,
+      aplicado a todos pelo `PrepararInteraccao`); só `PROPRIEDADES`
+      (`MosaicoMetricas` em `PalettePanelShell.cs`) ficava de fora — é um
+      `Panel` pintado à mão (mosaicos desenhados, não controlos), sem
+      `TabStop` nem qualquer manuseamento de teclado, portanto inatingível
+      por Tab e sem foco visual nenhum. Corrigido: `MosaicoMetricas` ganhou
+      `TabStop`/`ControlStyles.Selectable` (o truque habitual para um Panel
+      aceitar foco), `IsInputKey`/`OnKeyDown` para `←/→/↑/↓/Home/End` (mover
+      o mosaico "com foco") e `Enter/Espaço` (editar o mosaico com foco se
+      for editável), um `_foco` próprio (independente do `_sobre` do rato) e
+      o MESMO contorno de acento desenhado à volta do mosaico alvo em
+      `OnPaint`. Também ligado ao `PaletteTheme.ComFoco` da forma habitual
+      (contorno do controlo inteiro quando ele, e não um filho, tem foco;
+      exige `base.OnPaint(e)` no fim do `OnPaint` próprio, que faltava).
+      `TabIndex` explícito em `cabecalhoProps`/`_mosaico` dentro de
+      `propriedades` (mesma razão do TabIndex dos quatro painéis de
+      RESULTADOS já corrigido a 2026-09-18: sem isso os dois nascem com
+      TabIndex empatado a 0). Ao sair da edição por Enter/Escape (não por
+      Tab ou clique fora, para não prender quem tenta sair), o foco volta ao
+      mosaico. **Implementado, aguarda build manual** — só toca em
+      `Palette.cs`/`PalettePanelShell.cs` (WinForms, sem AutoCAD neste
+      sandbox); revisto por leitura cuidadosa contra o resto do ficheiro e
+      por um verificador de chavetas/parênteses (equilibrados nos dois
+      ficheiros). `dotnet test` não correu nesta sessão — o SDK .NET não
+      está instalado neste sandbox e a instalação falhou por política de
+      rede (domínios da Microsoft bloqueados); sem impacto no risco, porque
+      nenhum ficheiro do projeto de testes foi tocado.

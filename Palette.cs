@@ -1344,8 +1344,17 @@ namespace TSKTakeOff
             if (_mosaico != null)
             {
                 _mosaico.AccessibleName = "Propriedades";
+                _mosaico.AccessibleDescription =
+                    "Use as setas para escolher uma medida e Enter ou Espaço para editar a sublinhada.";
                 dicas.SetToolTip(_mosaico,
-                    "Medidas do resultado escolhido. As sublinhadas editam-se ao clique.");
+                    "Medidas do resultado escolhido. As sublinhadas editam-se ao clique ou por teclado.");
+                // PrepararInteraccao (acima) desce a `propriedades` e só
+                // encontra o `_editor` escondido lá dentro — o mosaico em si
+                // é um Panel pintado à mão, não um dos tipos que a busca
+                // reconhece como alvo de foco. Mesmo tratamento manual do
+                // resto: o mesmo contorno de acento (PaletteTheme.ComFoco)
+                // usado em todos os outros controlos principais.
+                PaletteTheme.ComFoco(_mosaico);
             }
         }
 
@@ -1639,7 +1648,13 @@ namespace TSKTakeOff
             {
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaTituloSeccao,
-                BackColor = PaletteTheme.FundoSeccao
+                BackColor = PaletteTheme.FundoSeccao,
+                // Mesma razão do TabIndex dos quatro painéis de RESULTADOS:
+                // sem isto, a ordem de Tab dentro de PROPRIEDADES ficava ao
+                // sabor do empate entre `cabecalhoProps` e `_mosaico` (os
+                // dois nascem com TabIndex 0). Cabeçalho primeiro, mosaico
+                // a seguir — a ordem em que se lêem.
+                TabIndex = 0
             };
 
             // Essenciais / Tudo. As propriedades de uma parede são dezassete e
@@ -1722,7 +1737,7 @@ namespace TSKTakeOff
             // comprimento, a altura, a área bruta, a líquida, o volume. Em
             // lista, é preciso percorrer; em mosaico, lêem-se de uma passagem.
             // Os que se editam trazem sublinhado tracejado e abrem ao clique.
-            _mosaico = new PalettePanelShell.MosaicoMetricas();
+            _mosaico = new PalettePanelShell.MosaicoMetricas { TabIndex = 1 };
             _mosaico.Editado += AoEditarMetrica;
 
             propriedades.Controls.Add(_mosaico);

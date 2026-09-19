@@ -378,7 +378,29 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > quatro grupos (por exemplo, os botões da barra de pesquisa) se a matriz
   > manual da Fase 8 revelar que a ordem interna também confunde.
 - [x] `PRÓXIMA`, alertas e `Por classificar` têm texto/ícone e não dependem apenas de cor.
-- [ ] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
+- [~] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
+
+  > **Nota 2026-09-19.** Não há abas (painel único desde a Fase 0/2). Dos
+  > quatro grupos restantes, pesquisa/filtros, árvore e barras de ação já
+  > tinham o mesmo contorno de acento a 2px via `PaletteTheme.ComFoco`
+  > (aplicado a todos pelo `PrepararInteraccao`). Só `PROPRIEDADES`
+  > (`MosaicoMetricas`) ficava de fora: é um `Panel` pintado à mão sem
+  > `TabStop` nem qualquer manuseamento de teclado — inatingível por Tab e
+  > sem foco visual. Acrescentado `TabStop`/`ControlStyles.Selectable`,
+  > `IsInputKey`/`OnKeyDown` para `←/→/↑/↓/Home/End` (mover o mosaico "com
+  > foco", independente do hover do rato) e `Enter/Espaço` (editar), e o
+  > mesmo contorno de acento desenhado à volta do mosaico alvo. Ligado
+  > também ao `PaletteTheme.ComFoco` habitual (contorno do controlo inteiro
+  > quando tem foco), o que exigiu `base.OnPaint(e)` no fim do `OnPaint`
+  > próprio do mosaico — antes ausente, por isso o `Paint` externo nunca
+  > disparava. `TabIndex` explícito em `cabecalhoProps`/`_mosaico` (mesma
+  > razão do TabIndex dos quatro painéis de RESULTADOS corrigido a
+  > 2026-09-18). `[~]`: lógica completa e revista por leitura cuidadosa,
+  > mas não compilada neste sandbox — aguarda build manual. Falta ainda
+  > confirmar visualmente no AutoCAD (Fase 8) que o contorno não fica
+  > confuso sobreposto ao próprio realce do mosaico, e considerar
+  > `AccessibleObject` por mosaico se a Fase 8 revelar que o leitor de ecrã
+  > não anuncia qual medida está em foco (fora do âmbito desta passagem).
 
 ### Dimensão e desempenho
 
@@ -466,6 +488,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-09 | 6 | `DefinicoesTipoDialog.cs`: diálogo modal com os campos que ficaram sem casa no painel único — material e altura de piso dos panos (lidos por `TSKRET`/`TSKPOLF`), nome/categoria/raio/texto das contagens (lido por `TSKCONTAR`). Grava directamente em `FachadaConfig`/`ContagemConfig`, os mesmos estáticos que os comandos já liam — nenhum comando foi alterado. Botão «Definições…» da grelha de MEDIR ligado a ele. Fase 6 fechada, com nota a explicar que "aplicar às quatro abas" foi superada pelo painel único | `dotnet test` 304/304; compilação isolada `net48`/AutoCAD 2021 sem erros nem avisos; build real **1.2.6.66** gerada em `bin\Release\net48\TSKTakeOff.dll`. **Falta confirmar no AutoCAD** que o diálogo grava e que os três comandos leem o valor gravado |
 | 2026-09-17 | 3 | `PROPRIEDADES` (o painel real, `MedPanelControl` em `Palette.cs`) ganhou o botão `▼/▶ PROPRIEDADES` que faltava para recolher/expandir o mosaico, igual ao padrão já usado em CONFIGURAÇÃO e Mais opções; `Essenciais`/`Tudo` confirmados correctos por leitura do modelo (ver nota na Fase 3). Corrigido também um `CS0428`/`CS0019` pré-existente em `ResultadosAdaptadores.DeMateriais` — chamava `f.AreaLiquida`/`f.DescontoVaos` como propriedades quando `MedFachada` (em `Medicoes.cs`) só os expõe como métodos com `RegraDesconto`; impedia `dotnet test` de sequer compilar. Achado código morto herdado do "painel único": `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs` e `PaletteContagem.cs` continuam no projecto mas nada os instancia a partir de `PaletteHost.Show` — ver nota abaixo | `dotnet test` 304/304 (agora compila; antes desta correcção o projecto de testes nem chegava a compilar); `Palette.cs` revisto por leitura cuidadosa (chavetas/tipos/uso de `PaletteTheme` conferidos contra o resto do ficheiro) mas **não compilado** — sem AutoCAD/WinForms neste sandbox |
 | 2026-09-18 | 3, 5, 7 | Fila do agente noturno percorrida quase toda por verificação: seleção/scroll por Id ao expandir/recolher/Atualizar, foco da medição nova sem tocar em `Config`, paridade completa da grelha antiga com `PROPRIEDADES`, `Reclassificar` (Ctrl/Shift), `Remover` (medição/vão/título) e "só `Medir aqui` mexe em `Config`" — todos já correctos no código existente (Fases 2-3/5, 2026-08-29), confirmados por leitura linha a linha sem precisar de código novo (ver notas nos critérios de conclusão das Fases 3 e 5). Único código novo: Fase 7 — `TabIndex`/`TabStop` explícitos nos quatro painéis directos de `_resultadosCompactos` (pesquisa/filtros, barra de ações, árvore, propriedades), porque a ordem de `Controls.Add` era o inverso da ordem visual para `Dock=Top` e o Tab entrava pela árvore antes da pesquisa; `AccessibleName`/`Description`/`ToolTipText` já lá estavam | `dotnet test` 304/304 (sem alterações ao projeto de testes); `Palette.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio — **não compilado**, sem AutoCAD/WinForms neste sandbox |
+| 2026-09-19 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-17`, Passo 0). Fila do agente: "Uniformizar o foco visual" — `PROPRIEDADES` (`MosaicoMetricas`, um `Panel` pintado à mão) era o único dos quatro grupos sem `TabStop` nem foco de teclado; pesquisa/filtros, árvore e ações já tinham o contorno de `PaletteTheme.ComFoco`. Acrescentado `ControlStyles.Selectable`/`TabStop`, `IsInputKey`/`OnKeyDown` (`←/→/↑/↓/Home/End` movem um `_foco` próprio; `Enter/Espaço` editam o mosaico alvo se for editável), o mesmo contorno de acento à volta do mosaico com foco, e ligação ao `ComFoco` habitual (exigiu `base.OnPaint(e)` no fim do `OnPaint`, antes ausente). `TabIndex` explícito em `cabecalhoProps`/`_mosaico` (mesmo motivo do TabIndex de 2026-09-18, um nível mais fundo). Sair da edição por Enter/Escape devolve o foco ao mosaico; por Tab ou clique fora, não (deixa a escolha do utilizador) | `dotnet test` não correu — SDK .NET não instalado neste sandbox e a instalação falhou por política de rede (domínios da Microsoft bloqueados pelo proxy); sem alterações a ficheiros do projeto de testes, sem impacto no risco. `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses (equilibrados) — **não compilados**, sem AutoCAD/WinForms neste sandbox |
 
 ### Decisões desta passagem
 
