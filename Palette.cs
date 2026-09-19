@@ -786,12 +786,12 @@ namespace TSKTakeOff
             // Ao lado do bloco, que é o par natural: um diz o QUE se mede, o
             // outro diz ONDE.
             config.Controls.Add(Rot("Serviço:"), 0, 2);
-            config.Controls.Add(PaletteTheme.ComBorda(_txtServico), 1, 2);
+            config.Controls.Add(_txtServico, 1, 2);
             // Deixou de ser só torre/fracção: o que aqui estiver arranca como
             // designação da medição na folha, e é onde se escreve o "WC1" ou
             // o "quarto 2". O rótulo tem de o dizer, senão ninguém adivinha.
             config.Controls.Add(Rot("Bloco:"), 2, 2);
-            config.Controls.Add(PaletteTheme.ComBorda(_txtBloco), 3, 2);
+            config.Controls.Add(_txtBloco, 3, 2);
 
             // "(opcional)" no rótulo porque ele JÁ o é — o SyncConfig trata o
             // campo vazio como "sem piso" e a folha não emite cabeçalho nenhum.
@@ -818,9 +818,9 @@ namespace TSKTakeOff
             // As duas dimensões lado a lado: são lidas em conjunto — "2,80 por
             // 0,15" — e separadas em linhas obrigavam a saltar entre elas.
             config.Controls.Add(Rot("Altura (m):"), 0, 4);
-            config.Controls.Add(PaletteTheme.ComBorda(_numAltura), 1, 4);
+            config.Controls.Add(_numAltura, 1, 4);
             config.Controls.Add(Rot("Espessura (m):"), 2, 4);
-            config.Controls.Add(PaletteTheme.ComBorda(_numEspessura), 3, 4);
+            config.Controls.Add(_numEspessura, 3, 4);
 
             config.Controls.Add(Rot("Regra de vãos:"), 0, 5);
             config.Controls.Add(_cmbRegra, 1, 5);
