@@ -160,3 +160,31 @@ a implementação da paleta de resultados compacta.
       está instalado neste sandbox e a instalação falhou por política de
       rede (domínios da Microsoft bloqueados); sem impacto no risco, porque
       nenhum ficheiro do projeto de testes foi tocado.
+- [ ] Fase 8 — Remover o código morto herdado do painel único: `ResultadosPainel.cs`,
+      `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs`
+      (classes `FachadaControl`, `LinearControl`, `ContagemControl`) e as
+      três instâncias correspondentes em `PaletteHost.Show`, que nunca são
+      acrescentadas ao `PaletteSet` (achado registado em
+      `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`, Fase 8).
+      IMPORTANTE — confirmar antes de apagar: procurar por referências reais
+      a cada classe/ficheiro em todo o projeto (não só em `PaletteHost.Show`;
+      confirmar também que não são usados por testes, por `Commands.cs`, nem
+      por outro código). `FiltrosPopup` de `PaletteFiltros.cs` NÃO é afetado
+      — é usado directamente por `Palette.cs`, não faz parte deste código
+      morto. Se ao investigar encontrares qualquer referência viva a um
+      destes ficheiros/classes, não apagues esse — documenta o achado e
+      apaga só o que estiver confirmado morto. Depois de remover, correr
+      `dotnet test Tests/TSKTakeOff.Tests.csproj` (os ficheiros removidos não
+      devem fazer parte do projeto de testes) e confirmar que nenhum
+      `Compile Include`/referência ao ficheiro removido sobra em
+      `TSKTakeOff.csproj`.
+
+      ATENÇÃO (2026-09-19): `ResultadosPainel.cs` não é só código morto —
+      tinha a implementação CORRETA das colunas `Comp.`/`Altura` da árvore,
+      que faltavam no painel real (`_dgvCompacto` em `Palette.cs`) até hoje
+      (ver nota em `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`, Fase 3). Antes
+      de apagar qualquer um destes ficheiros, compara-o com cuidado ao
+      equivalente já ligado (`Palette.cs`/`MedPanelControl`) — se houver
+      OUTRA diferença de comportamento ou de campo entre os dois, corrige o
+      painel real primeiro (como uma tarefa própria, não como parte desta
+      limpeza) e só depois remove o ficheiro morto.

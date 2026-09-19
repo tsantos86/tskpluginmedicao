@@ -1491,16 +1491,18 @@ namespace TSKTakeOff
                 TabStop = true
             };
 
-            // DUAS colunas, e não cinco.
+            // QUATRO colunas: Estrutura/elemento, Comp., Altura e Quantidade.
             //
-            // A árvore mostrava «Comp.» e «Altura» ao lado da quantidade, e foi
-            // isso que a revisão do brief mandou tirar: comprimento e altura são
-            // DIMENSÕES, não quantidades. Com três colunas fixas para cinco
-            // grandezas, a contagem de 2 portas aparecia debaixo de "Comp." e o
-            // comprimento de uma parede lia-se como se fosse a medição dela.
-            // As dimensões vivem em PROPRIEDADES; aqui fica a quantidade, na
-            // unidade do artigo, e nos grupos que misturam unidades ficam lado
-            // a lado — "62,93 m² · 36,90 m · 2 un." — em vez de somadas.
+            // Uma versão anterior tinha só duas — Estrutura e Quantidade —
+            // para não repetir o erro do brief original: com colunas fixas
+            // para cinco grandezas, a contagem de 2 portas aparecia debaixo
+            // de "Comp." e o comprimento de uma parede lia-se como se fosse
+            // a medição dela. A resolução (2026-09-05) não é tirar as
+            // colunas, é fazer a UNIDADE VIAJAR DENTRO DA CÉLULA: numa
+            // camada, "Comp." mostra a área em planta com "m²" ao lado, e a
+            // coluna que não se aplica mostra "—", nunca um zero — ver
+            // NoResultado.TextoComprimento/TextoAltura. As dimensões
+            // completas continuam em PROPRIEDADES; aqui é só o atalho.
             var colEstrutura = new DataGridViewTextBoxColumn
             {
                 Name = "estrutura",
@@ -1510,6 +1512,28 @@ namespace TSKTakeOff
                 FillWeight = 100,
                 MinimumWidth = 150
             };
+            var colComp = new DataGridViewTextBoxColumn
+            {
+                Name = "comp",
+                HeaderText = "Comp.",
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                Width = 72,
+                MinimumWidth = 56
+            };
+            var colAltura = new DataGridViewTextBoxColumn
+            {
+                Name = "altura",
+                HeaderText = "Altura",
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                Width = 72,
+                MinimumWidth = 56
+            };
+            colComp.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            colAltura.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            colComp.DefaultCellStyle.ForeColor = PaletteTheme.Apagado;
+            colAltura.DefaultCellStyle.ForeColor = PaletteTheme.Apagado;
             var colQuantidade = new DataGridViewTextBoxColumn
             {
                 Name = "quantidade",
@@ -1521,6 +1545,8 @@ namespace TSKTakeOff
             };
             colQuantidade.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             _dgvCompacto.Columns.Add(colEstrutura);
+            _dgvCompacto.Columns.Add(colComp);
+            _dgvCompacto.Columns.Add(colAltura);
             _dgvCompacto.Columns.Add(colQuantidade);
 
             // O DataGridView desenha sem duplo buffer e a propriedade que o liga
@@ -1828,6 +1854,8 @@ namespace TSKTakeOff
                 var linha = new DataGridViewRow();
                 linha.CreateCells(_dgvCompacto,
                     no.Rotulo,
+                    no.TextoComprimento(CultureInfo.CurrentCulture),
+                    no.TextoAltura(CultureInfo.CurrentCulture),
                     item.Quantidades == null ? "" : item.Quantidades.Texto(CultureInfo.CurrentCulture));
                 linha.Tag = no;
                 linha.Height = PaletteTheme.AlturaLinha;

@@ -148,6 +148,24 @@ Objetivo: substituir a grelha larga por uma árvore achatada compacta sem perder
   >
   > Ajuda ainda o nível novo: dentro de um grupo de tipo de medida, os
   > factores significam sempre a mesma coisa.
+
+  > **Bug encontrado e corrigido em 2026-09-19.** Este item estava marcado
+  > `[x]` desde 2026-09-05, mas só era verdade em `ResultadosPainel.cs` — que
+  > não está ligado a nada (achado 2026-09-17, ver Fase 8). O painel REAL,
+  > `_dgvCompacto` dentro de `MedPanelControl` (`Palette.cs`), continuava só
+  > com `Estrutura / elemento` e `Quantidade`: tinha o comentário antigo
+  > "DUAS colunas, e não cinco", da decisão anterior ao conflito resolvido
+  > acima, e nunca foi actualizado quando a decisão mudou. Reportado pelo
+  > utilizador ao ver a árvore no AutoCAD sem `Comp.`/`Altura`. Corrigido:
+  > `colComp`/`colAltura` acrescentadas a `_dgvCompacto` entre a estrutura e
+  > a quantidade, preenchidas por `NoResultado.TextoComprimento`/
+  > `TextoAltura` — os mesmos métodos que `ResultadosPainel.cs` já usava,
+  > apenas nunca chamados no painel que é de facto mostrado. `dotnet test`
+  > 304/304; build real `net48`/AutoCAD 2021 sem erros nem avisos
+  > (`TSKTakeOff.dll` 1.2.6.72). Reforça o cuidado da Fase 8 abaixo: antes de
+  > remover `ResultadosPainel.cs` como código morto, vale a pena olhar se
+  > mais alguma coisa lá difere do painel real — foi de lá que veio a
+  > correcção certa desta vez.
 - [x] Criar painel de `PROPRIEDADES` ligado ao nó selecionado.
 - [x] Desenhar indentação, guias, ícones e comandos de expandir/recolher por tipo de nó.
 - [x] Mostrar as quantidades com unidade na própria célula.
@@ -490,6 +508,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-18 | 3, 5, 7 | Fila do agente noturno percorrida quase toda por verificação: seleção/scroll por Id ao expandir/recolher/Atualizar, foco da medição nova sem tocar em `Config`, paridade completa da grelha antiga com `PROPRIEDADES`, `Reclassificar` (Ctrl/Shift), `Remover` (medição/vão/título) e "só `Medir aqui` mexe em `Config`" — todos já correctos no código existente (Fases 2-3/5, 2026-08-29), confirmados por leitura linha a linha sem precisar de código novo (ver notas nos critérios de conclusão das Fases 3 e 5). Único código novo: Fase 7 — `TabIndex`/`TabStop` explícitos nos quatro painéis directos de `_resultadosCompactos` (pesquisa/filtros, barra de ações, árvore, propriedades), porque a ordem de `Controls.Add` era o inverso da ordem visual para `Dock=Top` e o Tab entrava pela árvore antes da pesquisa; `AccessibleName`/`Description`/`ToolTipText` já lá estavam | `dotnet test` 304/304 (sem alterações ao projeto de testes); `Palette.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio — **não compilado**, sem AutoCAD/WinForms neste sandbox |
 | 2026-09-19 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-17`, Passo 0). Fila do agente: "Uniformizar o foco visual" — `PROPRIEDADES` (`MosaicoMetricas`, um `Panel` pintado à mão) era o único dos quatro grupos sem `TabStop` nem foco de teclado; pesquisa/filtros, árvore e ações já tinham o contorno de `PaletteTheme.ComFoco`. Acrescentado `ControlStyles.Selectable`/`TabStop`, `IsInputKey`/`OnKeyDown` (`←/→/↑/↓/Home/End` movem um `_foco` próprio; `Enter/Espaço` editam o mosaico alvo se for editável), o mesmo contorno de acento à volta do mosaico com foco, e ligação ao `ComFoco` habitual (exigiu `base.OnPaint(e)` no fim do `OnPaint`, antes ausente). `TabIndex` explícito em `cabecalhoProps`/`_mosaico` (mesmo motivo do TabIndex de 2026-09-18, um nível mais fundo). Sair da edição por Enter/Escape devolve o foco ao mosaico; por Tab ou clique fora, não (deixa a escolha do utilizador) | `dotnet test` não correu — SDK .NET não instalado neste sandbox e a instalação falhou por política de rede (domínios da Microsoft bloqueados pelo proxy); sem alterações a ficheiros do projeto de testes, sem impacto no risco. `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses (equilibrados) — **não compilados**, sem AutoCAD/WinForms neste sandbox |
 | 2026-09-19 | 0 | Sessão local (fora do sandbox, com AutoCAD instalado): PR `agent/paleta-resultados-2026-09-17` mesclado em `main` (fast-forward) depois de confirmado por build real que compilava e passava nos testes — trazia a correcção de `ResultadosAdaptadores.DeMateriais` que `main`, sozinha, não tinha (fazia `TSKTakeOff.csproj` falhar a compilar por completo). De seguida, tema trocado de volta para **claro** (estilo Eberick/Office): todos os tokens de `PaletteTheme.cs` recolorados a partir de `index-resultados-compacto.html`/`preview-eberick.png`, incluindo `VermelhoDeducao` (deixou de precisar do rosa que só fazia sentido sobre grafite) | Build real `dotnet build TSKTakeOff.csproj -c Debug` (`net48`, AutoCAD 2021 local): 0 erros, 0 avisos, `TSKTakeOff.dll` (1.2.6.69) gerada em `bin\Debug\net48`, pronta para `NETLOAD`. **Falta confirmar visualmente no AutoCAD** que o tema claro lê bem ancorado na moldura do programa |
+| 2026-09-19 | 3 | Bug real reportado pelo utilizador ao testar no AutoCAD: a árvore de resultados só mostrava `Estrutura / elemento` e `Quantidade`, sem `Comp.`/`Altura` — apesar do item da Fase 3 estar `[x]` desde 2026-09-05. Causa: a marca `[x]` correspondia a `ResultadosPainel.cs`, que não está ligado a nada; o painel real (`_dgvCompacto` em `Palette.cs`) ainda tinha só duas colunas, herdadas de uma decisão anterior ao "conflito resolvido". Corrigido: colunas `Comp.`/`Altura` acrescentadas a `_dgvCompacto`, preenchidas por `NoResultado.TextoComprimento`/`TextoAltura` (mesmos métodos que já existiam no modelo e em `ResultadosPainel.cs`, só não estavam chamados no painel certo) | `dotnet test` 304/304; build real `net48`/AutoCAD 2021 (`TSKTakeOff.dll` 1.2.6.72) sem erros nem avisos. **Falta confirmar visualmente no AutoCAD** que as colunas leem bem no tema claro |
 
 ### Decisões desta passagem
 
