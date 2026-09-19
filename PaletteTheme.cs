@@ -313,6 +313,38 @@ namespace TSKTakeOff
             return cartao;
         }
 
+        /// <summary>
+        /// Envolve uma TextBox ou NumericUpDown numa borda de 1px na cor do
+        /// tema, que acende a cor de acento enquanto o campo tem foco.
+        ///
+        /// Nem a TextBox nem a NumericUpDown deixam recolorir a borda que o
+        /// Windows desenha para `BorderStyle.FixedSingle` — é sempre a cor do
+        /// sistema. A única forma fiável de um campo "parecer" ter borda
+        /// própria é desligar a borda nativa (`BorderStyle.None`) e desenhar
+        /// a moldura à volta com um `Panel` de 1px de padding. Devolve o
+        /// `Panel`; o chamador acrescenta-o ao layout no lugar do campo.
+        /// </summary>
+        public static Panel ComBorda(Control campo)
+        {
+            campo.Dock = DockStyle.Fill;
+            var caixa = campo as TextBoxBase;
+            if (caixa != null) caixa.BorderStyle = BorderStyle.None;
+            var numero = campo as NumericUpDown;
+            if (numero != null) numero.BorderStyle = BorderStyle.None;
+
+            var moldura = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(1),
+                BackColor = BordaCampo,
+                Tag = MarcaComBorda
+            };
+            moldura.Controls.Add(campo);
+            campo.Enter += (s, e) => moldura.BackColor = Acento;
+            campo.Leave += (s, e) => moldura.BackColor = BordaCampo;
+            return moldura;
+        }
+
         public static void ComFoco(Control c)
         {
             if (c == null) return;
@@ -341,12 +373,19 @@ namespace TSKTakeOff
         {
             var c = sender as Control;
             if (c == null || !c.Focused || !c.TabStop || c.Width < 4 || c.Height < 4) return;
+            // Um campo dentro de ComBorda já acende a moldura à volta a
+            // acento quando tem foco — o contorno aqui por cima ficaria a
+            // dobrar o sinal e a cortar o texto encostado à borda.
+            var pai = c.Parent as Panel;
+            if (pai != null && ReferenceEquals(pai.Tag, MarcaComBorda)) return;
             using (var caneta = new Pen(Acento, 2f))
             {
                 var r = new Rectangle(1, 1, c.Width - 3, c.Height - 3);
                 e.Graphics.DrawRectangle(caneta, r);
             }
         }
+
+        private static readonly object MarcaComBorda = new object();
 
         private static string AcrescentarEstado(string texto, string estado)
         {
@@ -386,12 +425,17 @@ namespace TSKTakeOff
 
             foreach (Control c in raiz.Controls)
             {
+                // Um campo dentro de ComBorda desligou a borda nativa de
+                // propósito — é o Panel à volta que desenha a moldura. Repor
+                // FixedSingle aqui duplicava a borda.
+                bool dentroDeComBorda = c.Parent is Panel pc && ReferenceEquals(pc.Tag, MarcaComBorda);
+
                 var caixa = c as TextBoxBase;
                 if (caixa != null)
                 {
                     caixa.BackColor = FundoCampo;
                     caixa.ForeColor = Tinta;
-                    caixa.BorderStyle = BorderStyle.FixedSingle;
+                    if (!dentroDeComBorda) caixa.BorderStyle = BorderStyle.FixedSingle;
                     continue;
                 }
 
@@ -411,7 +455,7 @@ namespace TSKTakeOff
                 {
                     numero.BackColor = FundoCampo;
                     numero.ForeColor = Tinta;
-                    numero.BorderStyle = BorderStyle.FixedSingle;
+                    if (!dentroDeComBorda) numero.BorderStyle = BorderStyle.FixedSingle;
                     continue;
                 }
 
