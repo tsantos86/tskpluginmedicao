@@ -41,7 +41,8 @@ namespace TSKTakeOff.Tests
         public void Um_pano_fatura_m2_e_o_comprimento_dele_e_uma_dimensao()
         {
             var m = ResultadosAdaptadores.DeMateriais(
-                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) }, null, Pt);
+                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) },
+                RegraDesconto.DescontarTudo, null, Pt);
 
             Assert.Single(m);
             Assert.Equal("m2", m[0].Unidade);
@@ -59,7 +60,8 @@ namespace TSKTakeOff.Tests
             // unidade. O material continua a identificar o pano — mas nas
             // propriedades, que é onde sempre pertenceu.
             var raiz = ResultadosArvore.Construir(ResultadosAdaptadores.DeMateriais(
-                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) }, null, Pt), Pt);
+                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) },
+                RegraDesconto.DescontarTudo, null, Pt), Pt);
 
             var nivel = raiz.Filhos[0].Filhos[0];
             Assert.Equal(TipoNo.Tipo, nivel.Tipo);
@@ -115,7 +117,8 @@ namespace TSKTakeOff.Tests
             f.Vaos.Add(new Vao { Designacao = "J1", Largura = 2.0, Altura = 1.0, Quantidade = 1 });
 
             var raiz = ResultadosArvore.Construir(
-                ResultadosAdaptadores.DeMateriais(new List<MedFachada> { f }, null, Pt), Pt);
+                ResultadosAdaptadores.DeMateriais(
+                    new List<MedFachada> { f }, RegraDesconto.DescontarTudo, null, Pt), Pt);
 
             Assert.Equal(18.0, raiz.Quantidades.De("m2"), 3);          // 20 − 2
             var vao = ResultadosArvoreTests.Procurar(raiz, "M:F1/V:0");
@@ -129,7 +132,8 @@ namespace TSKTakeOff.Tests
             var f = Pano("F1", "PISO 0", "ETICS", 2.0, 2.0);           // 4 m²
             f.Vaos.Add(new Vao { Largura = 3.0, Altura = 2.0, Quantidade = 1 });   // 6 m²
 
-            var m = ResultadosAdaptadores.DeMateriais(new List<MedFachada> { f }, null, Pt);
+            var m = ResultadosAdaptadores.DeMateriais(
+                new List<MedFachada> { f }, RegraDesconto.DescontarTudo, null, Pt);
             Assert.True((m[0].Alertas & AlertaNo.VaosExcessivos) != 0);
         }
 
@@ -157,7 +161,8 @@ namespace TSKTakeOff.Tests
             // um artigo medido a m², o outro é a quantidade de um medido a
             // metro. Nunca vão ao mesmo balde.
             var medicoes = ResultadosAdaptadores.DeMateriais(
-                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 30.0, 2.0) }, null, Pt);
+                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 30.0, 2.0) },
+                RegraDesconto.DescontarTudo, null, Pt);
             medicoes.AddRange(ResultadosAdaptadores.DeLineares(new List<MedItem>
             {
                 new MedItem { Handle = "L1", Categoria = "RODAPE", Comprimento = 29.15 }
@@ -227,7 +232,8 @@ namespace TSKTakeOff.Tests
         public void As_tres_unidades_aparecem_lado_a_lado_e_nunca_somadas()
         {
             var medicoes = ResultadosAdaptadores.DeMateriais(
-                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.0) }, null, Pt);
+                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.0) },
+                RegraDesconto.DescontarTudo, null, Pt);
             medicoes.AddRange(ResultadosAdaptadores.DeLineares(new List<MedItem>
             {
                 new MedItem { Handle = "L1", Categoria = "RODAPE", Comprimento = 36.90 }
@@ -245,11 +251,13 @@ namespace TSKTakeOff.Tests
         [Fact]
         public void Listas_nulas_ou_vazias_nao_rebentam()
         {
-            Assert.Empty(ResultadosAdaptadores.DeMateriais(null, null, Pt));
+            Assert.Empty(ResultadosAdaptadores.DeMateriais(
+                null, RegraDesconto.DescontarTudo, null, Pt));
             Assert.Empty(ResultadosAdaptadores.DeLineares(null, Pt));
             Assert.Empty(ResultadosAdaptadores.DeContagens(null, Pt));
 
-            Assert.Empty(ResultadosAdaptadores.DeMateriais(new List<MedFachada>(), null, Pt));
+            Assert.Empty(ResultadosAdaptadores.DeMateriais(
+                new List<MedFachada>(), RegraDesconto.DescontarTudo, null, Pt));
             Assert.Empty(ResultadosAdaptadores.DeLineares(new List<MedItem>(), Pt));
             Assert.Empty(ResultadosAdaptadores.DeContagens(new List<MedContagem>(), Pt));
         }
@@ -273,7 +281,8 @@ namespace TSKTakeOff.Tests
             // O FacRepo tem DefinirArtigo. Não tem DefinirMaterial nem
             // DefinirPiso — por isso esses são de leitura.
             var m = ResultadosAdaptadores.DeMateriais(
-                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) }, null, Pt);
+                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) },
+                RegraDesconto.DescontarTudo, null, Pt);
 
             Assert.True(m[0].Propriedades.Find(p => p.Campo == "artigo").Editavel);
             Assert.False(m[0].Propriedades.Find(p => p.Campo == "servico").Editavel);
@@ -309,7 +318,8 @@ namespace TSKTakeOff.Tests
         public void As_dimensoes_e_os_calculos_sao_sempre_de_leitura()
         {
             var m = ResultadosAdaptadores.DeMateriais(
-                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) }, null, Pt);
+                new List<MedFachada> { Pano("F1", "PISO 0", "ETICS", 10.0, 2.5) },
+                RegraDesconto.DescontarTudo, null, Pt);
 
             foreach (var campo in new[] { "comprimento", "altura", "areaBruta",
                                           "desconto", "quantidade" })

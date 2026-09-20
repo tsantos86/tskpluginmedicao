@@ -542,7 +542,7 @@ namespace TSKTakeOff
                 // primeira reordenação.
                 var raiz = ResultadosArvore.Construir(
                     ResultadosAdaptadores.DeMateriais(
-                        _meds,
+                        _meds, Config.Regra,
                         MapaQuantidades.Existe
                             ? (Func<string, bool>)(a => MapaQuantidades.Procurar(a) != null)
                             : null,

@@ -3332,7 +3332,7 @@ namespace TSKTakeOff
                     : null,
                 CultureInfo.CurrentCulture);
             medicoes.AddRange(ResultadosAdaptadores.DeMateriais(
-                _fachadas,
+                _fachadas, Config.Regra,
                 MapaQuantidades.Existe
                     ? (Func<string, bool>)(a => MapaQuantidades.Procurar(a) != null)
                     : null,

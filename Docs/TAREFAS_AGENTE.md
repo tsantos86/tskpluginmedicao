@@ -23,10 +23,29 @@ a implementação da paleta de resultados compacta.
 
 ## Fila
 
-- [ ] Fase 3 — Terminar `PROPRIEDADES` recolhível com os modos `Essenciais` e
+- [x] Fase 3 — Terminar `PROPRIEDADES` recolhível com os modos `Essenciais` e
       `Tudo` (item ainda `[~]` no plano): confirmar que os dois modos mostram
       o conjunto certo de campos por tipo de nó (medição, vão, título, grupo)
       e que a alternância entre modos não perde o valor em edição.
+      Verificado por leitura cuidadosa do código (sem AutoCAD): os campos
+      `Essencial` de `PropriedadesDaParede`, `DeducaoDoVao`, `TituloDaMarca`,
+      `PropriedadesDosGrupos` (`ResultadosArvore.cs`) e dos três adaptadores
+      (`ResultadosAdaptadores.cs`) já cobriam corretamente medição, vão,
+      título e grupo. Corrigido o único problema real encontrado: o botão
+      Essenciais/Tudo (`Palette.cs`) chama `AtualizarPropriedadesCompactas`
+      → `MosaicoMetricas.Definir`, que descartava (`Cancelar()`) uma edição
+      em curso no mosaico em vez de a gravar; passou a chamar `Confirmar()`
+      primeiro (`PalettePanelShell.cs`). Durante a verificação apareceu um
+      bug de build não relacionado, mais grave: `ResultadosAdaptadores.DeMateriais`
+      ainda chamava `MedFachada.AreaLiquida`/`DescontoVaos` sem o parâmetro
+      `RegraDesconto` que esses métodos exigem desde a criação do ficheiro —
+      o projeto de testes nunca tinha sido compilado com um SDK real (não
+      havia `dotnet` neste ambiente) e isto também partiria o build `net48`
+      real. Corrigido nos três sítios (`ResultadosAdaptadores.cs`,
+      `Palette.cs`, `PaletteFachada.cs`) e nos 9 testes afetados. Verificado
+      com `dotnet test` (304/304, SDK instalado nesta sessão via apt) — a
+      parte WinForms (`Palette.cs`, `PalettePanelShell.cs`, `PaletteFachada.cs`)
+      não foi compilada em net48/AutoCAD e precisa de build manual.
 - [ ] Fase 3 — Garantir que expandir/recolher grupos e `Atualizar` preservam
       a seleção e a posição de scroll sempre que o nó selecionado ainda
       existir depois da reconstrução da árvore.

@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-09
+Última atualização: 2026-09-20
 
 Estado geral: **Painel único em grafite, com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; falta só a matriz manual da Fase 8**
 
@@ -157,7 +157,12 @@ Objetivo: substituir a grelha larga por uma árvore achatada compacta sem perder
 - [x] Restaurar seleção e scroll por ID estável, não por índice visual da linha.
 - [x] Seguir a medição acabada de criar pelo respetivo handle.
 - [x] Nós de grupo não transportam handle e não podem ser removidos, editados ou reclassificados.
-- [~] Criar `PROPRIEDADES` recolhível com modos `Essenciais` e `Tudo`.
+- [x] Criar `PROPRIEDADES` recolhível com modos `Essenciais` e `Tudo`. Os
+  campos `Essencial` de cada tipo de nó (parede, vão, título, grupo e os três
+  adaptadores) foram revistos e estão coerentes; `MosaicoMetricas.Definir`
+  passou a confirmar (gravar) uma edição em curso em vez de a descartar
+  quando a árvore/propriedades são redesenhadas — cobre o caso de alternar
+  Essenciais/Tudo a meio de uma edição.
 - [x] Mostrar propriedades de grupo, medição, vão e título de forma coerente; a edição entra na Fase 5.
 
 ### Critérios de conclusão
@@ -374,6 +379,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-08-29 | 2, 4, 6, 7 | Fase 2 fechada (`Mais opções`, DWG activo no cabeçalho). Fase 4: popup de filtros com rascunho + `Aplicar`/`Repor`, badge, chips, `Ctrl+F`, debounce de 220 ms e estado vazio que distingue "nada medido" de "o filtro escondeu tudo". Fase 6: `ResultadosAdaptadores.cs` para Materiais, Lineares e Contagens. Fase 7: `←/→/Home/End/Enter/Espaço` na árvore, `Esc` nos filtros, `AccessibleName`/`Description`. Documentação: `Docs/MANUAL.md` e `README.md` | `dotnet test` 290/290 (13 testes novos de adaptadores, 10 de valores de filtro); compilação isolada `net48`/AutoCAD 2021 sem erros nem avisos; `Version.build` intacto. `verificar.py` **não corre** — não há Python instalado nesta máquina |
 | 2026-09-05 | 0, 2, 3, 6 | **Painel único.** As quatro abas foram substituídas por uma, e o 2.º nível da árvore passou a ser o TIPO DE MEDIDA (`Alvenaria · m²`, `Camadas · m³`, `Lineares · m`, `Contagens · un.`) — é ele que fixa a unidade. Tema **grafite** aprovado (`index-premium.html`), com `AplicarTema` a descer a árvore de controlos. Colunas `COMP.`/`ALTURA` na árvore, com `NaN` = "não se aplica" e a unidade dentro da célula. Propriedades como **mosaicos de métrica** desenhados. Configuração em **pares** (4 colunas). Botões de MEDIR em 3×2 com desenho próprio | `dotnet test` 304/304 (8 testes novos dos factores, 5 do tipo de medida); compilação `net48` sem erros nem avisos; testado no AutoCAD 2021 a partir da 1.2.6.62 |
 | 2026-09-09 | 6 | `DefinicoesTipoDialog.cs`: diálogo modal com os campos que ficaram sem casa no painel único — material e altura de piso dos panos (lidos por `TSKRET`/`TSKPOLF`), nome/categoria/raio/texto das contagens (lido por `TSKCONTAR`). Grava directamente em `FachadaConfig`/`ContagemConfig`, os mesmos estáticos que os comandos já liam — nenhum comando foi alterado. Botão «Definições…» da grelha de MEDIR ligado a ele. Fase 6 fechada, com nota a explicar que "aplicar às quatro abas" foi superada pelo painel único | `dotnet test` 304/304; compilação isolada `net48`/AutoCAD 2021 sem erros nem avisos; build real **1.2.6.66** gerada em `bin\Release\net48\TSKTakeOff.dll`. **Falta confirmar no AutoCAD** que o diálogo grava e que os três comandos leem o valor gravado |
+| 2026-09-20 | 3 | Fechado o último item de `PROPRIEDADES` `Essenciais`/`Tudo`: confirmados os campos `Essencial` de cada tipo de nó (parede, vão, título, grupo, e os adaptadores de Materiais/Lineares/Contagens) e corrigida a única falha real — `MosaicoMetricas.Definir` (`PalettePanelShell.cs`) descartava uma edição em curso ao ser chamado a partir de qualquer redesenho de PROPRIEDADES (incluindo o botão Essenciais/Tudo); passou a confirmar/gravar primeiro. Encontrado e corrigido de caminho um bug de build pré-existente e não relacionado, mais grave: `ResultadosAdaptadores.DeMateriais` chamava `MedFachada.AreaLiquida`/`DescontoVaos` sem o argumento `RegraDesconto` que estes exigem desde que o ficheiro foi criado — isto impedia SEMPRE a compilação (`Tests` e, por extensão, `net48` real), só que nenhuma sessão anterior tinha um SDK `dotnet` neste ambiente para o detectar | `dotnet test` 304/304 — primeira vez que corre de facto nesta máquina (SDK `dotnet-sdk-8.0` instalado via `apt` nesta sessão, antes não existia). `Palette.cs`, `PalettePanelShell.cs` e `PaletteFachada.cs` **não foram compilados** em `net48`/AutoCAD nesta sessão — precisam de build manual em Visual Studio antes de merge |
 
 ### Decisões desta passagem
 
