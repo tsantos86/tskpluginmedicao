@@ -627,12 +627,14 @@ namespace TSKTakeOff
         }
 
         /// <summary>
-        /// Lado do ícone nos botões de acção da barra MEDIR. 13 ainda lia
-        /// grande de mais no mosaico (reportado pelo utilizador a 2026-09-20,
-        /// build 1.2.6.76); reduzido para 10 — o rótulo, não o ícone, é o que
-        /// se lê primeiro num mosaico deste tamanho.
+        /// Lado do ícone nos botões de acção da barra MEDIR. Baixou para 10
+        /// junto com o corte do mosaico para 28 px (2026-09-20), mas depois
+        /// de o bloco ficar do tamanho certo, o utilizador pediu o ícone de
+        /// volta maior — 13, o mesmo tamanho de antes do corte, que cabe
+        /// junto com uma linha de texto a 28 px com margens mínimas (ver
+        /// BotaoAccao.OnPaint).
         /// </summary>
-        public const int LadoIconeAccao = 10;
+        public const int LadoIconeAccao = 13;
 
         /// <summary>Barra de ferramentas com o aspecto da paleta.</summary>
         public static ToolStrip Barra()

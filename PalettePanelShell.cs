@@ -408,15 +408,15 @@ namespace TSKTakeOff
                 // corte, mesmo com o mosaico agora a só 28 px: as margens
                 // ficam no mínimo e o rótulo é o texto CURTO (Accao(rotulo:)),
                 // desenhado para caber numa linha só a essa altura.
-                int yIcone = 2;
+                int yIcone = 1;
                 if (Image != null)
                 {
                     g.DrawImage(Image, (Width - Image.Width) / 2, yIcone,
                         Image.Width, Image.Height);
-                    yIcone += Image.Height + 2;
+                    yIcone += Image.Height + 1;
                 }
 
-                var caixa = new Rectangle(2, yIcone, Width - 4, Height - yIcone - 1);
+                var caixa = new Rectangle(2, yIcone, Width - 4, Height - yIcone);
                 TextRenderer.DrawText(g, Text, Font, caixa, PaletteTheme.Tinta,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.Top |
                     TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
