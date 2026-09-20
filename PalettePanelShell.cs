@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace TSKTakeOff
@@ -257,6 +258,69 @@ namespace TSKTakeOff
         }
 
         /// <summary>
+        /// Um cartão com cantos arredondados: cabeçalho por cima, corpo por
+        /// baixo, borda de 1 px à volta — a linguagem do mockup "claro
+        /// refinado" (Deploy/MockupPalette/index-claro-refinado.html).
+        ///
+        /// O arredondamento é por recorte de <see cref="Control.Region"/>, a
+        /// técnica standard do WinForms para isto. Ressalva conhecida: o
+        /// recorte em si não tem anti-aliasing — a curva corta em blocos de
+        /// pixel, não suave como num browser. Num raio pequeno (8 px) isso
+        /// quase não se nota à distância normal de uso.
+        ///
+        /// Nada a ver com o bug de 2026-09-19 (commit 1377f0b): aquele era
+        /// uma TableLayoutPanel de linhas AutoSize a receber um Panel-célula
+        /// sem AutoSize próprio. Aqui o cartão é um Panel Dock=Top simples,
+        /// com AutoSize=true e filhos também Dock=Top — o mesmo padrão que
+        /// já sustenta o resto do painel a empilhar-se sozinho.
+        /// </summary>
+        public static Panel CartaoArredondado(Control cabecalho, Control corpo, int raio = 8)
+        {
+            var cartao = new Panel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = PaletteTheme.Fundo,
+                Padding = new Padding(1),
+                Margin = new Padding(0, 0, 0, PaletteTheme.Margem)
+            };
+            cabecalho.Dock = DockStyle.Top;
+            corpo.Dock = DockStyle.Top;
+            cartao.Controls.Add(corpo);
+            cartao.Controls.Add(cabecalho);
+
+            EventHandler recortar = (s, e) =>
+            {
+                if (cartao.Width <= 0 || cartao.Height <= 0) return;
+                using (var caminho = CaminhoArredondado(0, 0, cartao.Width, cartao.Height, raio))
+                    cartao.Region = new Region(caminho);
+            };
+            cartao.Resize += recortar;
+            cartao.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var caminho = CaminhoArredondado(0, 0, cartao.Width - 1, cartao.Height - 1, raio))
+                using (var caneta = new Pen(PaletteTheme.Linha))
+                    e.Graphics.DrawPath(caneta, caminho);
+            };
+            recortar(cartao, EventArgs.Empty);
+            return cartao;
+        }
+
+        private static GraphicsPath CaminhoArredondado(int x, int y, int largura, int altura, int raio)
+        {
+            var caminho = new GraphicsPath();
+            int d = Math.Max(1, raio * 2);
+            caminho.AddArc(x, y, d, d, 180, 90);
+            caminho.AddArc(x + largura - d, y, d, d, 270, 90);
+            caminho.AddArc(x + largura - d, y + altura - d, d, d, 0, 90);
+            caminho.AddArc(x, y + altura - d, d, d, 90, 90);
+            caminho.CloseFigure();
+            return caminho;
+        }
+
+        /// <summary>
         /// A grelha de acções da secção MEDIR, como no mockup aprovado: seis
         /// células iguais, separadas por um fio de 1 px, cada uma com o ícone
         /// por cima do texto.
@@ -331,18 +395,30 @@ namespace TSKTakeOff
                 using (var pincel = new SolidBrush(fundo))
                     g.FillRectangle(pincel, ClientRectangle);
 
-                int x = Padding.Left;
+                // ÍCONE EM CIMA, RÓTULO POR BAIXO — ao contrário do
+                // ícone-ao-lado que este botão tinha antes.
+                //
+                // Uma tentativa anterior disto, num Button NATIVO com
+                // TextImageRelation.ImageAboveText, cortava as descidas do
+                // texto ("g", "p", "q") porque a fila da grelha só tinha 30 px
+                // — altura para uma linha ao lado do ícone, não para ícone
+                // MAIS uma etiqueta por baixo. Aqui o texto é desenhado à mão
+                // numa caixa com a altura que sobra do botão INTEIRO (56 px),
+                // não a que o WinForms decidisse sozinho — por isso não há o
+                // mesmo corte, mesmo com "Área da seleção"/"Pano retângulo" a
+                // precisarem de duas linhas.
+                int yIcone = 9;
                 if (Image != null)
                 {
-                    g.DrawImage(Image, x, (Height - Image.Height) / 2,
-                                Image.Width, Image.Height);
-                    x += Image.Width + 7;
+                    g.DrawImage(Image, (Width - Image.Width) / 2, yIcone,
+                        Image.Width, Image.Height);
+                    yIcone += Image.Height + 5;
                 }
 
-                var caixa = new Rectangle(x, 0, Width - x - Padding.Right, Height);
+                var caixa = new Rectangle(3, yIcone, Width - 6, Height - yIcone - 4);
                 TextRenderer.DrawText(g, Text, Font, caixa, PaletteTheme.Tinta,
-                    TextFormatFlags.VerticalCenter | TextFormatFlags.Left |
-                    TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.Top |
+                    TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
 
                 // O foco por teclado tem de se ver: sem isto, quem navega com
                 // o Tab não sabe onde está.
@@ -372,16 +448,9 @@ namespace TSKTakeOff
                 BackColor = fundo,
                 ForeColor = PaletteTheme.Tinta,
                 Font = destaque ? PaletteTheme.Negrito : PaletteTheme.Normal,
-                // ÍCONE À ESQUERDA, e não por cima.
-                //
-                // Empilhado, o texto ia para a margem de baixo e o WinForms
-                // cortava-lhe as descidas — o "g" de "Retângulo" ficava sem
-                // metade. Ao lado, a altura da célula só tem de dar para uma
-                // linha de texto, e o nome cabe por extenso em vez de abreviado.
-                TextImageRelation = TextImageRelation.ImageBeforeText,
-                ImageAlign = ContentAlignment.MiddleLeft,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(9, 0, 4, 0),
+                // TextImageRelation/ImageAlign/TextAlign/Padding do WinForms
+                // não se aplicam aqui: o ícone e o texto são desenhados à mão
+                // em BotaoAccao.OnPaint (ícone em cima, rótulo por baixo).
                 UseVisualStyleBackColor = false,
                 AccessibleName = texto
             };

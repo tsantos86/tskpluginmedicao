@@ -185,7 +185,13 @@ namespace TSKTakeOff
         public const int AlturaTituloSeccao = 26;
         public const int AlturaCampo = 24;
         public const int AlturaLinha = 22;
-        public const int AlturaBotaoAccao = 30;
+        /// <summary>
+        /// Altura do mosaico de MEDIR: ícone em cima, rótulo por baixo, até
+        /// duas linhas. 30 px chegava para ícone-ao-lado-do-texto; em cima
+        /// precisa de espaço para o ícone MAIS a etiqueta — "Área da seleção"
+        /// e "Pano retângulo" não cabem numa linha só num mosaico de ~150 px.
+        /// </summary>
+        public const int AlturaBotaoAccao = 56;
         public const int Margem = 8;
         public const int MargemPequena = 4;
         /// <summary>Recuo por nível de profundidade, na coluna da árvore.</summary>
@@ -618,8 +624,14 @@ namespace TSKTakeOff
             catch { return origem; }
         }
 
-        /// <summary>Lado do ícone nos botões de acção da barra MEDIR.</summary>
-        public const int LadoIconeAccao = 15;
+        /// <summary>
+        /// Lado do ícone nos botões de acção da barra MEDIR. Reduzido de 15
+        /// para 13 ao passar de "ícone ao lado do texto" para "ícone em cima,
+        /// rótulo por baixo" — o mosaico mais alto tem menos largura livre por
+        /// linha de texto, e um ícone pequeno mantém o rótulo como o que se lê
+        /// primeiro.
+        /// </summary>
+        public const int LadoIconeAccao = 13;
 
         /// <summary>Barra de ferramentas com o aspecto da paleta.</summary>
         public static ToolStrip Barra()

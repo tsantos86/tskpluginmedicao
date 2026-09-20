@@ -892,13 +892,21 @@ namespace TSKTakeOff
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaTituloSeccao,
                 Text = "MEDIR      Escolha o tipo de medição",
-                Padding = new Padding(PaletteTheme.Margem, 0, 0, 0),
+                Padding = new Padding(PaletteTheme.Margem + 3, 0, 0, 0),
                 TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = PaletteTheme.FundoSeccao,
                 // Explícita, e não herdada. Herdada, ficava escura sobre a
                 // faixa escura da secção e o título desaparecia.
                 ForeColor = PaletteTheme.Tinta,
                 Font = PaletteTheme.TituloSeccao
+            };
+            // Risco de acento à esquerda — a mesma linguagem do cartão do
+            // mockup "claro refinado". Sem isto, CartaoArredondado ficava só
+            // uma borda arredondada à volta de uma faixa cinzenta sem marca.
+            medirTitulo.Paint += (s, e) =>
+            {
+                using (var pincel = new SolidBrush(PaletteTheme.Acento))
+                    e.Graphics.FillRectangle(pincel, 0, 0, 3, medirTitulo.Height);
             };
             // Seis células iguais, com o fio da grelha entre elas — a
             // composição aprovada. Antes era uma ToolStrip com ícones de 24 px
@@ -1329,8 +1337,7 @@ namespace TSKTakeOff
             // levar os ajudantes que só ela usava.
             // Controls.Add(_dgv);
             Controls.Add(_lblTotais);
-            Controls.Add(tools);
-            Controls.Add(medirTitulo);
+            Controls.Add(PalettePanelShell.CartaoArredondado(medirTitulo, tools));
             Controls.Add(config);
             Controls.Add(configHost);
             Controls.Add(cabecalho);
