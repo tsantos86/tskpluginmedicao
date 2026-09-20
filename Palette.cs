@@ -929,16 +929,18 @@ namespace TSKTakeOff
             // pavimentos vêm hachurados e os compartimentos fechados, e
             // redesenhar o contorno por cima era trabalho a dobrar.
             tools.Controls.Add(PalettePanelShell.Accao("Área da seleção",
-                IconFactory.AreaSel(), (s, e) => MedirAreaSeleccao(), dicasMedir), 0, 1);
+                IconFactory.AreaSel(), (s, e) => MedirAreaSeleccao(), dicasMedir,
+                rotulo: "Área sel."), 0, 1);
             // Havia DOIS botões para isto, com grafias diferentes: um chamava
             // o comando directamente, o outro passava pelo SyncConfig antes.
             // Fica o que sincroniza o painel — o outro media com a altura e a
             // espessura antigas se elas tivessem sido mudadas e ainda não
             // aplicadas, e ninguém perceberia porquê.
             tools.Controls.Add(PalettePanelShell.Accao("Medir seleção",
-                IconFactory.MedirSel(), (s, e) => MedirSeleccaoNaPlanta(), dicasMedir), 1, 1);
+                IconFactory.MedirSel(), (s, e) => MedirSeleccaoNaPlanta(), dicasMedir,
+                rotulo: "Medir sel."), 1, 1);
             tools.Controls.Add(PalettePanelShell.Accao("Adicionar vão",
-                IconFactory.Vao(), (s, e) => AdicionarVao(), dicasMedir), 2, 1);
+                IconFactory.Vao(), (s, e) => AdicionarVao(), dicasMedir, rotulo: "Vão"), 2, 1);
 
             // Filas 3 e 4: os tipos de medida que viviam nas outras abas.
             //
@@ -958,9 +960,11 @@ namespace TSKTakeOff
             tools.RowStyles.Add(new RowStyle(SizeType.Absolute, PaletteTheme.AlturaBotaoAccao));
 
             tools.Controls.Add(PalettePanelShell.Accao("Pano retângulo",
-                IconFactory.Retangulo(), (s, e) => MedirNoutroTipo("TSKRET "), dicasMedir), 0, 2);
+                IconFactory.Retangulo(), (s, e) => MedirNoutroTipo("TSKRET "), dicasMedir,
+                rotulo: "Pano ret."), 0, 2);
             tools.Controls.Add(PalettePanelShell.Accao("Pano × altura",
-                IconFactory.Polf(), (s, e) => MedirNoutroTipo("TSKPOLF "), dicasMedir), 1, 2);
+                IconFactory.Polf(), (s, e) => MedirNoutroTipo("TSKPOLF "), dicasMedir,
+                rotulo: "Pano × alt."), 1, 2);
             tools.Controls.Add(PalettePanelShell.Accao("Linear",
                 IconFactory.Linear(), (s, e) => MedirNoutroTipo("TSKLINEAR "), dicasMedir), 2, 2);
             tools.Controls.Add(PalettePanelShell.Accao("Contar blocos",

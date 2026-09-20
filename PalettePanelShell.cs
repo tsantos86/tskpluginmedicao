@@ -403,19 +403,20 @@ namespace TSKTakeOff
                 // texto ("g", "p", "q") porque a fila da grelha só tinha 30 px
                 // — altura para uma linha ao lado do ícone, não para ícone
                 // MAIS uma etiqueta por baixo. Aqui o texto é desenhado à mão
-                // numa caixa com a altura que sobra do botão INTEIRO (56 px),
-                // não a que o WinForms decidisse sozinho — por isso não há o
-                // mesmo corte, mesmo com "Área da seleção"/"Pano retângulo" a
-                // precisarem de duas linhas.
-                int yIcone = 9;
+                // numa caixa com a altura que sobra do botão INTEIRO, não a
+                // que o WinForms decidisse sozinho — por isso não há o mesmo
+                // corte, mesmo com o mosaico agora a só 28 px: as margens
+                // ficam no mínimo e o rótulo é o texto CURTO (Accao(rotulo:)),
+                // desenhado para caber numa linha só a essa altura.
+                int yIcone = 2;
                 if (Image != null)
                 {
                     g.DrawImage(Image, (Width - Image.Width) / 2, yIcone,
                         Image.Width, Image.Height);
-                    yIcone += Image.Height + 5;
+                    yIcone += Image.Height + 2;
                 }
 
-                var caixa = new Rectangle(3, yIcone, Width - 6, Height - yIcone - 4);
+                var caixa = new Rectangle(2, yIcone, Width - 4, Height - yIcone - 1);
                 TextRenderer.DrawText(g, Text, Font, caixa, PaletteTheme.Tinta,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.Top |
                     TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
@@ -428,14 +429,25 @@ namespace TSKTakeOff
             }
         }
 
+        /// <param name="texto">
+        /// Nome completo: vai para a dica e para a acessibilidade, SEMPRE.
+        /// </param>
+        /// <param name="rotulo">
+        /// O que se lê no mosaico, se precisar de ser mais curto do que
+        /// <paramref name="texto"/> para caber numa linha só num mosaico
+        /// baixo (28 px — ver PaletteTheme.AlturaBotaoAccao). Nulo usa
+        /// <paramref name="texto"/> por extenso. Encurtar SÓ o rótulo, nunca
+        /// a dica, é o que evita perder a descrição completa de quem passa o
+        /// rato ou usa leitor de ecrã.
+        /// </param>
         public static Button Accao(string texto, Image icone, EventHandler aoClicar,
-                                   ToolTip dicas = null, bool destaque = false)
+                                   ToolTip dicas = null, bool destaque = false, string rotulo = null)
         {
             var fundo = destaque ? PaletteTheme.Palido : PaletteTheme.Fundo;
 
             var b = new BotaoAccao(destaque)
             {
-                Text = texto,
+                Text = rotulo ?? texto,
                 // Reduzido: o Button pinta a imagem no tamanho NATIVO, e os
                 // ícones nascem a 64×64. Sem isto transbordavam por cima do
                 // texto e saíam cortados em baixo.
@@ -447,7 +459,7 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat,
                 BackColor = fundo,
                 ForeColor = PaletteTheme.Tinta,
-                Font = destaque ? PaletteTheme.Negrito : PaletteTheme.Normal,
+                Font = destaque ? PaletteTheme.PequenoNegrito : PaletteTheme.Pequeno,
                 // TextImageRelation/ImageAlign/TextAlign/Padding do WinForms
                 // não se aplicam aqui: o ícone e o texto são desenhados à mão
                 // em BotaoAccao.OnPaint (ícone em cima, rótulo por baixo).

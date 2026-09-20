@@ -186,12 +186,14 @@ namespace TSKTakeOff
         public const int AlturaCampo = 24;
         public const int AlturaLinha = 22;
         /// <summary>
-        /// Altura do mosaico de MEDIR: ícone em cima, rótulo por baixo, até
-        /// duas linhas. 30 px chegava para ícone-ao-lado-do-texto; em cima
-        /// precisa de espaço para o ícone MAIS a etiqueta — "Área da seleção"
-        /// e "Pano retângulo" não cabem numa linha só num mosaico de ~150 px.
+        /// Altura do mosaico de MEDIR. 56 lia grande de mais (reportado pelo
+        /// utilizador a 2026-09-20 — "pelo menos pela metade"); cortado a
+        /// pouco mais de metade, para 28. À custa de letra mais pequena
+        /// (PaletteTheme.Pequeno nos mosaicos) e de margens mínimas — ver
+        /// BotaoAccao.OnPaint — para "Área da seleção"/"Pano retângulo"
+        /// ainda caberem em duas linhas sem cortar.
         /// </summary>
-        public const int AlturaBotaoAccao = 56;
+        public const int AlturaBotaoAccao = 28;
         public const int Margem = 8;
         public const int MargemPequena = 4;
         /// <summary>Recuo por nível de profundidade, na coluna da árvore.</summary>
