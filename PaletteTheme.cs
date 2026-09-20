@@ -23,55 +23,55 @@ namespace TSKTakeOff
     public static class PaletteTheme
     {
         // ------------------------------------------------------------------
-        // Grafite — a variante aprovada
-        // (Deploy/MockupPalette/index-premium.html)
+        // Clara — a variante aprovada (estilo Eberick/Office)
+        // (Deploy/MockupPalette/index-resultados-compacto.html,
+        // preview-eberick.png; troca de volta em 2026-09-19, substituindo o
+        // grafite de index-premium.html aprovado a 2026-09-05.)
         //
-        // ESCURO PORQUE O PAINEL VIVE DENTRO DO AUTOCAD. Ancorado à moldura
-        // grafite do programa, um painel branco lê-se como uma janela de outro
-        // lado colada ao lado — e foi isso que fez a variante clara parecer
-        // sempre um corpo estranho, por mais arrumada que estivesse.
-        //
-        // Os neutros têm desvio para o azul do acento: um cinzento puro
-        // lê-se como não escolhido.
+        // Um painel claro lê-se como as ferramentas de referência do setor
+        // (Eberick, Office): fundo branco, texto quase preto, e um azul de
+        // acento reservado para o que é accionável — selecção, ligações,
+        // ícones activos. Os neutros têm o mesmo desvio ligeiro para o azul
+        // do acento que tinham no grafite: um cinzento puro lê-se como não
+        // escolhido.
         // ------------------------------------------------------------------
-        private static readonly Color _acento = Color.FromArgb(0x4E, 0xC3, 0xE8);
-        private static readonly Color _acentoEscuro = Color.FromArgb(0x2A, 0x9B, 0xC4);
+        private static readonly Color _acento = Color.FromArgb(0x16, 0x8A, 0xC4);
+        private static readonly Color _acentoEscuro = Color.FromArgb(0x11, 0x6F, 0x9D);
         /// <summary>Realce de passagem do rato e de foco: um degrau acima do fundo.</summary>
-        private static readonly Color _palido = Color.FromArgb(0x1C, 0x26, 0x32);
-        private static readonly Color _azulTopo = Color.FromArgb(0x16, 0x1E, 0x29);
-        private static readonly Color _tinta = Color.FromArgb(0xE4, 0xEB, 0xF2);
-        private static readonly Color _apagado = Color.FromArgb(0x7C, 0x8B, 0x9C);
-        private static readonly Color _linha = Color.FromArgb(0x24, 0x2E, 0x3B);
-        private static readonly Color _linhaSuave = Color.FromArgb(0x1B, 0x24, 0x2F);
-        private static readonly Color _guia = Color.FromArgb(0x20, 0x2A, 0x35);
-        private static readonly Color _branco = Color.FromArgb(0x10, 0x16, 0x20);
-        private static readonly Color _verde = Color.FromArgb(0x3F, 0xB5, 0x77);
-        private static readonly Color _ocre = Color.FromArgb(0xD9, 0xA0, 0x3C);
-        private static readonly Color _parede = Color.FromArgb(0xAE, 0xBC, 0xCB);
-        private static readonly Color _perigo = Color.FromArgb(0xE0, 0x7C, 0x7C);
-        private static readonly Color _fundoSeccao = Color.FromArgb(0x16, 0x1E, 0x29);
-        private static readonly Color _fundoBarra = Color.FromArgb(0x13, 0x1A, 0x24);
-        private static readonly Color _fundoGrupo = Color.FromArgb(0x13, 0x1A, 0x24);
-        private static readonly Color _fundoCabecalhoArvore = Color.FromArgb(0x0C, 0x12, 0x19);
-        private static readonly Color _seleccionado = Color.FromArgb(0x17, 0x45, 0x7E);
-        private static readonly Color _contornoSeleccao = Color.FromArgb(0x2E, 0x6F, 0xBF);
-        /// <summary>Tinta âmbar em fundo escuro — não o creme da variante clara.</summary>
-        private static readonly Color _fundoPorClassificar = Color.FromArgb(0x2A, 0x24, 0x16);
-        private static readonly Color _textoPorClassificar = Color.FromArgb(0xD9, 0xA0, 0x3C);
-        private static readonly Color _fundoAviso = Color.FromArgb(0x2A, 0x24, 0x16);
-        private static readonly Color _bordaAviso = Color.FromArgb(0xD9, 0xA0, 0x3C);
-        private static readonly Color _textoAviso = Color.FromArgb(0xE0, 0xB4, 0x5C);
+        private static readonly Color _palido = Color.FromArgb(0xEA, 0xF7, 0xFD);
+        private static readonly Color _azulTopo = Color.FromArgb(0xBF, 0xE7, 0xFB);
+        private static readonly Color _tinta = Color.FromArgb(0x11, 0x18, 0x20);
+        private static readonly Color _apagado = Color.FromArgb(0x5B, 0x68, 0x72);
+        private static readonly Color _linha = Color.FromArgb(0xCB, 0xD7, 0xDD);
+        private static readonly Color _linhaSuave = Color.FromArgb(0xE5, 0xEC, 0xEF);
+        private static readonly Color _guia = Color.FromArgb(0xD8, 0xE2, 0xE6);
+        private static readonly Color _branco = Color.FromArgb(0xFF, 0xFF, 0xFF);
+        private static readonly Color _verde = Color.FromArgb(0x25, 0x8B, 0x62);
+        private static readonly Color _ocre = Color.FromArgb(0xB1, 0x7D, 0x05);
+        private static readonly Color _parede = Color.FromArgb(0x65, 0x7F, 0x8E);
+        private static readonly Color _perigo = Color.FromArgb(0xB9, 0x4A, 0x43);
+        private static readonly Color _fundoSeccao = Color.FromArgb(0xF3, 0xF7, 0xF8);
+        private static readonly Color _fundoBarra = Color.FromArgb(0xF6, 0xFB, 0xFD);
+        private static readonly Color _fundoGrupo = Color.FromArgb(0xFA, 0xFC, 0xFD);
+        private static readonly Color _fundoCabecalhoArvore = Color.FromArgb(0xEE, 0xF4, 0xF6);
+        private static readonly Color _seleccionado = Color.FromArgb(0xD9, 0xF0, 0xFC);
+        private static readonly Color _contornoSeleccao = Color.FromArgb(0x82, 0xC9, 0xE7);
+        /// <summary>Creme âmbar em fundo claro — não o tom abafado da variante grafite.</summary>
+        private static readonly Color _fundoPorClassificar = Color.FromArgb(0xFF, 0xFB, 0xEB);
+        private static readonly Color _textoPorClassificar = Color.FromArgb(0x7C, 0x5D, 0x05);
+        private static readonly Color _fundoAviso = Color.FromArgb(0xFF, 0xF8, 0xDF);
+        private static readonly Color _bordaAviso = Color.FromArgb(0xF4, 0xB7, 0x2B);
+        private static readonly Color _textoAviso = Color.FromArgb(0x76, 0x57, 0x00);
         /// <summary>
-        /// O realce de "isto edita-se". Em fundo claro era amarelo; aqui é um
-        /// degrau azulado — amarelo sobre grafite grita e rouba a atenção à
-        /// linha que está seleccionada.
+        /// O realce de "isto edita-se": um amarelo pálido, que em fundo claro
+        /// se lê sem gritar nem se confundir com o azul da selecção.
         /// </summary>
-        private static readonly Color _fundoEditavel = Color.FromArgb(0x1A, 0x24, 0x30);
-        private static readonly Color _bordaCampo = Color.FromArgb(0x2E, 0x3A, 0x48);
-        private static readonly Color _sombraCartao = Color.FromArgb(0x0A, 0x0E, 0x13);
-        private static readonly Color _realce = Color.FromArgb(0x10, 0x16, 0x20);
-        /// <summary>Fundo dos campos: um degrau ABAIXO do painel, como um encaixe.</summary>
-        private static readonly Color _fundoCampo = Color.FromArgb(0x0C, 0x12, 0x19);
+        private static readonly Color _fundoEditavel = Color.FromArgb(0xFF, 0xF3, 0xC4);
+        private static readonly Color _bordaCampo = Color.FromArgb(0xA9, 0xB9, 0xC1);
+        private static readonly Color _sombraCartao = Color.FromArgb(0xC7, 0xD2, 0xD8);
+        private static readonly Color _realce = Color.FromArgb(0xFF, 0xFF, 0xFF);
+        /// <summary>Fundo dos campos: branco, com a borda a marcar o encaixe.</summary>
+        private static readonly Color _fundoCampo = Color.FromArgb(0xFF, 0xFF, 0xFF);
 
         /// <summary>
         /// O Windows está em alto contraste? Lido a cada chamada de propósito:
@@ -149,15 +149,13 @@ namespace TSKTakeOff
         public static Color FundoCampo { get { return C(_fundoCampo, SystemColors.Window); } }
 
         /// <summary>
-        /// Vermelho das deduções.
-        ///
-        /// Era o 192,0,0 do Excel, para se ler igual nos dois lados. Sobre
-        /// grafite esse tom fica quase preto e desaparece; o rosa lê-se, e
-        /// continua a dizer a mesma coisa — o que desconta.
+        /// Vermelho das deduções — o mesmo tom do aviso "excedente" do mockup
+        /// claro (--danger), legível sobre fundo branco sem precisar do rosa
+        /// que a variante grafite usava para não desaparecer sobre escuro.
         /// </summary>
         public static Color VermelhoDeducao
         {
-            get { return C(Color.FromArgb(0xE0, 0x7C, 0x7C), SystemColors.ControlText); }
+            get { return C(Color.FromArgb(0xB9, 0x4A, 0x43), SystemColors.ControlText); }
         }
 
         /// <summary>A cor do ícone de um tipo de nó da árvore.</summary>

@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\IconFactory.cs" Link="IconFactory.cs" />
+    <Compile Include="..\..\RibbonIconRenderer.cs" Link="RibbonIconRenderer.cs" />
   </ItemGroup>
 
   <ItemGroup>

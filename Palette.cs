@@ -470,8 +470,10 @@ namespace TSKTakeOff
         private Panel _resultadosCompactos;
         private DataGridView _dgvCompacto;
         private Label _lblResultadoResumo;
-        private Label _lblPropriedadeTitulo;
+        private Button _lblPropriedadeTitulo;
         private bool _configExpandida;
+        /// <summary>PROPRIEDADES recolhe-se, como CONFIGURAÇÃO e Mais opções.</summary>
+        private bool _propriedadesAbertas = true;
         private NoResultado _raizResultados;
         private EstadoVista _estadoResultados = new EstadoVista();
         private TextBox _txtPesquisa;
@@ -608,6 +610,16 @@ namespace TSKTakeOff
                 _btnConfigToggle.AccessibleDescription =
                     _configExpandida ? "Expandida." : "Recolhida.";
                 AtualizarResumoDaProxima();
+            };
+            // Um risco de acento sob o título: a mesma linguagem do separador
+            // activo no mockup Eberick. Sem isto, CONFIGURAÇÃO só se distingue
+            // do resto por um cinzento ligeiramente diferente — a única cor do
+            // painel inteiro ficava reservada à selecção e ao foco.
+            _btnConfigToggle.Paint += (s, e) =>
+            {
+                using (var pincel = new SolidBrush(PaletteTheme.Acento))
+                    e.Graphics.FillRectangle(pincel, 0, _btnConfigToggle.Height - 2,
+                        _btnConfigToggle.Width, 2);
             };
             configHost.Controls.Add(_btnConfigToggle);
             // QUATRO colunas: rótulo · campo · rótulo · campo.
@@ -969,7 +981,12 @@ namespace TSKTakeOff
                 ShowItemToolTips = true,
                 RenderMode = ToolStripRenderMode.System,
                 BackColor = PaletteTheme.FundoBarra,
-                AutoSize = true
+                AutoSize = true,
+                // ToolStrip nasce fora da ordem de Tab (TabStop = false por
+                // omissão): sem isto, "Excel ao Vivo"/"Exportar"/"Atualizar"/
+                // "Mais" só se alcançavam com o rato.
+                TabStop = true,
+                TabIndex = 1
             };
 
             _btnExcel = BotaoDeBarra("Excel ao Vivo", IconFactory.Excel(), (s, e) => ToggleExcel());
@@ -1337,8 +1354,17 @@ namespace TSKTakeOff
             if (_mosaico != null)
             {
                 _mosaico.AccessibleName = "Propriedades";
+                _mosaico.AccessibleDescription =
+                    "Use as setas para escolher uma medida e Enter ou Espaço para editar a sublinhada.";
                 dicas.SetToolTip(_mosaico,
-                    "Medidas do resultado escolhido. As sublinhadas editam-se ao clique.");
+                    "Medidas do resultado escolhido. As sublinhadas editam-se ao clique ou por teclado.");
+                // PrepararInteraccao (acima) desce a `propriedades` e só
+                // encontra o `_editor` escondido lá dentro — o mosaico em si
+                // é um Panel pintado à mão, não um dos tipos que a busca
+                // reconhece como alvo de foco. Mesmo tratamento manual do
+                // resto: o mesmo contorno de acento (PaletteTheme.ComFoco)
+                // usado em todos os outros controlos principais.
+                PaletteTheme.ComFoco(_mosaico);
             }
         }
 
@@ -1348,7 +1374,13 @@ namespace TSKTakeOff
             // que ocupa o espaço que sobra. Em Bottom ficava uma faixa vazia
             // do tamanho da grelha que já lá não está.
             _resultadosCompactos = new Panel { Dock = DockStyle.Fill, BackColor = PaletteTheme.Fundo };
-            var barra = new Panel { Dock = DockStyle.Top, Height = PaletteTheme.AlturaBarra, BackColor = PaletteTheme.FundoSeccao };
+            // TabIndex explícito nos quatro filhos directos, na ordem em que se
+            // LEEM (pesquisa/filtros, depois as acções, depois a árvore, depois
+            // propriedades). Sem isto, o Tab seguia a ordem de Controls.Add, que
+            // para Dock=Top é o INVERSO da ordem visual — ver o comentário mais
+            // abaixo sobre "o último a entrar fica mais acima". Resultado: quem
+            // navegava por teclado entrava pela árvore, não pela pesquisa.
+            var barra = new Panel { Dock = DockStyle.Top, Height = PaletteTheme.AlturaBarra, BackColor = PaletteTheme.FundoSeccao, TabIndex = 0 };
             var titulo = new Label { Dock = DockStyle.Left, Width = 95, Text = "RESULTADOS", Padding = new Padding(8, 0, 0, 0), TextAlign = ContentAlignment.MiddleLeft, Font = PaletteTheme.TituloSeccao };
             _lblResultadoResumo = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 8, 0), ForeColor = PaletteTheme.Apagado };
             // «Limpar» apaga pesquisa E filtros — as duas coisas que escondem
@@ -1451,6 +1483,7 @@ namespace TSKTakeOff
             _dgvCompacto = new DataGridView {
                 Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
                 RowHeadersVisible = false,
+                TabIndex = 2,
                 // Multi-selecção por causa do «Reclassificar» e da edição em
                 // lote: um artigo trocado a meio da obra são dezenas de
                 // medições, e passá-las uma a uma é onde se desiste e se vai
@@ -1468,16 +1501,18 @@ namespace TSKTakeOff
                 TabStop = true
             };
 
-            // DUAS colunas, e não cinco.
+            // QUATRO colunas: Estrutura/elemento, Comp., Altura e Quantidade.
             //
-            // A árvore mostrava «Comp.» e «Altura» ao lado da quantidade, e foi
-            // isso que a revisão do brief mandou tirar: comprimento e altura são
-            // DIMENSÕES, não quantidades. Com três colunas fixas para cinco
-            // grandezas, a contagem de 2 portas aparecia debaixo de "Comp." e o
-            // comprimento de uma parede lia-se como se fosse a medição dela.
-            // As dimensões vivem em PROPRIEDADES; aqui fica a quantidade, na
-            // unidade do artigo, e nos grupos que misturam unidades ficam lado
-            // a lado — "62,93 m² · 36,90 m · 2 un." — em vez de somadas.
+            // Uma versão anterior tinha só duas — Estrutura e Quantidade —
+            // para não repetir o erro do brief original: com colunas fixas
+            // para cinco grandezas, a contagem de 2 portas aparecia debaixo
+            // de "Comp." e o comprimento de uma parede lia-se como se fosse
+            // a medição dela. A resolução (2026-09-05) não é tirar as
+            // colunas, é fazer a UNIDADE VIAJAR DENTRO DA CÉLULA: numa
+            // camada, "Comp." mostra a área em planta com "m²" ao lado, e a
+            // coluna que não se aplica mostra "—", nunca um zero — ver
+            // NoResultado.TextoComprimento/TextoAltura. As dimensões
+            // completas continuam em PROPRIEDADES; aqui é só o atalho.
             var colEstrutura = new DataGridViewTextBoxColumn
             {
                 Name = "estrutura",
@@ -1487,6 +1522,28 @@ namespace TSKTakeOff
                 FillWeight = 100,
                 MinimumWidth = 150
             };
+            var colComp = new DataGridViewTextBoxColumn
+            {
+                Name = "comp",
+                HeaderText = "Comp.",
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                Width = 72,
+                MinimumWidth = 56
+            };
+            var colAltura = new DataGridViewTextBoxColumn
+            {
+                Name = "altura",
+                HeaderText = "Altura",
+                SortMode = DataGridViewColumnSortMode.NotSortable,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                Width = 72,
+                MinimumWidth = 56
+            };
+            colComp.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            colAltura.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+            colComp.DefaultCellStyle.ForeColor = PaletteTheme.Apagado;
+            colAltura.DefaultCellStyle.ForeColor = PaletteTheme.Apagado;
             var colQuantidade = new DataGridViewTextBoxColumn
             {
                 Name = "quantidade",
@@ -1498,6 +1555,8 @@ namespace TSKTakeOff
             };
             colQuantidade.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             _dgvCompacto.Columns.Add(colEstrutura);
+            _dgvCompacto.Columns.Add(colComp);
+            _dgvCompacto.Columns.Add(colAltura);
             _dgvCompacto.Columns.Add(colQuantidade);
 
             // O DataGridView desenha sem duplo buffer e a propriedade que o liga
@@ -1617,14 +1676,21 @@ namespace TSKTakeOff
             {
                 Dock = DockStyle.Bottom,
                 Height = 96,
-                BackColor = PaletteTheme.Fundo
+                BackColor = PaletteTheme.Fundo,
+                TabIndex = 3
             };
 
             var cabecalhoProps = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaTituloSeccao,
-                BackColor = PaletteTheme.FundoSeccao
+                BackColor = PaletteTheme.FundoSeccao,
+                // Mesma razão do TabIndex dos quatro painéis de RESULTADOS:
+                // sem isto, a ordem de Tab dentro de PROPRIEDADES ficava ao
+                // sabor do empate entre `cabecalhoProps` e `_mosaico` (os
+                // dois nascem com TabIndex 0). Cabeçalho primeiro, mosaico
+                // a seguir — a ordem em que se lêem.
+                TabIndex = 0
             };
 
             // Essenciais / Tudo. As propriedades de uma parede são dezassete e
@@ -1674,15 +1740,27 @@ namespace TSKTakeOff
             _btnMedirAqui.FlatAppearance.BorderSize = 0;
             _btnMedirAqui.Click += (s, e) => MedirAqui();
 
-            _lblPropriedadeTitulo = new Label
+            // PROPRIEDADES recolhe-se como CONFIGURAÇÃO: num painel a 480 px,
+            // o mosaico de métricas é espaço que a árvore não tem, e quem só
+            // quer conferir totais não precisa dele aberto.
+            _lblPropriedadeTitulo = new Button
             {
                 Dock = DockStyle.Fill,
-                Text = "PROPRIEDADES — nada selecionado",
+                Text = "▼  PROPRIEDADES  —  nada selecionado",
+                FlatStyle = FlatStyle.Flat,
                 Padding = new Padding(PaletteTheme.Margem, 0, 0, 0),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Font = PaletteTheme.TituloSeccao,
                 ForeColor = PaletteTheme.Tinta,
-                AutoEllipsis = true
+                BackColor = PaletteTheme.FundoSeccao,
+                AutoEllipsis = true,
+                AccessibleName = "Propriedades"
+            };
+            _lblPropriedadeTitulo.FlatAppearance.BorderSize = 0;
+            _lblPropriedadeTitulo.Click += (s, e) =>
+            {
+                _propriedadesAbertas = !_propriedadesAbertas;
+                AtualizarPropriedadesCompactas();
             };
 
             cabecalhoProps.Controls.Add(_lblPropriedadeTitulo);
@@ -1695,7 +1773,7 @@ namespace TSKTakeOff
             // comprimento, a altura, a área bruta, a líquida, o volume. Em
             // lista, é preciso percorrer; em mosaico, lêem-se de uma passagem.
             // Os que se editam trazem sublinhado tracejado e abrem ao clique.
-            _mosaico = new PalettePanelShell.MosaicoMetricas();
+            _mosaico = new PalettePanelShell.MosaicoMetricas { TabIndex = 1 };
             _mosaico.Editado += AoEditarMetrica;
 
             propriedades.Controls.Add(_mosaico);
@@ -1786,6 +1864,8 @@ namespace TSKTakeOff
                 var linha = new DataGridViewRow();
                 linha.CreateCells(_dgvCompacto,
                     no.Rotulo,
+                    no.TextoComprimento(CultureInfo.CurrentCulture),
+                    no.TextoAltura(CultureInfo.CurrentCulture),
                     item.Quantidades == null ? "" : item.Quantidades.Texto(CultureInfo.CurrentCulture));
                 linha.Tag = no;
                 linha.Height = PaletteTheme.AlturaLinha;
@@ -2394,20 +2474,30 @@ namespace TSKTakeOff
             if (_mosaico == null) return;
 
             var no = NoSeleccionado();
-            _lblPropriedadeTitulo.Text = no == null
-                ? "PROPRIEDADES — nada selecionado"
-                : "PROPRIEDADES — " + no.Rotulo;
+            _lblPropriedadeTitulo.Text = (_propriedadesAbertas ? "▼  " : "▶  ") +
+                "PROPRIEDADES  —  " + (no == null ? "nada selecionado" : no.Rotulo);
+            _lblPropriedadeTitulo.AccessibleDescription =
+                (_propriedadesAbertas ? "Expandida. " : "Recolhida. ") +
+                (no == null ? "Nada selecionado." : no.Rotulo);
 
-            // "Medir aqui" só em nós de artigo, como o plano manda.
+            // "Medir aqui" só em nós de artigo, como o plano manda. Fica no
+            // cabeçalho mesmo recolhido — é uma acção, não uma leitura.
             if (_btnMedirAqui != null)
                 _btnMedirAqui.Visible = no != null && no.PermiteMedirAqui;
 
             _mosaico.No = no;
             _mosaico.Handles = HandlesSeleccionados();
+            _mosaico.Visible = _propriedadesAbertas;
+
+            var painel = _mosaico.Parent;
 
             if (no == null || no.Propriedades == null)
             {
                 _mosaico.Definir(null);
+                if (painel != null)
+                    painel.Height = _propriedadesAbertas
+                        ? PaletteTheme.AlturaTituloSeccao + _mosaico.AlturaNecessaria
+                        : PaletteTheme.AlturaTituloSeccao;
                 return;
             }
 
@@ -2424,10 +2514,13 @@ namespace TSKTakeOff
             _mosaico.Definir(mostrar);
 
             // A faixa cresce com o que tem de mostrar, em vez de cortar. Uma
-            // parede com dez métricas não cabe na altura de seis.
-            var painel = _mosaico.Parent;
+            // parede com dez métricas não cabe na altura de seis. Recolhida,
+            // fica só a altura do cabeçalho — o mosaico continua desenhado
+            // por trás, pronto a reaparecer sem se recompor.
             if (painel != null)
-                painel.Height = PaletteTheme.AlturaTituloSeccao + _mosaico.AlturaNecessaria;
+                painel.Height = _propriedadesAbertas
+                    ? PaletteTheme.AlturaTituloSeccao + _mosaico.AlturaNecessaria
+                    : PaletteTheme.AlturaTituloSeccao;
         }
 
         /// <summary>

@@ -251,8 +251,7 @@ namespace TSKTakeOff.Tests
         [Fact]
         public void Listas_nulas_ou_vazias_nao_rebentam()
         {
-            Assert.Empty(ResultadosAdaptadores.DeMateriais(
-                null, RegraDesconto.DescontarTudo, null, Pt));
+            Assert.Empty(ResultadosAdaptadores.DeMateriais(null, RegraDesconto.DescontarTudo, null, Pt));
             Assert.Empty(ResultadosAdaptadores.DeLineares(null, Pt));
             Assert.Empty(ResultadosAdaptadores.DeContagens(null, Pt));
 
