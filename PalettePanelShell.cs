@@ -713,9 +713,23 @@ namespace TSKTakeOff
                     var r = _caixas[i];
                     var m = _metricas[i];
 
-                    if (i == _sobre && m.Editavel)
-                        using (var pincel = new SolidBrush(PaletteTheme.Palido))
+                    // O QUE SE EDITA TEM FUNDO AMARELO — sempre, não só ao
+                    // passar o rato. Era um sublinhado tracejado fino de mais
+                    // para se notar (relatado pelo utilizador ao ver "Altura"
+                    // editável sem nenhum sinal visível). O mesmo amarelo já
+                    // existe como PaletteTheme.FundoEditavel — a convenção
+                    // antiga da grelha larga, agora aplicada aqui também.
+                    if (m.Editavel)
+                        using (var pincel = new SolidBrush(PaletteTheme.FundoEditavel))
                             g.FillRectangle(pincel, r);
+
+                    // Ao passar o rato, um contorno de acento por cima do
+                    // amarelo — não troca o fundo, senão perdia-se o sinal
+                    // "isto edita-se" precisamente quando se está prestes a
+                    // editar.
+                    if (i == _sobre && m.Editavel)
+                        using (var caneta = new Pen(PaletteTheme.AcentoEscuro))
+                            g.DrawRectangle(caneta, r.X, r.Y, r.Width - 1, r.Height - 1);
 
                     // O rótulo pequeno por cima, o valor grande por baixo: o
                     // número é o que se procura, o nome só o identifica.
@@ -732,14 +746,6 @@ namespace TSKTakeOff
                     TextRenderer.DrawText(g, m.Valor, PaletteTheme.Numero, rValor, tinta,
                         TextFormatFlags.Left | TextFormatFlags.EndEllipsis |
                         TextFormatFlags.NoPrefix);
-
-                    // O que se edita traz um sublinhado tracejado — a mesma
-                    // convenção de um campo, sem gastar a altura de um.
-                    if (m.Editavel)
-                        using (var caneta = new Pen(PaletteTheme.AcentoEscuro) { DashStyle =
-                                   System.Drawing.Drawing2D.DashStyle.Dot })
-                            g.DrawLine(caneta, r.X + 9, r.Bottom - 6,
-                                       r.X + Math.Min(r.Width - 12, 64), r.Bottom - 6);
 
                     g.DrawLine(fio, r.Right - 1, r.Y + 5, r.Right - 1, r.Bottom - 5);
                     g.DrawLine(fio, r.X, r.Bottom - 1, r.Right, r.Bottom - 1);

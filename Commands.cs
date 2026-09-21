@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using MessageBox = System.Windows.Forms.MessageBox;
 using MessageBoxButtons = System.Windows.Forms.MessageBoxButtons;
 using MessageBoxIcon = System.Windows.Forms.MessageBoxIcon;
@@ -1042,6 +1043,9 @@ namespace TSKTakeOff
 
         [CommandMethod("TSKEXPORT")]
         public void TskExport() => MedExport();
+
+        [CommandMethod("TSKEXPORTBC3")]
+        public void TskExportBc3() => Util.Seguro("TSKEXPORTBC3", MedExportBc3);
 
         // ------------------------------------------------------------------
         // MEDPAREDE — mede uma parede de alvenaria usando serviço/altura
@@ -2376,6 +2380,93 @@ namespace TSKTakeOff
             catch (IOException)
             {
                 ed.WriteMessage("\nERRO: feche o arquivo \"{0}\" no Excel e tente novamente.", xlsxPath);
+            }
+        }
+
+        /// <summary>
+        /// Exporta as medições em FIEBDC-3 (.bc3) — o formato de intercâmbio
+        /// que Arquimedes, CYPECAD, Presto e TCQ já sabem abrir. Ao LADO do
+        /// Excel, não em vez dele: TSKEXPORT continua a ser a saída
+        /// principal, e nada aqui toca no desenho.
+        ///
+        /// Ver a nota no topo de FiebdcExporter.cs: primeira versão, ainda
+        /// não confirmada contra uma importação real no Arquimedes/CYPECAD.
+        /// </summary>
+        public void MedExportBc3()
+        {
+            var doc = AcadApp.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            var db = doc.Database;
+            var ed = doc.Editor;
+
+            if (!MapaQuantidades.Existe)
+            {
+                ed.WriteMessage("\nEste desenho não tem mapa de quantidades importado. " +
+                    "Importe com TSKMQT antes de exportar em FIEBDC-3 — sem artigos " +
+                    "classificados não há o que pôr num formato de orçamento.");
+                return;
+            }
+
+            var paredes = AlvRepo.CarregarParedes(db);
+            var lineares = CollectLineares(db);
+            var fachadas = FacRepo.Carregar(db);
+            var contagens = ContRepo.Carregar(db);
+
+            Func<string, bool> artigoConhecido = a => MapaQuantidades.Procurar(a) != null;
+            var medicoes = ResultadosArvore.DeParedes(
+                paredes, Config.Regra, artigoConhecido, CultureInfo.CurrentCulture);
+            medicoes.AddRange(ResultadosAdaptadores.DeMateriais(
+                fachadas, Config.Regra, artigoConhecido, CultureInfo.CurrentCulture));
+            medicoes.AddRange(ResultadosAdaptadores.DeLineares(
+                lineares, CultureInfo.CurrentCulture));
+            medicoes.AddRange(ResultadosAdaptadores.DeContagens(
+                contagens, CultureInfo.CurrentCulture));
+
+            // Só o que já tem artigo: sem código não há para onde exportar
+            // num formato de orçamento. Fica "Por classificar" tal como já
+            // estava — TSKEXPORT (Excel) continua a mostrar tudo.
+            var linhas = medicoes
+                .Where(m => !string.IsNullOrWhiteSpace(m.Artigo))
+                .GroupBy(m => new { m.Piso, m.Artigo })
+                .Select(g =>
+                {
+                    // A chave do artigo é "código\x1fdesignação" — ver
+                    // MedicaoResultado.Artigo.
+                    var partes = (g.Key.Artigo ?? "").Split('\x1f');
+                    string codigo = partes.Length > 0 ? partes[0] : g.Key.Artigo;
+                    string designacao = partes.Length > 1 ? partes[1] : "";
+                    return new FiebdcExporter.Linha(g.Key.Piso, codigo, designacao,
+                        g.First().Unidade, g.Sum(m => m.Quantidade));
+                })
+                .ToList();
+
+            if (linhas.Count == 0)
+            {
+                ed.WriteMessage("\nNenhuma medição classificada para exportar. " +
+                    "Classifique os artigos (Mais ▸ Reclassificar…) e tente de novo.");
+                return;
+            }
+
+            string dir = File.Exists(doc.Name)
+                ? Path.GetDirectoryName(doc.Name)
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            string baseName = NomeBaseDoDesenho();
+            string alvo = Path.Combine(dir, baseName + "_medicoes.bc3");
+
+            string conteudo = FiebdcExporter.Gerar(linhas, baseName, DateTime.Now);
+            try
+            {
+                File.WriteAllText(alvo, conteudo, FiebdcExporter.CodificacaoFicheiro);
+                int artigos = linhas.Select(l => l.Codigo).Distinct().Count();
+                ed.WriteMessage("\nExportado: {0} artigo(s) para:\n{1}\n" +
+                    "AVISO: primeira versão do exportador FIEBDC-3, ainda não " +
+                    "confirmada contra uma importação real no Arquimedes/CYPECAD " +
+                    "— confira os totais antes de entregar a um cliente.",
+                    artigos, alvo);
+            }
+            catch (IOException)
+            {
+                ed.WriteMessage("\nERRO: feche o arquivo \"{0}\" e tente novamente.", alvo);
             }
         }
 
