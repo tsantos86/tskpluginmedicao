@@ -6,6 +6,12 @@ using System.Linq;
 using System.Windows.Forms;
 using Autodesk.AutoCAD.Windows;
 using AcadApp = Autodesk.AutoCAD.ApplicationServices.Application;
+// Aliases, não `using Autodesk.AutoCAD.DatabaseServices;` inteiro: esse
+// namespace tem os seus próprios Image e Font, que colidem com
+// System.Drawing.Image/Font usados no resto do ficheiro.
+using AcDatabase = Autodesk.AutoCAD.DatabaseServices.Database;
+using AcObjectEventArgs = Autodesk.AutoCAD.DatabaseServices.ObjectEventArgs;
+using AcObjectErasedEventArgs = Autodesk.AutoCAD.DatabaseServices.ObjectErasedEventArgs;
 
 namespace TSKTakeOff
 {
@@ -50,6 +56,7 @@ namespace TSKTakeOff
                 _ps.Visible = true;
                 // MinimumSize só depois de a janela existir (evita COM 0x80010114)
                 try { _ps.MinimumSize = new Size(520, 420); } catch { }
+                LigarSincronizacaoAutomatica();
             }
             catch (Exception ex)
             {
@@ -198,6 +205,128 @@ namespace TSKTakeOff
                         System.Math.Min(_ultimaEscritaMs, Config.AtrasoExcelMaxMs) +
                         " ms sem medir.");
             }
+        }
+
+        // ------------------------------------------------------------------
+        // Sincronização automática com o desenho
+        //
+        // Editar ou apagar um objecto directamente no AutoCAD — fora dos
+        // comandos do TSK, por exemplo um grip-edit ou um ERASE nativo — não
+        // chamava RefreshData() nenhum: a paleta e o Excel ficavam com o
+        // valor de quando a medição foi criada, até alguém clicar Atualizar
+        // ou correr outro comando do TSK.
+        // ------------------------------------------------------------------
+
+        /// <summary>Se já ligámos os reactors. Uma vez só, na primeira vez que a paleta abre.</summary>
+        private static bool _autoSincronizacaoLigada;
+
+        /// <summary>A base de dados cujos eventos estamos a ouvir agora.</summary>
+        private static AcDatabase _baseObservada;
+
+        /// <summary>Algo mudou desde a última sincronização automática, ainda por processar.</summary>
+        private static bool _sujoPorEdicaoExterna;
+
+        /// <summary>Quanto custou a última sincronização automática, em ms.</summary>
+        private static long _ultimaSincronizacaoMs;
+
+        private static DateTime _proximaSincronizacaoPermitida = DateTime.MinValue;
+
+        /// <summary>
+        /// Tecto da espera entre sincronizações automáticas — o mesmo
+        /// raciocínio do <see cref="Models.Config.AtrasoExcelMaxMs"/>: sem
+        /// tecto, um desenho muito grande empurrava a próxima sincronização
+        /// para tão longe que parecia ter deixado de acompanhar.
+        /// </summary>
+        private const int AtrasoAutoSyncMaxMs = 5000;
+
+        /// <summary>
+        /// Liga a sincronização automática: um objecto editado ou apagado
+        /// directamente no AutoCAD chega à paleta e ao Excel sem precisar de
+        /// "Atualizar" manual.
+        ///
+        /// NUNCA reage no MEIO de uma edição — só ouve
+        /// <see cref="Autodesk.AutoCAD.DatabaseServices.Database.ObjectModified"/>/<c>Appended</c>/<c>Erased</c>
+        /// para marcar uma flag suja, baratíssimo mesmo que dispare centenas
+        /// de vezes durante um grip-edit. O trabalho a sério — RefreshData,
+        /// que relê o desenho inteiro — só acontece no
+        /// <see cref="Autodesk.AutoCAD.ApplicationServices.Application.Idle"/>,
+        /// a pausa entre comandos, e nunca mais cedo do que a ÚLTIMA
+        /// sincronização demorou — a mesma espera adaptativa que já existe
+        /// para o Excel (ver <see cref="AgendarExcel"/>). Assim nunca compete
+        /// com o AutoCAD a meio de uma operação, e nunca se empilha mais
+        /// depressa do que o desenho aguenta.
+        ///
+        /// Ligada uma vez só, na primeira vez que a paleta abre — sem paleta
+        /// aberta não há para onde mandar o resultado, e RefreshData() já
+        /// sai de imediato nesse caso (<c>_ctrl == null</c>).
+        /// </summary>
+        private static void LigarSincronizacaoAutomatica()
+        {
+            if (_autoSincronizacaoLigada) return;
+            _autoSincronizacaoLigada = true;
+
+            AcadApp.Idle += AoFicarOcioso;
+            AcadApp.DocumentManager.DocumentActivated += (s, e) => ObservarDocumentoActivo();
+            ObservarDocumentoActivo();
+        }
+
+        /// <summary>
+        /// Troca os reactors para a base de dados do documento activo — cada
+        /// Database é uma instância própria, por isso mudar de desenho exige
+        /// desligar da anterior e ligar à nova.
+        /// </summary>
+        private static void ObservarDocumentoActivo()
+        {
+            AcDatabase db;
+            try { db = AcadApp.DocumentManager.MdiActiveDocument?.Database; }
+            catch { db = null; }
+
+            if (ReferenceEquals(db, _baseObservada)) return;
+
+            if (_baseObservada != null)
+            {
+                _baseObservada.ObjectModified -= AoObjectoMudar;
+                _baseObservada.ObjectAppended -= AoObjectoMudar;
+                _baseObservada.ObjectErased -= AoObjectoApagado;
+            }
+            _baseObservada = db;
+            if (_baseObservada != null)
+            {
+                _baseObservada.ObjectModified += AoObjectoMudar;
+                _baseObservada.ObjectAppended += AoObjectoMudar;
+                _baseObservada.ObjectErased += AoObjectoApagado;
+            }
+        }
+
+        private static void AoObjectoMudar(object sender, AcObjectEventArgs e)
+        {
+            _sujoPorEdicaoExterna = true;
+        }
+
+        private static void AoObjectoApagado(object sender, AcObjectErasedEventArgs e)
+        {
+            _sujoPorEdicaoExterna = true;
+        }
+
+        /// <summary>
+        /// A pausa entre comandos — nunca a meio de um. Só aqui é que a
+        /// sincronização suja se transforma numa releitura de verdade.
+        /// </summary>
+        private static void AoFicarOcioso(object sender, EventArgs e)
+        {
+            if (!_sujoPorEdicaoExterna || _ctrl == null) return;
+            if (DateTime.UtcNow < _proximaSincronizacaoPermitida) return;
+
+            _sujoPorEdicaoExterna = false;
+
+            var relogio = System.Diagnostics.Stopwatch.StartNew();
+            RefreshData();
+            relogio.Stop();
+
+            _ultimaSincronizacaoMs = relogio.ElapsedMilliseconds;
+            int espera = (int)System.Math.Min(
+                System.Math.Max(_ultimaSincronizacaoMs, 200), AtrasoAutoSyncMaxMs);
+            _proximaSincronizacaoPermitida = DateTime.UtcNow.AddMilliseconds(espera);
         }
 
         /// <summary>Mensagens vão para a linha de comando, nunca para caixas de erro.</summary>
