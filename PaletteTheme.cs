@@ -186,14 +186,12 @@ namespace TSKTakeOff
         public const int AlturaCampo = 24;
         public const int AlturaLinha = 22;
         /// <summary>
-        /// Altura do mosaico de MEDIR. 56 lia grande de mais (reportado pelo
-        /// utilizador a 2026-09-20 — "pelo menos pela metade"); cortado a
-        /// pouco mais de metade, para 28. À custa de letra mais pequena
-        /// (PaletteTheme.Pequeno nos mosaicos) e de margens mínimas — ver
-        /// BotaoAccao.OnPaint — para "Área da seleção"/"Pano retângulo"
-        /// ainda caberem em duas linhas sem cortar.
+        /// Altura do mosaico de MEDIR. 56 lia grande de mais (utilizador,
+        /// 2026-09-20); cortado para 28. Depois, com o ícone maior (ver
+        /// LadoIconeAccao), 28 já não sobrava espaço nenhum para o rótulo —
+        /// subido para 32 só o suficiente para não voltar a apertar o texto.
         /// </summary>
-        public const int AlturaBotaoAccao = 28;
+        public const int AlturaBotaoAccao = 32;
         public const int Margem = 8;
         public const int MargemPequena = 4;
         /// <summary>Recuo por nível de profundidade, na coluna da árvore.</summary>
@@ -628,13 +626,12 @@ namespace TSKTakeOff
 
         /// <summary>
         /// Lado do ícone nos botões de acção da barra MEDIR. Baixou para 10
-        /// junto com o corte do mosaico para 28 px (2026-09-20), mas depois
-        /// de o bloco ficar do tamanho certo, o utilizador pediu o ícone de
-        /// volta maior — 13, o mesmo tamanho de antes do corte, que cabe
-        /// junto com uma linha de texto a 28 px com margens mínimas (ver
-        /// BotaoAccao.OnPaint).
+        /// junto com o corte do mosaico para 28 px (2026-09-20); depois de o
+        /// bloco ficar do tamanho certo, o utilizador pediu o ícone maior
+        /// duas vezes seguidas — 13, depois 17, este já com
+        /// AlturaBotaoAccao subida para 32 para o rótulo continuar a caber.
         /// </summary>
-        public const int LadoIconeAccao = 13;
+        public const int LadoIconeAccao = 17;
 
         /// <summary>Barra de ferramentas com o aspecto da paleta.</summary>
         public static ToolStrip Barra()
