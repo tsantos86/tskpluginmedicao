@@ -24,14 +24,24 @@ namespace TSKTakeOff
         private readonly TextBox _procura;
         private readonly ListBox _lista;
         private readonly Label _conta;
+        private readonly string _contexto;
 
         /// <summary>O artigo escolhido, ou null se a caixa foi cancelada.</summary>
         public MapaQuantidades.No Escolhido { get; private set; }
 
         /// <param name="quantas">Quantas medições vão mudar de artigo.</param>
         /// <param name="actual">Artigo a deixar pré-seleccionado, ou "".</param>
-        public ArtigoDialog(int quantas, string actual)
+        /// <param name="contexto">
+        /// Pista para ordenar a lista por relevância antes de se escrever
+        /// nada na procura — tipicamente o Serviço da medição por
+        /// classificar ("ALVENARIA"). NÃO é IA: usa
+        /// <see cref="SugestaoArtigo"/>, uma pontuação por sobreposição de
+        /// palavras. Nulo ou vazio deixa a lista na ordem do articulado, como
+        /// sempre foi.
+        /// </param>
+        public ArtigoDialog(int quantas, string actual, string contexto = null)
         {
+            _contexto = contexto;
             Text = "TSK TakeOff — classificar medições";
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(820, 520);
@@ -153,6 +163,14 @@ namespace TSKTakeOff
             try { achados = MapaQuantidades.Filtrar(_procura.Text, true); }
             catch { achados = new List<MapaQuantidades.No>(); }
 
+            // Os mais prováveis para o Serviço desta medição sobem ao topo —
+            // sem contexto, ou já a escrever uma procura, a lista fica pela
+            // ordem do articulado, como sempre foi.
+            bool ordenadoPorRelevancia = !string.IsNullOrWhiteSpace(_contexto);
+            if (ordenadoPorRelevancia)
+                achados = SugestaoArtigo.Ordenar(_contexto, achados,
+                    n => new SugestaoArtigo.Candidato(n.Codigo, n.Designacao));
+
             // Guardar a escolha: refiltrar a cada tecla não pode fazer perder o
             // artigo que já estava marcado se ele continuar na lista.
             var antes = _lista.SelectedItem as MapaQuantidades.No;
@@ -165,6 +183,9 @@ namespace TSKTakeOff
 
                 if (achados.Count == 0)
                     _conta.Text = "Nenhum artigo com «" + (_procura.Text ?? "").Trim() + "».";
+                else if (ordenadoPorRelevancia)
+                    _conta.Text = achados.Count + " artigo(s), por relevância a \"" +
+                        _contexto + "\". Duplo clique escolhe.";
                 else
                     _conta.Text = achados.Count + " artigo(s). Duplo clique escolhe.";
 

@@ -72,6 +72,10 @@
          DIMENSAO e o de um linear E a quantidade dele. Trocar isso soma metros
          com metros quadrados, e o total sai com ar de estar bem. -->
     <Compile Include="..\ResultadosAdaptadores.cs" Link="Producao\ResultadosAdaptadores.cs" />
+    <!-- Ordenacao de candidatos a artigo por relevancia ao contexto (o
+         Servico da medicao por classificar). Pontuacao determinística, sem
+         Autodesk.*/WinForms nem chamada de rede — testavel sem AutoCAD. -->
+    <Compile Include="..\SugestaoArtigo.cs"   Link="Producao\SugestaoArtigo.cs" />
   </ItemGroup>
 
   <ItemGroup>

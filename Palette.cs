@@ -3076,7 +3076,10 @@ namespace TSKTakeOff
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            ClassificarMedicoes(handles);
+            // O Serviço do nó em foco (não precisa de ser o de TODAS as
+            // seleccionadas — é só uma pista para ordenar a lista, a escolha
+            // continua a ser de quem está a classificar).
+            ClassificarMedicoes(handles, NoSeleccionado()?.Servico);
         }
 
         /// <summary>
@@ -3085,7 +3088,7 @@ namespace TSKTakeOff
         /// «classificar» de uma linha e o botão sobre a selecção — para não
         /// haver duas maneiras de classificar com comportamentos diferentes.
         /// </summary>
-        private void ClassificarMedicoes(List<string> handles)
+        private void ClassificarMedicoes(List<string> handles, string contexto = null)
         {
             if (handles == null || handles.Count == 0) return;
 
@@ -3100,7 +3103,7 @@ namespace TSKTakeOff
             }
 
             MapaQuantidades.No no;
-            using (var dlg = new ArtigoDialog(handles.Count, Config.Artigo))
+            using (var dlg = new ArtigoDialog(handles.Count, Config.Artigo, contexto))
             {
                 // ShowModalDialog e não ShowDialog: dentro do AutoCAD é o que
                 // põe a caixa modal em relação ao editor, e não só à paleta.

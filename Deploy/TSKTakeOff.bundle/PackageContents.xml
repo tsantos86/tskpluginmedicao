@@ -4,7 +4,7 @@
     AutodeskProduct="AutoCAD"
     ProductType="Application"
     Name="TSK TakeOff"
-    AppVersion="1.2.6.83"
+    AppVersion="1.2.6.84"
     Description="Medições de alvenaria e materiais sobre DWG, com exportação para folha de medição em Excel."
     Author="Casquilho"
     ProductCode="{8F3A6C21-4B7E-4D19-9C42-0AC5011AD001}"
