@@ -7,6 +7,30 @@ using System.Windows.Forms;
 namespace TSKTakeOff
 {
     /// <summary>
+    /// O que se passa quando alguém edita uma propriedade no painel.
+    ///
+    /// O painel NÃO escreve no desenho. Quem manda no desenho (Palette.cs,
+    /// via AlvRepo) é que decide o que fazer com o que foi editado.
+    /// </summary>
+    public class PropriedadeEditadaEventArgs : EventArgs
+    {
+        public NoResultado No { get; set; }
+        public Propriedade Propriedade { get; set; }
+        /// <summary>O que foi escrito, já sem espaços à volta.</summary>
+        public string Valor { get; set; }
+        /// <summary>
+        /// Todos os handles abrangidos pela selecção. Com mais do que um, a
+        /// edição é em lote.
+        /// </summary>
+        public List<string> Handles { get; set; }
+
+        public bool EmLote
+        {
+            get { return Handles != null && Handles.Count > 1; }
+        }
+    }
+
+    /// <summary>
     /// As peças de composição da paleta compacta: cabeçalho, secções que se
     /// recolhem e títulos de secção.
     ///
