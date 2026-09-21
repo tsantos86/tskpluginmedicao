@@ -1181,6 +1181,13 @@ namespace TSKTakeOff
                 "Passa as medições escolhidas para outro artigo do mapa.",
                 () => Reclassificar()));
             mais.DropDownItems.Add(new ToolStripSeparator());
+            // Ao lado do Excel, não em vez dele — TSKEXPORT continua a saída
+            // principal. Este só interessa a quem já usa Arquimedes/CYPECAD.
+            mais.DropDownItems.Add(ItemDeMenu("Exportar FIEBDC-3 (.bc3)…", IconFactory.Exportar(),
+                "Exporta os artigos já classificados para o formato do " +
+                "Arquimedes/CYPECAD — primeira versão, confira os totais.",
+                () => PaletteHost.RunCommand("TSKEXPORTBC3 ")));
+            mais.DropDownItems.Add(new ToolStripSeparator());
             mais.DropDownItems.Add(ItemDeMenu("Limpar tudo…", IconFactory.Limpar(),
                 "Apaga TODAS as medições de alvenaria do desenho.",
                 () => LimparTudo()));

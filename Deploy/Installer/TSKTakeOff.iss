@@ -21,8 +21,8 @@
 ;
 ; O ultimo numero vem de Version.build e sobe a cada compilacao.
 #define AppNome        "TSK TakeOff"
-#define AppVersao      "1.2.6.84"
-#define AppVersaoNum   "1.2.6.84"
+#define AppVersao      "1.2.6.86"
+#define AppVersaoNum   "1.2.6.86"
 #define AppEditor      "Casquilho"
 #define AppURL         "https://tsktakeoff.pt"
 #define AppSuporte     "suporte@tsktakeoff.pt"

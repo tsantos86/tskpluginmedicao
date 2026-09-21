@@ -76,6 +76,9 @@
          Servico da medicao por classificar). Pontuacao determinística, sem
          Autodesk.*/WinForms nem chamada de rede — testavel sem AutoCAD. -->
     <Compile Include="..\SugestaoArtigo.cs"   Link="Producao\SugestaoArtigo.cs" />
+    <!-- Exportador FIEBDC-3 (.bc3) — geracao de texto puro, sem
+         Autodesk.*/WinForms. -->
+    <Compile Include="..\FiebdcExporter.cs"   Link="Producao\FiebdcExporter.cs" />
   </ItemGroup>
 
   <ItemGroup>
