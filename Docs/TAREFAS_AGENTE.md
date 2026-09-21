@@ -188,3 +188,117 @@ a implementação da paleta de resultados compacta.
       OUTRA diferença de comportamento ou de campo entre os dois, corrige o
       painel real primeiro (como uma tarefa própria, não como parte desta
       limpeza) e só depois remove o ficheiro morto.
+
+- [ ] Documentação — Checklist de prontidão comercial / Autodesk Store
+      (`Docs/CHECKLIST_COMERCIAL.md`, novo ficheiro).
+
+      Contexto (conversa de 2026-09-21 com o utilizador, "o que falta para
+      este produto ser comercial ou ir para a Autodesk Store"): pesquisa
+      feita nas diretrizes reais do publisher da Autodesk
+      (aps.autodesk.com/marketplace/publisher-center/autocad-publisher-guidelines)
+      cruzada com o estado do projeto. Cria um ficheiro novo que organize
+      isto como checklist rastreável (não só prosa), com uma linha por
+      item: descrição, estado (✅ feito / ⚠️ por confirmar / ❌ falta),
+      e onde no projeto isso se vê (ficheiro/pasta).
+
+      Itens a incluir, com o estado já apurado nessa conversa (ATUALIZA se
+      encontrares prova em contrário no código — não assumas, confirma):
+      - Ribbon por CUIX parcial (exigido pela Autodesk) — ❌ falta;
+        `README.md` diz explicitamente que a ribbon é criada por código,
+        sem CUIX. Não tentes resolver isto agora, só documentar o conflito.
+      - Autoloader (`PackageContents.xml`, pasta `ApplicationPlugins`) —
+        ✅ já existe em `Deploy/TSKTakeOff.bundle/`.
+      - `SeriesMax` no `RuntimeRequirements` do `PackageContents.xml` para
+        AutoCAD 2025+ — ⚠️ POR CONFIRMAR: abre
+        `Deploy/TSKTakeOff.bundle/PackageContents.xml` e verifica se existe
+        de facto; regista o que encontrares (presente/ausente, e o valor).
+      - Instalador com privilégio de administrador — ⚠️ POR CONFIRMAR: abre
+        `Deploy/Installer/TSKTakeOff.iss` e procura `PrivilegesRequired`;
+        regista o valor encontrado.
+      - Licenciamento com trial funcional — ✅ já existe (Supabase, 15 dias
+        — ver `Supabase/LICENCIAMENTO.md`, `Licenca.cs`).
+      - Assinatura digital do `.dll`/`.msi` (SignTool + certificado
+        comprado de uma CA) — ❌ falta; não há nenhum passo de assinatura
+        no `TSKTakeOff.csproj` nem nos scripts de `Deploy/`. Isto é uma
+        despesa/decisão do utilizador, não algo para o agente resolver.
+      - Estabilidade validada (Fase 8, "matriz manual no AutoCAD") — ❌
+        nunca foi feita; ver `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`,
+        secção "Matriz manual no AutoCAD" — todos os itens por marcar.
+      - `net8.0-windows` (AutoCAD 2025+) nunca validado — ❌; mesmo
+        documento, "Validar net48 e net8.0-windows quando as referências
+        do AutoCAD 2025 estiverem disponíveis" continua por marcar.
+      - Emissão de licença é manual (INSERT SQL no Supabase por cliente) —
+        ❌ não escala; ver `Supabase/LICENCIAMENTO.md`, secção "Emitir uma
+        licença".
+      - EULA / termos de uso — ❌ não existe nenhum no repositório.
+      - Política de privacidade — ❌ não existe, apesar de `Telemetria.cs`
+        recolher dados de sessão (RGPD, dado o mercado PT/UE).
+      - Canal de suporte — ⚠️ é um Gmail pessoal
+        (`tsantos.fullstack@gmail.com`), citado em `Licenca.cs`/diálogos.
+      - Mecanismo de auto-update — ❌ não encontrado; confirma que não há
+        nenhuma verificação de versão nova no arranque (`PluginInit.Initialize`
+        em `Commands.cs`) antes de dar como confirmado.
+      - Interface só em português — ⚠️ decisão de mercado, não bug; só
+        regista, não "corrijas".
+
+      Para cada item ⚠️/❌ desta lista, o teu trabalho é CONFIRMAR (ler o
+      ficheiro certo, citar o que encontraste) — não implementar a
+      correção. Isto é um documento de estado, não uma lista de tarefas de
+      código. Não abras PR de código nenhum só para isto — se não houver
+      mais nada a fazer na sessão, um PR só com este documento novo está
+      bem.
+
+- [ ] Documentação — Rascunho de EULA / termos de licenciamento
+      (`Docs/EULA_RASCUNHO.md`, novo ficheiro, em português).
+
+      AVISO GRANDE, para não escapar a ninguém que leia isto depois: é um
+      RASCUNHO PARA REVISÃO HUMANA/JURÍDICA, nunca um documento a usar
+      como está. Marca isto de forma bem visível no TOPO do próprio
+      ficheiro gerado, em maiúsculas, antes de mais nada — algo como
+      "RASCUNHO — NÃO TEM VALIDADE LEGAL ATÉ SER REVISTO POR UM ADVOGADO.
+      Gerado automaticamente a partir do que o código realmente faz; pode
+      conter erros ou omissões com consequências legais reais."
+
+      Base-te SÓ no que o código realmente faz — não inventes cláusulas
+      genéricas de EULA copiadas de outro lado sem verificar que fazem
+      sentido aqui. Lê antes de escrever: `Supabase/LICENCIAMENTO.md`
+      (como a licença funciona, ativação, revalidação, o que o comando
+      `TSKLICENCARESET` faz), `Licenca.cs` (o que é validado e onde),
+      `Telemetria.cs` (que dados são enviados — confirma que não há PII,
+      como o próprio `Supabase/schema.sql` já documenta na tabela
+      `plugin_sessoes`), e `Deploy/Obfuscation/confuser.crproj` (se o
+      binário é ofuscado, isso normalmente entra numa cláusula de
+      proibição de engenharia reversa).
+
+      Cobrir, com base no que encontraste (não em suposições): concessão
+      de licença (por posto, `max_dispositivos`), o que a revogação
+      (`activa = false`) e o bloqueio de posto (`bloqueada = true`)
+      significam na prática, limitação de responsabilidade (o próprio
+      código já assume isto — "licenciamento é um dissuasor, não uma
+      fortaleza" — mas o EULA precisa de dizer isso em linguagem
+      contratual), proibição de engenharia reversa (coerente com a
+      ofuscação), e uma cláusula a dizer claramente que isto é um rascunho
+      técnico, não redigido por um advogado.
+
+- [ ] Documentação — Rascunho de política de privacidade
+      (`Docs/POLITICA_PRIVACIDADE_RASCUNHO.md`, novo ficheiro, em
+      português).
+
+      MESMO AVISO da tarefa do EULA acima — rascunho para revisão
+      humana/jurídica, marcado bem visível no topo do ficheiro. Não
+      reescreves isto num único texto genérico: um RGPD mal escrito é
+      pior do que nenhum, porque dá falsa sensação de conformidade.
+
+      Base-te em `Telemetria.cs`, `Supabase/schema.sql` (tabela
+      `plugin_sessoes` e o comentário que já explica, dentro do próprio
+      schema, PORQUE não há nome de máquina/utilizador/domínio — usa esse
+      raciocínio já escrito, não inventes outro) e `Licenca.cs`/
+      `instalacao.dat` (identificador aleatório persistente, cifrado com
+      DPAPI local). Lista concretamente: que dados são recolhidos
+      (produto, versão, versão do AutoCAD, sistema, cultura, timestamp,
+      identificador de instalação opaco), que dados NÃO são recolhidos
+      (nome, e-mail além do da licença, nome de máquina/utilizador/
+      domínio), onde ficam guardados (Supabase, projeto de produção — ver
+      `Deploy/supabase.json` só para confirmar que existe, NÃO exponhas a
+      URL/chave no documento gerado), e quem pode pedir a remoção dos
+      seus dados (o e-mail de suporte já usado no resto do projeto).
