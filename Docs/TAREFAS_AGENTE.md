@@ -248,8 +248,27 @@ a implementação da paleta de resultados compacta.
       mais nada a fazer na sessão, um PR só com este documento novo está
       bem.
 
-- [ ] Documentação — Rascunho de EULA / termos de licenciamento
+- [x] Documentação — Rascunho de EULA / termos de licenciamento
       (`Docs/EULA_RASCUNHO.md`, novo ficheiro, em português).
+      **Feito 2026-09-24**: ficheiro criado com aviso bem visível de rascunho
+      no topo. Cobre concessão de licença (código, dias, `max_dispositivos`),
+      identificação do posto por identificador opaco (não nome de
+      computador/utilizador), revalidação periódica e tolerância offline,
+      avaliação gratuita, o que acontece a MEDIR/painel/exportar quando
+      expira, restrições de uso (incl. engenharia reversa, coerente com a
+      ofuscação ConfuserEx), bloqueio/revogação, propriedade intelectual
+      (dados do cliente ficam no DWG do próprio cliente, não no servidor),
+      dados recolhidos (remete para a política de privacidade), limitação de
+      responsabilidade citando a frase já existente no código
+      ("dissuasor, não fortaleza") e suporte. Sinalizadas, sem decidir
+      sozinho, as duas inconsistências reais encontradas no código: (1) dias
+      de avaliação gratuita — mensagem no código diz 15, documentação
+      operacional diz 30 por omissão; (2) e-mail de suporte — Gmail pessoal
+      no código vs. domínio da empresa no `PackageContents.xml`. Verificado
+      por leitura direta de `Licenca.cs`, `Telemetria.cs`,
+      `Supabase/LICENCIAMENTO.md`, `Supabase/schema.sql` e
+      `Deploy/Obfuscation/confuser.crproj`. Documentação pura — nenhum
+      ficheiro `.cs` alterado, `dotnet test` não precisa de correr.
 
       AVISO GRANDE, para não escapar a ninguém que leia isto depois: é um
       RASCUNHO PARA REVISÃO HUMANA/JURÍDICA, nunca um documento a usar
