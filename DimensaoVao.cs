@@ -31,7 +31,7 @@ namespace TSKTakeOff
 
         /// <summary>Designação genérica: VE.02, VI04, PC.04, C.04, FO.01, AL205, P1, J2</summary>
         public static readonly Regex RxDesignacao = new Regex(
-            @"\b[A-Z]{1,3}\.?\s?\d{1,3}(?:\.\d{1,2})?\b",
+            @"\b(?:VE|VI|PC|FO|AL|C|P|J|V)\.?\s?\d{1,3}(?:\.\d{1,2})?\b",
             RegexOptions.Compiled);
 
         /// <summary>
@@ -73,6 +73,52 @@ namespace TSKTakeOff
                     unidade = t.u;
                     return true;
                 }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Lê uma cota escrita no desenho tendo em conta o contexto da
+        /// medição. Num alçado as duas cotas são largura e altura; numa planta
+        /// a menor é habitualmente a espessura da parede e a altura do vão vem
+        /// do valor configurado no painel.
+        /// </summary>
+        public static bool DeTexto(string sa, string sb, bool emAlcado,
+            double alturaPainel, out double larg, out double alt, out string unidade)
+        {
+            larg = alt = 0;
+            unidade = null;
+
+            if (emAlcado)
+                return Interpretar(sa, sb, out larg, out alt, out unidade);
+
+            if (sa == null || sb == null || alturaPainel < AltMin || alturaPainel > AltMax)
+                return false;
+
+            double a = ParseNum(sa), b = ParseNum(sb);
+            if (a <= 0 || b <= 0) return false;
+
+            bool temDecimal = sa.IndexOfAny(new[] { '.', ',' }) >= 0 ||
+                              sb.IndexOfAny(new[] { '.', ',' }) >= 0;
+            var tentativas = temDecimal
+                ? new[] { new { d = 1.0, u = "m" }, new { d = 100.0, u = "cm" } }
+                : new[] { new { d = 1000.0, u = "mm" }, new { d = 100.0, u = "cm" },
+                          new { d = 1.0, u = "m" } };
+
+            foreach (var t in tentativas)
+            {
+                double ladoA = a / t.d, ladoB = b / t.d;
+
+                // A espessura pode ser inferior aos 0,30 m mínimos de uma
+                // altura de vão, mas uma centésima de metro é quase de certeza
+                // uma escala ou outro texto que não representa uma abertura.
+                if (ladoA < LargMin || ladoA > LargMax || ladoB < 0.05 || ladoB > LargMax)
+                    continue;
+
+                larg = Math.Round(ladoA, 3);
+                alt = Math.Round(alturaPainel, 3);
+                unidade = t.u;
+                return true;
             }
             return false;
         }

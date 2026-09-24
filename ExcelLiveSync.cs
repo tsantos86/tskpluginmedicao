@@ -1280,6 +1280,18 @@ namespace TSKTakeOff
             try { modelo = _wb.Sheets[_folhaModelo]; }
             catch { return; }
 
+            // PasteSpecial(xlPasteFormats) copia o aspecto das células, mas a
+            // altura pertence à LINHA e fica a que já existia no destino. Isto
+            // é especialmente perigoso quando a folha foi duplicada de um mapa
+            // preenchido: uma descrição longa pode ter 120 ou 150 pontos de
+            // altura. Se nessa posição sair agora uma linha vazia, aparecia um
+            // buraco enorme e todas as medições seguintes pareciam estar fora
+            // da tabela. Normaliza-se primeiro TODA a área gerada, incluindo
+            // vazias e agrupamentos; os títulos manuais recebem depois a sua
+            // altura própria, limitada, em Estilo(..., copiarAltura: true).
+            AlturaLinhas(ws, ExcelLayout.LinhasParaNormalizar(porTipo),
+                         Config.AlturaLinhaExcel);
+
             // Cada tipo do construtor vai buscar o molde à linha correspondente
             // do modelo. Quando não há exemplo desse tipo, usa-se o mais próximo.
             Estilo(ws, modelo, porTipo, TipoLinha.Capitulo,
@@ -1321,19 +1333,6 @@ namespace TSKTakeOff
             Estilo(ws, modelo, porTipo, TipoLinha.TituloArtigo, m.LinhaArtigo, true);
             // Os títulos suportados são capítulo e artigo. A descrição do
             // artigo pode ser longa, mas não há um terceiro nível para formatar.
-            // Alturas fixas, escolhidas no painel, mantêm as medições compactas.
-            // Depois do estilo, senão a colagem do formato do modelo escrevia
-            // por cima.
-            //
-            // As duas listas juntas de propósito: medições e deduções alternam,
-            // por isso separadas cada linha virava um bloco só dela e uma ida ao
-            // COM. Juntas formam um intervalo contíguo por artigo.
-            var baixas = new List<int>();
-            List<int> parte;
-            if (porTipo.TryGetValue(TipoLinha.Medicao, out parte)) baixas.AddRange(parte);
-            if (porTipo.TryGetValue(TipoLinha.Deducao, out parte)) baixas.AddRange(parte);
-            AlturaLinhas(ws, baixas, Config.AlturaLinhaExcel);
-
             try { _app.CutCopyMode = false; } catch { }
 
             if (_falhasFormato > 0)

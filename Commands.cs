@@ -720,7 +720,8 @@ namespace TSKTakeOff
             List<VaoCandidato> candidatos;
             try
             {
-                candidatos = VaoDetector.Detectar(db, zona);
+                candidatos = VaoDetector.Detectar(db, zona, false,
+                    Config.AlturaVaoPadrao);
             }
             catch (System.Exception ex)
             {

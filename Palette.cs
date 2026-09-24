@@ -69,7 +69,13 @@ namespace TSKTakeOff
         /// <summary>Recarrega tudo do DWG, atualiza as grades e o Excel ao vivo.</summary>
         public static void RefreshData()
         {
-            if (_ctrl == null) return;
+            // O Excel ao vivo também usa esta leitura. Antes, sair quando a
+            // paleta ainda não tinha sido criada fazia o Excel abrir vazio e só
+            // funcionar depois de alguém abrir o painel lateral.
+            bool painelDisponivel = _ctrl != null;
+            bool excelConectado = Excel.Conectado;
+            if (!FluxoAtualizacao.DeveLerDesenho(painelDisponivel, excelConectado))
+                return;
             var doc = AcadApp.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
 
@@ -89,20 +95,23 @@ namespace TSKTakeOff
                           " materiais, " + lineares.Count + " lineares, " +
                           contagens.Count + " contagens");
 
-                // Tudo para o mesmo painel, numa árvore só. A travessia do
-                // Model Space continua a ser UMA — ver Leitura.Tudo — e agora
-                // a apresentação também.
-                _ctrl.BindData(paredes, fachadas, lineares, contagens);
-                cron.Marcar("árvore de resultados");
+                if (painelDisponivel)
+                {
+                    // Tudo para o mesmo painel, numa árvore só. A travessia do
+                    // Model Space continua a ser UMA — ver Leitura.Tudo — e agora
+                    // a apresentação também.
+                    _ctrl.BindData(paredes, fachadas, lineares, contagens);
+                    cron.Marcar("árvore de resultados");
 
-                // Depois das grelhas todas: já cada uma teve a hipótese de pôr
-                // o cursor na medição acabada de fazer.
-                LimparMedicaoNova();
+                    // Depois das grelhas todas: já cada uma teve a hipótese de pôr
+                    // o cursor na medição acabada de fazer.
+                    LimparMedicaoNova();
+                }
 
                 // As contagens entram na folha pelo construtor, que as lê daqui.
                 FolhaMedicao.Contagens = contagens;
 
-                if (Excel.Conectado)
+                if (excelConectado && Excel.Conectado)
                 {
                     AgendarExcel(paredes, fachadas, lineares);
                     cron.Marcar("Excel");

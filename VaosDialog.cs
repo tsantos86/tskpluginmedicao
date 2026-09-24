@@ -9,7 +9,7 @@ namespace TSKTakeOff
 {
     /// <summary>
     /// Lançamento sequencial dos vãos de uma medição, como na folha de medição:
-    /// uma linha por vão (VE.01, VE.02, PC.04…), com largura, altura, quantidade,
+        /// uma linha por ocorrência de vão (VE.01, VE.02, PC.04…), com largura, altura, quantidade,
     /// tipo e pré-aro. Os vãos detectados no desenho entram já preenchidos;
     /// o utilizador acrescenta ou corrige as linhas que quiser.
     /// </summary>
@@ -102,6 +102,7 @@ namespace TSKTakeOff
             _dgv.DefaultValuesNeeded += (s, e) =>
             {
                 e.Row.Cells[ColUsar].Value = true;
+                e.Row.Cells[ColAlt].Value = N2(Config.AlturaVaoPadrao);
                 e.Row.Cells[ColQtd].Value = 1;
                 e.Row.Cells[ColTipo].Value = "Porta";
                 e.Row.Cells[ColAro].Value = false;
@@ -113,7 +114,8 @@ namespace TSKTakeOff
                 Dock = DockStyle.Top,
                 Height = 40,
                 Padding = new Padding(8, 6, 0, 0),
-                Text = "Escreva um vão por linha (a última linha em branco serve para acrescentar). " +
+                Text = "Cada ocorrência detetada ocupa uma linha e entra com Qtd 1. " +
+                       "A última linha em branco serve para acrescentar. " +
                        "Marque Pré-aro para contabilizar aros — a espessura da parede é usada por omissão."
             };
 
