@@ -602,10 +602,19 @@ namespace TSKTakeOff
                 };
             }
 
-            /// <summary>Mostra estas métricas. Substitui as anteriores.</summary>
+            /// <summary>
+            /// Mostra estas métricas. Substitui as anteriores.
+            ///
+            /// Grava primeiro qualquer edição em curso — <see cref="Confirmar"/>,
+            /// não <see cref="Cancelar"/>. Isto é chamado sempre que a selecção
+            /// muda ou a árvore é reconstruída, e não só quando o campo perde o
+            /// foco por um clique: alternar Essenciais/Tudo ou um refresco em
+            /// fundo enquanto se edita um mosaico não pode apagar em silêncio o
+            /// que já estava escrito na caixa.
+            /// </summary>
             public void Definir(IEnumerable<Propriedade> metricas)
             {
-                Cancelar();
+                Confirmar();
                 _metricas.Clear();
                 if (metricas != null) _metricas.AddRange(metricas);
                 _foco = _metricas.Count > 0 ? 0 : -1;

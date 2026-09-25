@@ -46,6 +46,24 @@ a implementação da paleta de resultados compacta.
       código morto (`ResultadosPainel.cs` e as três abas antigas, que nunca
       são acrescentadas ao `PaletteSet`) em
       `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`, Fase 3.
+      **Revisto de novo em 2026-09-20** (sessão que partiu de um checkout
+      local desactualizado — o `main` local da sessão ficara parado em
+      `597a5ac`, 14 commits atrás da ponta real, e só ao abrir o PR contra
+      `origin/main` é que a divergência apareceu; sessões seguintes devem
+      confirmar `git log origin/main -1` bate certo com o `HEAD` local antes
+      de ramificar): confirmação independente chegou à mesma conclusão sobre
+      os campos `Essencial`. Sobre a perda de valor em edição, foi um passo
+      mais longe do que a verificação de 2026-09-17: o `Leave → Confirmar()`
+      só protege quando é um CLIQUE a tirar o foco ao editor; um refresco em
+      fundo (`PaletteHost.RefreshData()` disparado por um evento do AutoCAD)
+      a meio de uma edição, sem clique nenhum, ainda chamava `Definir()` →
+      `Cancelar()` e descartava o valor. `MosaicoMetricas.Definir` passou a
+      chamar `Confirmar()` em vez de `Cancelar()` — cobre os dois casos, e é
+      inofensivo quando não há edição em curso. Confirmado que este ambiente
+      consegue instalar o SDK `dotnet` com `apt-get install dotnet-sdk-8.0`
+      (o instalador oficial via `curl https://dot.net/...` continua bloqueado
+      pela política de rede, mas o pacote Ubuntu funciona) — útil para as
+      próximas sessões não ficarem sem conseguir correr `dotnet test`.
 - [x] Fase 3 — Garantir que expandir/recolher grupos e `Atualizar` preservam
       a seleção e a posição de scroll sempre que o nó selecionado ainda
       existir depois da reconstrução da árvore.

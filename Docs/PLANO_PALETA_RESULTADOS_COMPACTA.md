@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-19
+Última atualização: 2026-09-20
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; falta só a matriz manual da Fase 8**
 
@@ -175,7 +175,7 @@ Objetivo: substituir a grelha larga por uma árvore achatada compacta sem perder
 - [x] Restaurar seleção e scroll por ID estável, não por índice visual da linha.
 - [x] Seguir a medição acabada de criar pelo respetivo handle.
 - [x] Nós de grupo não transportam handle e não podem ser removidos, editados ou reclassificados.
-- [~] Criar `PROPRIEDADES` recolhível com modos `Essenciais` e `Tudo`.
+- [x] Criar `PROPRIEDADES` recolhível com modos `Essenciais` e `Tudo`.
 
   > **Nota 2026-09-17.** Os modos `Essenciais`/`Tudo` já existiam e foram
   > confirmados correctos por leitura do modelo: cada `Propriedade` traz o
@@ -188,13 +188,20 @@ Objetivo: substituir a grelha larga por uma árvore achatada compacta sem perder
   > `ResultadosPainel.cs` (ver nota abaixo) o tinha. Acrescentado um botão
   > `▼/▶ PROPRIEDADES` igual ao de CONFIGURAÇÃO/Mais opções, que recolhe o
   > mosaico e reduz `propriedades.Height` à altura do cabeçalho, mantendo
-  > `Essenciais/Tudo` e `Medir aqui` sempre visíveis no cabeçalho. A perda
-  > de valor em edição ao trocar de modo/recolher não é um risco novo: o
-  > `MosaicoMetricas._editor.Leave` já chama `Confirmar()`, e isso dispara
-  > sempre ANTES do `Click` do botão que muda de modo, pela ordem normal de
-  > foco do WinForms — confirmado por leitura, não há aqui nada para
-  > compilar de novo além do botão. **Implementado, aguarda build manual**
-  > (não há AutoCAD/WinForms neste sandbox para compilar `Palette.cs`).
+  > `Essenciais/Tudo` e `Medir aqui` sempre visíveis no cabeçalho.
+  >
+  > **Nota 2026-09-20.** A verificação de 2026-09-17 concluiu que a perda de
+  > valor em edição ao trocar de modo já estava coberta pelo
+  > `MosaicoMetricas._editor.Leave → Confirmar()`, porque este dispara antes
+  > do `Click` do botão de modo (ordem normal de foco do WinForms) — verdade
+  > para um CLIQUE. Mas `Definir()` (chamada por qualquer redesenho de
+  > PROPRIEDADES, não só pelo botão) ainda chamava `Cancelar()` em vez de
+  > `Confirmar()`: um refresco em fundo (`PaletteHost.RefreshData()`, por
+  > exemplo a seguir a um evento do AutoCAD) a meio de uma edição, sem
+  > nenhum clique a tirar o foco ao editor, continuava a descartar o valor
+  > em silêncio. `MosaicoMetricas.Definir` passou a chamar `Confirmar()`
+  > primeiro — cobre os dois casos, e não faz nada quando não há edição em
+  > curso.
 - [x] Mostrar propriedades de grupo, medição, vão e título de forma coerente; a edição entra na Fase 5.
 
 ### Critérios de conclusão
@@ -510,6 +517,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-19 | 0 | Sessão local (fora do sandbox, com AutoCAD instalado): PR `agent/paleta-resultados-2026-09-17` mesclado em `main` (fast-forward) depois de confirmado por build real que compilava e passava nos testes — trazia a correcção de `ResultadosAdaptadores.DeMateriais` que `main`, sozinha, não tinha (fazia `TSKTakeOff.csproj` falhar a compilar por completo). De seguida, tema trocado de volta para **claro** (estilo Eberick/Office): todos os tokens de `PaletteTheme.cs` recolorados a partir de `index-resultados-compacto.html`/`preview-eberick.png`, incluindo `VermelhoDeducao` (deixou de precisar do rosa que só fazia sentido sobre grafite) | Build real `dotnet build TSKTakeOff.csproj -c Debug` (`net48`, AutoCAD 2021 local): 0 erros, 0 avisos, `TSKTakeOff.dll` (1.2.6.69) gerada em `bin\Debug\net48`, pronta para `NETLOAD`. **Falta confirmar visualmente no AutoCAD** que o tema claro lê bem ancorado na moldura do programa |
 | 2026-09-19 | 3 | Bug real reportado pelo utilizador ao testar no AutoCAD: a árvore de resultados só mostrava `Estrutura / elemento` e `Quantidade`, sem `Comp.`/`Altura` — apesar do item da Fase 3 estar `[x]` desde 2026-09-05. Causa: a marca `[x]` correspondia a `ResultadosPainel.cs`, que não está ligado a nada; o painel real (`_dgvCompacto` em `Palette.cs`) ainda tinha só duas colunas, herdadas de uma decisão anterior ao "conflito resolvido". Corrigido: colunas `Comp.`/`Altura` acrescentadas a `_dgvCompacto`, preenchidas por `NoResultado.TextoComprimento`/`TextoAltura` (mesmos métodos que já existiam no modelo e em `ResultadosPainel.cs`, só não estavam chamados no painel certo) | `dotnet test` 304/304; build real `net48`/AutoCAD 2021 (`TSKTakeOff.dll` 1.2.6.72) sem erros nem avisos. **Falta confirmar visualmente no AutoCAD** que as colunas leem bem no tema claro |
 | 2026-09-19 | 2 | Pedido do utilizador: CONFIGURAÇÃO "fica simples", falta borda definida nos campos e cor. Tentativa 1 — `PaletteTheme.ComBorda` desligava a borda nativa de `Serviço`/`Bloco`/`Altura`/`Espessura` (`BorderStyle.None`) e desenhava uma moldura de 1px própria num `Panel` à volta, acesa a acento no foco. **Regressão visual**: o `Panel` wrapper não tinha `AutoSize`/altura própria, e numa `TableLayoutPanel` com `AutoSize=true` isso fez a linha crescer para o `DefaultSize` (200×100) do `Panel` em vez do tamanho normal do campo — reportado pelo utilizador com captura de ecrã (campos viraram blocos cinzentos enormes). Revertido de imediato para os campos nativos. Mantido, por não ter o mesmo problema, um risco de acento de 2 px sob o título "CONFIGURAÇÃO" (`_btnConfigToggle.Paint`), mesma linguagem do separador activo do mockup Eberick | `dotnet test` 304/304 nas duas passagens; build real `net48`/AutoCAD 2021 sem erros nem avisos (`TSKTakeOff.dll` 1.2.6.74 após a reversão). **Risco registado**: dar borda própria a um campo nativo do WinForms exige desligar a borda do sistema e desenhar/envolver à mão — se o wrapper não fixar a sua própria altura, uma `TableLayoutPanel` com linhas `AutoSize` pode explodir a linha para o tamanho por omissão do `Panel`. Uma próxima tentativa tem de fixar `Height`/`MinimumSize` do wrapper (ex.: `PaletteTheme.AlturaCampo + 2`) em vez de confiar só em `Dock=Fill` |
+| 2026-09-20 | 3 | Sessão que arrancou de um checkout local desactualizado (`main` local parado em `597a5ac`, 14 commits atrás da ponta real) e por isso repetiu, sem saber, verificação já feita a 2026-09-17: confirmados de novo os campos `Essencial` por tipo de nó, e refeita (idêntica em espírito) a correcção de `ResultadosAdaptadores.DeMateriais`/`RegraDesconto` já presente em `main`. A divergência só apareceu ao abrir o PR contra `origin/main` e resolver o merge. O contributo líquido novo desta sessão: `MosaicoMetricas.Definir` (`PalettePanelShell.cs`) ainda chamava `Cancelar()` — a verificação de 2026-09-17 tinha confiado no `_editor.Leave → Confirmar()`, que só protege quando um CLIQUE tira o foco ao editor; um refresco em fundo (`PaletteHost.RefreshData()`) a meio de uma edição, sem clique nenhum, continuava a descartar o valor em silêncio. Passou a chamar `Confirmar()`. Confirmado também que `apt-get install dotnet-sdk-8.0` instala o SDK `dotnet` neste sandbox (o instalador oficial via `curl`/`dot.net` continua bloqueado pela política de rede) | `dotnet test` 304/304. `Palette.cs`, `PalettePanelShell.cs` e `PaletteFachada.cs` **não foram compilados** em `net48`/AutoCAD nesta sessão — precisam de build manual antes de merge |
 
 ### Decisões desta passagem
 
