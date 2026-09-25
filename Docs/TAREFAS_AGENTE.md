@@ -178,7 +178,7 @@ a implementação da paleta de resultados compacta.
       está instalado neste sandbox e a instalação falhou por política de
       rede (domínios da Microsoft bloqueados); sem impacto no risco, porque
       nenhum ficheiro do projeto de testes foi tocado.
-- [ ] Fase 8 — Remover o código morto herdado do painel único: `ResultadosPainel.cs`,
+- [x] Fase 8 — Remover o código morto herdado do painel único: `ResultadosPainel.cs`,
       `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs`
       (classes `FachadaControl`, `LinearControl`, `ContagemControl`) e as
       três instâncias correspondentes em `PaletteHost.Show`, que nunca são
@@ -206,6 +206,33 @@ a implementação da paleta de resultados compacta.
       OUTRA diferença de comportamento ou de campo entre os dois, corrige o
       painel real primeiro (como uma tarefa própria, não como parte desta
       limpeza) e só depois remove o ficheiro morto.
+      **Feito 2026-09-21**: os quatro ficheiros removidos
+      (`ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`,
+      `PaletteContagem.cs` — classes `ResultadosPainel`, `FachadaControl`,
+      `LinearControl`, `ContagemControl`) e as três instâncias mortas em
+      `PaletteHost.Show` (`_ctrlFachada`, `_ctrlLinear`, `_ctrlContagem`,
+      nunca acrescentadas ao `PaletteSet`). Confirmado por `grep` em todo o
+      projecto (incluindo `Tests/`, `Commands.cs`, `TSKTakeOff.csproj`) que
+      nada mais referenciava estas classes — `FiltrosPopup` continua intacto
+      em `PaletteFiltros.cs`, não afetado. ACHADO a meio da remoção:
+      `ResultadosPainel.cs` também definia `PropriedadeEditadaEventArgs`
+      (não é WinForms — só `EventArgs`/`List<string>`/`NoResultado`/
+      `Propriedade`), que É usada por código vivo
+      (`PalettePanelShell.MosaicoMetricas.Editado` e
+      `Palette.MedPanelControl.AoEditarMetrica`) — não podia ir com o
+      ficheiro morto. Movida para `PalettePanelShell.cs`, junto do único
+      sítio que a dispara. `verificar.py` tinha `ContagemControl` e
+      `FachadaControl` na lista de excepções de WinForms (linha ~514-518);
+      removidas por já não existirem tipos com esses nomes. `dotnet build`
+      em `TSKTakeOff.csproj` (SDK-style, sem `Compile Include` explícito —
+      globbing automático) continua sem qualquer referência aos quatro
+      ficheiros apagados. **Implementado, aguarda build manual** — só
+      `Palette.cs`/`PalettePanelShell.cs` (WinForms) foram tocados; sem
+      `Autodesk.*`/WinForms nos ficheiros de modelo. Verificado por leitura
+      cuidadosa, `grep` exaustivo de referências e um verificador de chavetas
+      próprio (equilibradas nos dois ficheiros); `dotnet test` 304/304
+      (instalado `dotnet-sdk-8.0` via `apt-get update && apt-get install`
+      neste sandbox — o pacote antigo em cache dava 404, `update` resolveu).
 
 - [ ] Documentação — Checklist de prontidão comercial / Autodesk Store
       (`Docs/CHECKLIST_COMERCIAL.md`, novo ficheiro).

@@ -513,8 +513,7 @@ def check_membros_de_variaveis(fontes, tipos):
             # esconder um Close/Dispose/Focus inválido num modelo de domínio.
             winforms = {
                 "LicencaDialog", "PrivacidadeDialog", "VaosDialog",
-                "VaoDialog", "ContagemControl", "MedPanelControl",
-                "FachadaControl"
+                "VaoDialog", "MedPanelControl"
             }
             if tipo in winforms and membro in (
                     "ShowDialog", "Show", "Close", "Dispose", "Focus",

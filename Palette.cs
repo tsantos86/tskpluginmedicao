@@ -20,9 +20,6 @@ namespace TSKTakeOff
     {
         private static PaletteSet _ps;
         private static MedPanelControl _ctrl;
-        private static FachadaControl _ctrlFachada;
-        private static LinearControl _ctrlLinear;
-        private static ContagemControl _ctrlContagem;
 
         public static readonly ExcelLiveSync Excel = new ExcelLiveSync();
 
@@ -34,10 +31,7 @@ namespace TSKTakeOff
                 {
                     _ps = new PaletteSet("TSK TakeOff — Medições",
                         new Guid("7E4B1F7A-3C55-4A8E-9C31-0AC5011AD001"));
-                    _ctrlFachada = new FachadaControl();
-                    _ctrlLinear = new LinearControl();
                     _ctrl = new MedPanelControl();
-                    _ctrlContagem = new ContagemControl();
                     // UM PAINEL SÓ.
                     //
                     // Eram quatro abas — Arquitetura, Materiais, Lineares,

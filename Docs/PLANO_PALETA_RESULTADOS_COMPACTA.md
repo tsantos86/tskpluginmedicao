@@ -2,9 +2,9 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-20
+Última atualização: 2026-09-21
 
-Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; falta só a matriz manual da Fase 8**
+Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
 ## Como acompanhar
 
@@ -453,13 +453,17 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 - [ ] Executar uma única vez `dotnet build -c Release` no fim, porque o build incrementa `Version.build` e sincroniza o deploy.
 - [ ] Validar `net48` e `net8.0-windows` quando as referências do AutoCAD 2025 estiverem disponíveis.
 - [ ] Executar `python verificar.py` e rever todas as alterações automáticas de versão/deploy.
-- [ ] Remover o código morto herdado do painel único (achado 2026-09-17):
+- [x] Remover o código morto herdado do painel único (achado 2026-09-17):
       `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`,
       `PaletteContagem.cs` (`FachadaControl`, `LinearControl`,
       `ContagemControl`) e as três instâncias em `PaletteHost.Show` que
       nunca são acrescentadas ao `PaletteSet`. Confirmar antes que nada os
       referencia (`FiltrosPopup` de `PaletteFiltros.cs` não é afetado — é
       usado directamente por `Palette.cs`).
+      **Feito 2026-09-21** — ver "Registo de progresso" e nota em
+      `Docs/TAREFAS_AGENTE.md`. `PropriedadeEditadaEventArgs`, que também
+      vivia em `ResultadosPainel.cs` mas é usada por código vivo, foi movida
+      para `PalettePanelShell.cs` antes de apagar o ficheiro.
 
 ### Matriz manual no AutoCAD
 
@@ -518,6 +522,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-19 | 3 | Bug real reportado pelo utilizador ao testar no AutoCAD: a árvore de resultados só mostrava `Estrutura / elemento` e `Quantidade`, sem `Comp.`/`Altura` — apesar do item da Fase 3 estar `[x]` desde 2026-09-05. Causa: a marca `[x]` correspondia a `ResultadosPainel.cs`, que não está ligado a nada; o painel real (`_dgvCompacto` em `Palette.cs`) ainda tinha só duas colunas, herdadas de uma decisão anterior ao "conflito resolvido". Corrigido: colunas `Comp.`/`Altura` acrescentadas a `_dgvCompacto`, preenchidas por `NoResultado.TextoComprimento`/`TextoAltura` (mesmos métodos que já existiam no modelo e em `ResultadosPainel.cs`, só não estavam chamados no painel certo) | `dotnet test` 304/304; build real `net48`/AutoCAD 2021 (`TSKTakeOff.dll` 1.2.6.72) sem erros nem avisos. **Falta confirmar visualmente no AutoCAD** que as colunas leem bem no tema claro |
 | 2026-09-19 | 2 | Pedido do utilizador: CONFIGURAÇÃO "fica simples", falta borda definida nos campos e cor. Tentativa 1 — `PaletteTheme.ComBorda` desligava a borda nativa de `Serviço`/`Bloco`/`Altura`/`Espessura` (`BorderStyle.None`) e desenhava uma moldura de 1px própria num `Panel` à volta, acesa a acento no foco. **Regressão visual**: o `Panel` wrapper não tinha `AutoSize`/altura própria, e numa `TableLayoutPanel` com `AutoSize=true` isso fez a linha crescer para o `DefaultSize` (200×100) do `Panel` em vez do tamanho normal do campo — reportado pelo utilizador com captura de ecrã (campos viraram blocos cinzentos enormes). Revertido de imediato para os campos nativos. Mantido, por não ter o mesmo problema, um risco de acento de 2 px sob o título "CONFIGURAÇÃO" (`_btnConfigToggle.Paint`), mesma linguagem do separador activo do mockup Eberick | `dotnet test` 304/304 nas duas passagens; build real `net48`/AutoCAD 2021 sem erros nem avisos (`TSKTakeOff.dll` 1.2.6.74 após a reversão). **Risco registado**: dar borda própria a um campo nativo do WinForms exige desligar a borda do sistema e desenhar/envolver à mão — se o wrapper não fixar a sua própria altura, uma `TableLayoutPanel` com linhas `AutoSize` pode explodir a linha para o tamanho por omissão do `Panel`. Uma próxima tentativa tem de fixar `Height`/`MinimumSize` do wrapper (ex.: `PaletteTheme.AlturaCampo + 2`) em vez de confiar só em `Dock=Fill` |
 | 2026-09-20 | 3 | Sessão que arrancou de um checkout local desactualizado (`main` local parado em `597a5ac`, 14 commits atrás da ponta real) e por isso repetiu, sem saber, verificação já feita a 2026-09-17: confirmados de novo os campos `Essencial` por tipo de nó, e refeita (idêntica em espírito) a correcção de `ResultadosAdaptadores.DeMateriais`/`RegraDesconto` já presente em `main`. A divergência só apareceu ao abrir o PR contra `origin/main` e resolver o merge. O contributo líquido novo desta sessão: `MosaicoMetricas.Definir` (`PalettePanelShell.cs`) ainda chamava `Cancelar()` — a verificação de 2026-09-17 tinha confiado no `_editor.Leave → Confirmar()`, que só protege quando um CLIQUE tira o foco ao editor; um refresco em fundo (`PaletteHost.RefreshData()`) a meio de uma edição, sem clique nenhum, continuava a descartar o valor em silêncio. Passou a chamar `Confirmar()`. Confirmado também que `apt-get install dotnet-sdk-8.0` instala o SDK `dotnet` neste sandbox (o instalador oficial via `curl`/`dot.net` continua bloqueado pela política de rede) | `dotnet test` 304/304. `Palette.cs`, `PalettePanelShell.cs` e `PaletteFachada.cs` **não foram compilados** em `net48`/AutoCAD nesta sessão — precisam de build manual antes de merge |
+| 2026-09-21 | 8 | Fila do agente noturno (único item `[ ]`): removido o código morto herdado das quatro abas antigas — `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs` (`FachadaControl`, `LinearControl`, `ContagemControl`) e as três instâncias mortas em `PaletteHost.Show`. Confirmado por `grep` em todo o projecto (`Tests/`, `Commands.cs`, `TSKTakeOff.csproj`) que nada mais referenciava estas classes. `ResultadosPainel.cs` também definia `PropriedadeEditadaEventArgs`, usada pelo painel real (`MosaicoMetricas.Editado`/`AoEditarMetrica`) — movida para `PalettePanelShell.cs` antes de apagar o ficheiro. Limpa também a lista de excepções WinForms de `verificar.py` (`ContagemControl`/`FachadaControl`, tipos que deixaram de existir) | `dotnet test` 304/304 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install dotnet-sdk-8.0` — o cache apt estava desatualizado e dava 404, `update` resolveu); `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 
 ### Decisões desta passagem
 
@@ -587,13 +592,26 @@ painel REAL (`MedPanelControl`/`Palette.cs`, com
 `PalettePanelShell.MosaicoMetricas`) — não em `ResultadosPainel.cs`, que
 não é alcançado por nenhum caminho de execução.
 
-Não apagados agora: é limpeza, não a tarefa desta passagem, e apagar
-`ResultadosPainel.cs` faria perder o `FiltrosPopup` de `PaletteFiltros.cs`?
-Não — confirmado que `Palette.cs` usa `FiltrosPopup` directamente (não é
-código morto). Mas `ResultadosPainel.cs`, `PaletteFachada.cs`,
-`PaletteLinear.cs` e `PaletteContagem.cs` (as classes `FachadaControl`,
-`LinearControl`, `ContagemControl`) são candidatos a remoção na Fase 8,
-juntos com o `_dgv` da grelha larga.
+Não apagados nessa altura: era limpeza, não a tarefa daquela passagem, e
+apagar `ResultadosPainel.cs` faria perder o `FiltrosPopup` de
+`PaletteFiltros.cs`? Não — confirmado que `Palette.cs` usa `FiltrosPopup`
+directamente (não é código morto). Mas `ResultadosPainel.cs`,
+`PaletteFachada.cs`, `PaletteLinear.cs` e `PaletteContagem.cs` (as classes
+`FachadaControl`, `LinearControl`, `ContagemControl`) ficaram registados
+como candidatos a remoção na Fase 8, juntos com o `_dgv` da grelha larga
+(esse `_dgv` continua por remover — só os quatro ficheiros/classes acima
+foram removidos em 2026-09-21).
+
+**Removidos em 2026-09-21.** `ResultadosPainel.cs` continha um segundo tipo,
+`PropriedadeEditadaEventArgs`, que não é WinForms (só `EventArgs`,
+`List<string>`, `NoResultado`, `Propriedade`) e que o painel REAL usa
+(`PalettePanelShell.MosaicoMetricas.Editado` e
+`Palette.MedPanelControl.AoEditarMetrica`) — não podia ir com o resto do
+ficheiro morto. Movida para `PalettePanelShell.cs` antes de apagar. As três
+instâncias em `PaletteHost.Show` (`_ctrlFachada`/`_ctrlLinear`/
+`_ctrlContagem`, nunca acrescentadas ao `_ps`) saíram com os ficheiros.
+`verificar.py` tinha `ContagemControl`/`FachadaControl` numa lista de
+excepções WinForms; removidas por já não existir tipo com esses nomes.
 
 ### Decisões tomadas dentro da Fase 1
 
