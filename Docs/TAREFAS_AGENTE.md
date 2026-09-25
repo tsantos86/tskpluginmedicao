@@ -234,8 +234,18 @@ a implementação da paleta de resultados compacta.
       (instalado `dotnet-sdk-8.0` via `apt-get update && apt-get install`
       neste sandbox — o pacote antigo em cache dava 404, `update` resolveu).
 
-- [ ] Documentação — Checklist de prontidão comercial / Autodesk Store
+- [x] Documentação — Checklist de prontidão comercial / Autodesk Store
       (`Docs/CHECKLIST_COMERCIAL.md`, novo ficheiro).
+      **Feito 2026-09-22**: ficheiro criado com os 14 itens pedidos, cada um
+      confirmado por leitura direta do ficheiro fonte (não assumido). Dois
+      achados que corrigem a premissa da conversa de origem: `SeriesMax` no
+      `PackageContents.xml` já existe (`R25.1`), e o instalador não pede
+      admin por decisão deliberada (`PrivilegesRequired=lowest`), não por
+      omissão. O trial por omissão é 30 dias (não 15, como assumido antes) —
+      `Supabase/LICENCIAMENTO.md:19`. Achado extra: o e-mail de suporte em
+      `Licenca.cs` (Gmail pessoal) não coincide com o e-mail da empresa em
+      `PackageContents.xml` (`suporte@tsktakeoff.pt`). Nenhum código
+      alterado — tarefa só de documentação, como pedido.
 
       Contexto (conversa de 2026-09-21 com o utilizador, "o que falta para
       este produto ser comercial ou ir para a Autodesk Store"): pesquisa
