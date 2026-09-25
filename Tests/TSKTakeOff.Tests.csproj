@@ -59,6 +59,8 @@
          que foi trazido para constante local para este ficheiro correr aqui. -->
     <Compile Include="..\FolhaTemplate.cs"    Link="Producao\FolhaTemplate.cs" />
     <Compile Include="..\FiltroDeteccaoVaos.cs" Link="Producao\FiltroDeteccaoVaos.cs" />
+    <Compile Include="..\FluxoAtualizacao.cs" Link="Producao\FluxoAtualizacao.cs" />
+    <Compile Include="..\ExcelLayout.cs" Link="Producao\ExcelLayout.cs" />
     <!-- A arvore de resultados da paleta: hierarquia, identidade dos nos,
          pesquisa, filtros e totais. Nao toca no AutoCAD nem no WinForms, e e
          de proposito: o WinForms nao tem arvore com colunas, por isso a lista

@@ -101,6 +101,32 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void Cada_ocorrencia_de_vao_sai_numa_linha_negativa_propria()
+        {
+            var parede = Med("ALVENARIA", "3.1.1", "PISO 0", 12.00);
+            for (int i = 0; i < 3; i++)
+                parede.Vaos.Add(new Vao
+                {
+                    Designacao = "VE.02", Largura = 2.00, Altura = 2.10,
+                    Quantidade = 1, Tipo = TipoVao.Janela
+                });
+            for (int i = 0; i < 2; i++)
+                parede.Vaos.Add(new Vao
+                {
+                    Designacao = "VE.01", Largura = 0.40, Altura = 2.10,
+                    Quantidade = 1, Tipo = TipoVao.Janela
+                });
+
+            var deducoes = Construir(parede)
+                .Where(x => x.Tipo == TipoLinha.Deducao).ToList();
+
+            Assert.Equal(5, deducoes.Count);
+            Assert.Equal(3, deducoes.Count(x => x.Designacao == "VE.02"));
+            Assert.Equal(2, deducoes.Count(x => x.Designacao == "VE.01"));
+            Assert.All(deducoes, x => Assert.Equal(-1, x.Qt));
+        }
+
+        [Fact]
         public void Cada_servico_sai_uma_vez_e_so_uma()
         {
             var l = Construir(

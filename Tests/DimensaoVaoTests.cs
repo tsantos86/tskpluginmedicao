@@ -128,6 +128,35 @@ namespace TSKTakeOff.Tests
             Assert.False(DimensaoVao.Interpretar("1", "50", out _, out _, out _));
         }
 
+        [Fact]
+        public void Planta_usa_a_altura_padrao_e_nao_a_espessura_escrita()
+        {
+            Assert.True(DimensaoVao.DeTexto("200", "15", false, 2.10,
+                out double larg, out double alt, out string unidade));
+            Assert.Equal(2.00, larg, 3);
+            Assert.Equal(2.10, alt, 3);
+            Assert.Equal("cm", unidade);
+        }
+
+        [Fact]
+        public void Planta_mantem_a_primeira_cota_como_largura()
+        {
+            Assert.True(DimensaoVao.DeTexto("90", "210", false, 2.10,
+                out double larg, out double alt, out _));
+            Assert.Equal(0.90, larg, 3);
+            Assert.Equal(2.10, alt, 3);
+        }
+
+        [Fact]
+        public void Alcado_mantem_a_altura_que_esta_escrita_no_desenho()
+        {
+            Assert.True(DimensaoVao.DeTexto("0,90", "2,10", true, 0,
+                out double larg, out double alt, out string unidade));
+            Assert.Equal(0.90, larg, 3);
+            Assert.Equal(2.10, alt, 3);
+            Assert.Equal("m", unidade);
+        }
+
         // ---- Designação ---------------------------------------------------
 
         [Theory]
@@ -146,6 +175,12 @@ namespace TSKTakeOff.Tests
             Assert.Null(DimensaoVao.Designacao("900x2100"));
             Assert.Null(DimensaoVao.Designacao(""));
             Assert.Null(DimensaoVao.Designacao(null));
+        }
+
+        [Fact]
+        public void Cota_de_altura_nao_e_designacao_de_vao()
+        {
+            Assert.Null(DimensaoVao.Designacao("H2.45"));
         }
 
         // ---- Números ------------------------------------------------------
