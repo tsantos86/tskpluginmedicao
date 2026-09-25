@@ -2623,6 +2623,12 @@ namespace TSKTakeOff
         {
             if (_mosaico == null) return;
 
+            // Antes de trocar o alvo: o que estava a ser escrito pertence à
+            // medição ANTERIOR, não à que se acabou de seleccionar. E antes de
+            // ler a selecção — gravar relê o desenho e reconstrói a árvore, e o
+            // nó lido antes disso já seria um nó morto.
+            _mosaico.GravarEdicaoPendente();
+
             var no = NoSeleccionado();
             _lblPropriedadeTitulo.Text = (_propriedadesAbertas ? "▼  " : "▶  ") +
                 "PROPRIEDADES  —  " + (no == null ? "nada selecionado" : no.Rotulo);

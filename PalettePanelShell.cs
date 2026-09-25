@@ -645,6 +645,17 @@ namespace TSKTakeOff
                 Invalidate();
             }
 
+            /// <summary>
+            /// Grava a edição em curso contra o <see cref="No"/>/<see cref="Handles"/>
+            /// ACTUAIS. Chamar antes de os trocar: o <see cref="Definir"/> também
+            /// confirma, mas nessa altura o alvo já é a nova selecção — e o valor
+            /// escrito para uma medição ia parar à que se acabou de seleccionar.
+            /// </summary>
+            public void GravarEdicaoPendente()
+            {
+                Confirmar();
+            }
+
             /// <summary>O nó a que estas métricas pertencem, para o evento.</summary>
             public NoResultado No { get; set; }
 
