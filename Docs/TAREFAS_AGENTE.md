@@ -395,3 +395,83 @@ a implementação da paleta de resultados compacta.
       `Deploy/supabase.json` só para confirmar que existe, NÃO exponhas a
       URL/chave no documento gerado), e quem pode pedir a remoção dos
       seus dados (o e-mail de suporte já usado no resto do projeto).
+
+- [ ] Análise — Auditoria de arquitetura e prontidão comercial (SÓ RELATÓRIO,
+      NÃO ALTERAR CÓDIGO). Criar `Docs/ANALISE_ARQUITETURA.md`.
+      Ler o código real (não inferir pelo nome dos ficheiros): `README.md`,
+      `TSKTakeOff.csproj`, `Commands.cs`, `Palette.cs`, `PalettePanelShell.cs`,
+      `Models.cs`, `Medicoes.cs`, `Leitura.cs`, `AlvRepo.cs`, `Fachada.cs`,
+      `Contagem.cs`, `DeteccaoVaos.cs`, `MedirSeleccao.cs`, `FolhaMedicao.cs`,
+      `ExcelExporter.cs`, `ExcelLiveSync.cs`, `ImportarExcel.cs`,
+      `FiebdcExporter.cs`, `MapaQuantidades.cs`, `Licenca.cs`, `Telemetria.cs`,
+      `AutocadRuntime.cs`, `Tests/`, `Deploy/` (incl. `Installer/`,
+      `publicar.ps1`, `preparar-bundle.bat`, `PackageContents.xml`),
+      `Supabase/`. Ler TAMBÉM, para não repetir o que já existe:
+      `Docs/CHECKLIST_COMERCIAL.md`, `Docs/EULA_RASCUNHO.md`,
+      `Docs/POLITICA_PRIVACIDADE_RASCUNHO.md` e esta fila.
+      Conteúdo do relatório:
+      1. Veredito (0–10 e categoria: protótipo / MVP / produto interno /
+         comercial em preparação / pronto para distribuição), máx. 10 linhas.
+      2. Pontos fortes, cada um com ficheiro/classe que o comprova.
+      3. No MÁXIMO 15 problemas, os mais graves (perda/corrupção de medições,
+         TOTAIS ERRADOS, falha a carregar, incompatibilidade AutoCAD,
+         instalação, exportação, licenciamento indisponível, manutenção).
+         Cada um com: severidade, evidência `ficheiro:linha`, impacto,
+         recomendação, confiança, e se é FACTO no código / INFERÊNCIA /
+         RISCO POTENCIAL / PRECISA DE TESTE NO AUTOCAD.
+      4. Acoplamento por área (domínio, XData, comandos, paleta, Excel,
+         exportadores, licença, telemetria, testes, build): bem separada /
+         aceitável / excessiva / sem evidência. Incluir estado estático
+         global com vários desenhos abertos.
+      5. Fluxos reais "entrada → transformação → persistência → leitura →
+         apresentação/exportação" para parede, linear, fachada, vãos,
+         contagens, exportação XLSX e Excel ao vivo.
+      6. Matriz de testes | Área | Cobertura | Risco | Teste recomendado |
+         Prioridade |, distinguindo o que exige AutoCAD do que é lógica pura.
+      7. Build/distribuição: caminhos, DLLs em falta, versões divergentes,
+         artefactos antigos em `Deploy/`, assinatura. ATENÇÃO: o alvo
+         `net8.0-windows` só compila se existir AutoCAD 2025 instalado
+         (`TSKTakeOff.csproj`, condição `Exists(...)`) — nunca foi compilado
+         na máquina de desenvolvimento; tratá-lo como NÃO VERIFICADO.
+      8. Roadmap em 3 fases (alto impacto/baixo risco; robustez comercial;
+         evolução arquitetural), cada item com objetivo, ficheiros, risco,
+         benefício e critério de conclusão.
+      9. O que NÃO fazer agora (reescritas, trocar UI, microserviços, BD
+         central, abstrações por estilo).
+      10. Notas: qualidade técnica, arquitetura, testes, prontidão comercial,
+          geral, e o que a faria subir para 9/10.
+      O código é a fonte de verdade: divergências com docs/README são achados.
+      NO FIM: escrever as tarefas da Fase 1 do roadmap que sejam EXECUTÁVEIS
+      NESTE SANDBOX (sem AutoCAD) no formato `- [ ]` desta fila, mas na
+      secção `## Propostas (aguardam aprovação)` no fim deste ficheiro — NÃO
+      na Fila. O utilizador revê e move as que aprovar.
+
+- [ ] Análise — Desempenho (relatório + medições em lógica pura; NÃO
+      otimizar código de produção nesta tarefa). Criar
+      `Docs/ANALISE_DESEMPENHO.md`. Pontos conhecidos a avaliar, com
+      evidência `ficheiro:linha`:
+      - `Leitura.Tudo` percorre o Model Space inteiro a cada
+        `PaletteHost.RefreshData()`, incluindo a sincronização automática no
+        `Idle` depois de QUALQUER alteração ao desenho (`Palette.cs`,
+        `AoObjectoMudar`/`AoFicarOcioso`) — mesmo alterações a objetos que
+        não são medições.
+      - Excel ao vivo (`ExcelLiveSync.AtualizarTudo`) reescreve as folhas
+        inteiras em vez de só as linhas que mudaram; contar as chamadas COM
+        por atualização.
+      - Construção da árvore (`ResultadosArvore`/`ResultadosAdaptadores`),
+        `FolhaMedicao`, `MapaQuantidades`, `FiebdcExporter`, `ExcelExporter`.
+      Criar testes de desempenho em `Tests/` (marcados com
+      `[Trait("Categoria","Desempenho")]`) SÓ para lógica pura, com 100,
+      1.000 e 5.000 medições sintéticas, medindo com `Stopwatch` e
+      registando os tempos no relatório (sem asserts de tempo rígidos que
+      tornem a suíte instável — no máximo um limite muito folgado).
+      Para cada ponto: custo medido ou estimado, como medir no AutoCAD real
+      (o `Cronometro` já existe — indicar onde ligar), proposta de
+      otimização, ganho esperado, risco, e se exige AutoCAD para validar.
+      NO FIM: propostas de otimização na secção
+      `## Propostas (aguardam aprovação)`, no formato `- [ ]`, NÃO na Fila.
+
+## Propostas (aguardam aprovação)
+
+Tarefas sugeridas pelas análises. O agente NÃO as executa daqui — o
+utilizador move para a secção `## Fila` as que aprovar.
