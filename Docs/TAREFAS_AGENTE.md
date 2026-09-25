@@ -354,9 +354,28 @@ a implementação da paleta de resultados compacta.
       ofuscação), e uma cláusula a dizer claramente que isto é um rascunho
       técnico, não redigido por um advogado.
 
-- [ ] Documentação — Rascunho de política de privacidade
+- [x] Documentação — Rascunho de política de privacidade
       (`Docs/POLITICA_PRIVACIDADE_RASCUNHO.md`, novo ficheiro, em
       português).
+      **Feito 2026-09-25**: criado com o aviso de rascunho bem visível no
+      topo. Achado importante durante a leitura do código (não estava
+      previsto no enunciado deste item): `Telemetria.TextoExplicativo()`
+      diz ao utilizador que nome de máquina/utilizador/domínio nunca são
+      enviados, mas isso só é verdade para a telemetria de arranque
+      (`plugin_sessoes`) — `Licenca.Activar` (ativação paga) envia
+      `Licenca.Maquina` (`MAQUINA\UTILIZADOR`) e `Licenca.PedirTrial`
+      (avaliação gratuita) envia `Environment.UserName`, ambos guardados
+      em texto simples na tabela `activacoes`. Documentado no ficheiro
+      novo (secção 6, "Achado importante") em vez de decidido/corrigido —
+      é comportamento intencional já comentado no próprio `Licenca.cs`
+      ("identificador histórico de activações pagas"), não um bug desta
+      tarefa. Confirmado por leitura de `Telemetria.cs`, `Licenca.cs`,
+      `Supabase/schema.sql` (tabelas `plugin_sessoes`/`activacoes`/
+      `licencas`, comentários e RLS) e `Commands.cs` (`TSKPRIVACIDADE`,
+      `TSKLICENCARESET`); confirmada só a existência de
+      `Deploy/supabase.json` (4 linhas), sem expor URL/chave no
+      documento. Nenhum ficheiro `.cs` alterado — não aplicável correr
+      `dotnet test`.
 
       MESMO AVISO da tarefa do EULA acima — rascunho para revisão
       humana/jurídica, marcado bem visível no topo do ficheiro. Não
