@@ -1,6 +1,6 @@
 # Tarefas para o agente noturno
 
-Fila de trabalho para a rotina automática que roda todas as manhãs e continua
+Fila de trabalho para a rotina automática que roda todas as madrugadas (03:00, Lisboa) e continua
 a implementação da paleta de resultados compacta.
 
 ## Como usar
@@ -15,6 +15,9 @@ a implementação da paleta de resultados compacta.
 - Se a lista não tiver nenhum item `[ ]`, o agente escolhe sozinho o próximo
   passo pendente em `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`, pela mesma
   ordem de prioridade de sempre (Fase 3 → Fase 5 → Fase 7).
+- O agente só lê a secção `## Fila`. Tarefas que as análises sugerirem vão
+  para `## Propostas (aguardam aprovação)`, no fim do ficheiro — mova para a
+  Fila as que aprovar.
 - Pode adicionar quantos itens quiser de uma vez; ficam na fila para as
   próximas execuções, um por dia.
 - Itens que dependem de abrir o AutoCAD (matriz manual da Fase 8, DPI real,
