@@ -399,8 +399,41 @@ a implementação da paleta de resultados compacta.
       URL/chave no documento gerado), e quem pode pedir a remoção dos
       seus dados (o e-mail de suporte já usado no resto do projeto).
 
-- [ ] Análise — Auditoria de arquitetura e prontidão comercial (SÓ RELATÓRIO,
+- [x] Análise — Auditoria de arquitetura e prontidão comercial (SÓ RELATÓRIO,
       NÃO ALTERAR CÓDIGO). Criar `Docs/ANALISE_ARQUITETURA.md`.
+      **Feito 2026-09-26**: ficheiro criado com as 10 secções pedidas
+      (veredito 6/10 "comercial em preparação", pontos fortes, 15 problemas
+      ordenados por severidade com `ficheiro:linha`, acoplamento por área,
+      fluxos parede/linear/fachada/vãos/contagens/XLSX/Excel-ao-vivo, matriz
+      de testes, build/distribuição, roadmap em 3 fases, o que não fazer,
+      notas finais). Lidos os três documentos existentes primeiro para não
+      repetir o que já cobriam. Achados novos de maior impacto: (1) coluna
+      "Item" fica vazia nas linhas de medição no Excel ao vivo em modo item
+      (`ExcelLiveSync.EscreverFolhaItem`, bug funcional confirmado por
+      leitura); (2) uma única entidade com geometria problemática pode
+      abortar a leitura de TODAS as medições do desenho
+      (`AlvRepo.LadosDoRetangulo` sem try/catch, chamado por `Leitura.Tudo`
+      sem isolamento por entidade); (3) `AlvRepo.LerParede`/
+      `LerParedeDeHatch` engolem excepção de `pl.Area`/`h.Area` e deixam a
+      medição sobreviver com quantidade zero, sem aviso; (4) padrão
+      recorrente de estado estático (`Config`, `FachadaConfig`,
+      `ContagemConfig`) partilhado por TODO o processo AutoCAD, não por
+      documento — nunca validado com dois desenhos abertos; (5) `Palette.cs`
+      não chama `RefreshData()` ao trocar de documento activo já aberto; (6)
+      NETLOAD repetido pode duplicar handlers `Idle`/`DocumentActivated`
+      (guard gerido, não sobrevive a reload — contraste com `Ribbon.cs`, que
+      resolve isto correctamente via estado nativo); (7) o alvo
+      `net8.0-windows` provavelmente fica com `Version.build`
+      dessincronizado do `net48`, porque os targets de sincronização de
+      versão só correm com `Condition == 'net48'`. Nenhum código de produção
+      alterado — tarefa só de documentação, como pedido. Verificado por
+      leitura cuidadosa de ~30 ficheiros de produção (delegada em 5 agentes
+      de investigação em paralelo, um por domínio: medições/persistência,
+      UI/paleta/comandos, Excel/FIEBDC, licenciamento/deploy,
+      testes/cobertura) e `dotnet test` (341/341, 0 falhas). Propostas
+      executáveis no sandbox da Fase 1 do roadmap acrescentadas em
+      `## Propostas (aguardam aprovação)` abaixo, como pedido — não movidas
+      para a Fila.
       Ler o código real (não inferir pelo nome dos ficheiros): `README.md`,
       `TSKTakeOff.csproj`, `Commands.cs`, `Palette.cs`, `PalettePanelShell.cs`,
       `Models.cs`, `Medicoes.cs`, `Leitura.cs`, `AlvRepo.cs`, `Fachada.cs`,
@@ -478,3 +511,58 @@ a implementação da paleta de resultados compacta.
 
 Tarefas sugeridas pelas análises. O agente NÃO as executa daqui — o
 utilizador move para a secção `## Fila` as que aprovar.
+
+### Da Auditoria de arquitetura (`Docs/ANALISE_ARQUITETURA.md`, 2026-09-26) — Fase 1 do roadmap, executáveis sem AutoCAD
+
+- [ ] Corrigir `ExcelLiveSync.EscreverFolhaItem` (modo item do Excel ao
+      vivo, `ExcelLiveSync.cs:1190-1215`) para escrever a coluna Item
+      (numeração `A001…`) também nas linhas de Medição/Dedução/Capítulo/
+      Alçado/Piso, não só nas de Título (`if
+      (!string.IsNullOrEmpty(l.HandleOrigem))`). Hoje quebra a paridade com
+      o `.xlsx` exportado e com o modo clássico ao vivo, que escrevem o
+      Item em todas as linhas. `ExcelLiveSync.cs` não referencia
+      `Autodesk.*` nem `System.Windows.Forms` (confirmado) — considerar
+      acrescentá-lo ao projecto de testes e cobrir esta função com um teste
+      novo que monte o array `dados[,]` sem precisar de Excel real.
+- [ ] Isolar a leitura por entidade em `Leitura.Tudo` (`Leitura.cs:36-97`):
+      hoje uma excepção em `AlvRepo.LadosDoRetangulo` (sem try/catch) para
+      uma única polyline problemática aborta a leitura de TODAS as
+      medições do desenho (grelha, Excel, totais ficam indisponíveis).
+      Acrescentar try/catch por item dentro do `foreach`, registando
+      (`PaletteHost.Log`) a entidade que falhou em vez de propagar.
+      Ficheiro Autodesk — não compila neste sandbox, precisa de build
+      manual.
+- [ ] Registar (`PaletteHost.Log`) quando `AlvRepo.LerParede`
+      (`AlvRepo.cs:66`) ou `LerParedeDeHatch` (`AlvRepo.cs:101`) caem no
+      `catch` que engole a excepção de `pl.Area`/`h.Area` — hoje a medição
+      sobrevive na lista com quantidade zero, sem qualquer aviso de que a
+      geometria é problemática. Ficheiro Autodesk — não compila aqui.
+- [ ] Envolver `MedExportImpl`/`TSKEXPORT` (`Commands.cs:2323-2385`) em
+      `Util.Seguro`, como quase todos os outros comandos — hoje só há um
+      `catch (IOException)` local em torno de `ExcelExporter.Export`, e
+      qualquer outra excepção (permissões, falha a carregar paredes/
+      fachadas/contagens, bug do ClosedXML) propaga-se sem a mensagem
+      tratada habitual. Ficheiro Autodesk — não compila aqui.
+- [ ] Em `Palette.cs:4147` (`RemoverParede()` no menu de contexto da
+      árvore), verificar o valor de retorno de `AlvRepo.RemoverParede` e
+      avisar o utilizador quando `false` (handle já não existe) — hoje é
+      ignorado, ao contrário do padrão já usado para vão
+      (`Palette.cs:4082-4085`) e "Limpar tudo" (`Palette.cs:4336-4338`).
+      Ficheiro Autodesk/WinForms — não compila aqui.
+- [ ] Em `Fachada.cs:284-285` (`FacRepo.Editar`), trocar o cast `as
+      Polyline` por `as Entity`, replicando a correcção já aplicada em
+      `AlvRepo.cs:947-957` para o mesmo padrão de bug (cast estreito fazia
+      hachuras "desaparecerem" silenciosamente da edição). Hoje sem
+      impacto prático confirmado (`FacRepo.Carregar` só itera `Polyline`),
+      mas é a mesma dívida técnica já identificada e corrigida noutro
+      repositório do projecto. Ficheiro Autodesk/WinForms — não compila
+      aqui.
+- [ ] Rever a condição dos targets `TskIncrementarBuild`/
+      `TskSincronizarVersao` em `TSKTakeOff.csproj:171-225` (hoje só correm
+      com `Condition="'$(TargetFramework)' == 'net48'"`), para que o alvo
+      `net8.0-windows` também receba o `Version.build` incrementado em vez
+      de ficar plausivelmente sempre em `VersaoBuild=0`. Não verificável
+      por build real neste sandbox (não há AutoCAD 2025) — corrigir a
+      condição por leitura cuidadosa do MSBuild e deixar claro no PR que
+      precisa de confirmação com build real quando houver AutoCAD 2025
+      disponível.
