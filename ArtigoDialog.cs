@@ -75,6 +75,10 @@ namespace TSKTakeOff
 
             _procura = new TextBox { Dock = DockStyle.Top, Margin = new Padding(10) };
             _procura.TextChanged += (s, e) => Encher();
+            // Sem isto, navegar a lista filtrada por teclado obrigava a Tab
+            // para sair da procura primeiro — quebra o gesto de "escrever e
+            // logo mover-se" que o Enter (AcceptButton) já permite.
+            _procura.KeyDown += ProcuraKeyDown;
 
             _conta = new Label
             {
@@ -198,6 +202,43 @@ namespace TSKTakeOff
                     _lista.SelectedIndex = 0;
             }
             finally { _lista.EndUpdate(); }
+        }
+
+        /// <summary>
+        /// Encaminha Cima/Baixo/PageUp/PageDown da procura para a lista, sem
+        /// tirar o foco de onde se está a escrever. Sem isto, teclar setas
+        /// enquanto se filtra não faz nada — um `TextBox` de uma linha não
+        /// tem para onde mover o cursor nesse eixo.
+        /// </summary>
+        private void ProcuraKeyDown(object sender, KeyEventArgs e)
+        {
+            if (_lista.Items.Count == 0) return;
+
+            int i = _lista.SelectedIndex;
+            int pagina = Math.Max(1, _lista.ClientSize.Height /
+                Math.Max(1, _lista.GetItemHeight(0)));
+
+            switch (e.KeyCode)
+            {
+                case Keys.Down:
+                    i = Math.Min(_lista.Items.Count - 1, i + 1);
+                    break;
+                case Keys.Up:
+                    i = Math.Max(0, (i < 0 ? _lista.Items.Count : i) - 1);
+                    break;
+                case Keys.PageDown:
+                    i = Math.Min(_lista.Items.Count - 1, (i < 0 ? -1 : i) + pagina);
+                    break;
+                case Keys.PageUp:
+                    i = Math.Max(0, (i < 0 ? _lista.Items.Count : i) - pagina);
+                    break;
+                default:
+                    return;
+            }
+
+            _lista.SelectedIndex = i;
+            e.Handled = true;
+            e.SuppressKeyPress = true;
         }
 
         private void PreSeleccionar(string chave)

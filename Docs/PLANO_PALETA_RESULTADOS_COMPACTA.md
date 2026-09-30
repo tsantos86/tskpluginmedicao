@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-21
+Última atualização: 2026-09-30
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -437,8 +437,38 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
 
 ### Critérios de conclusão
 
-- [ ] Todas as operações principais funcionam sem rato.
-- [ ] Não há foco preso num painel fechado.
+- [~] Todas as operações principais funcionam sem rato.
+
+  > **Nota 2026-09-30.** Auditoria por leitura de todos os pontos de
+  > recolher/expandir do painel (`CONFIGURAÇÃO`, `Mais opções`,
+  > `PROPRIEDADES`) confirmou que todos alternam por `Visible`, nunca só por
+  > `Height` — o WinForms tira o foco sozinho de um controlo que fica
+  > invisível, por isso nenhum deles prende o Tab num painel fechado (ver
+  > critério seguinte). `FiltrosPopup` (`PaletteFiltros.cs`) já tinha
+  > `ProcessDialogKey` a apanhar `Escape` mesmo de dentro de uma
+  > `CheckedListBox`. Os botões de `MEDIR`/Resultados são `Button`/
+  > `ToolStripButton` nativos (Enter/Espaço já funcionam sem código extra).
+  > Gap real encontrado e corrigido: `ArtigoDialog.cs` (usado por
+  > `Reclassificar` e pela célula "classificar") só filtrava a lista ao
+  > escrever na procura — mover a selecção com `↓/↑/PageDown/PageUp`
+  > exigia sair da caixa de procura com Tab primeiro, porque um `TextBox`
+  > de uma linha não tem para onde mover o cursor nesse eixo e não
+  > reencaminha as setas sozinho. Acrescentado `ProcuraKeyDown` que
+  > reencaminha essas quatro teclas para a `ListBox` sem tirar o foco da
+  > procura — agora dá para filtrar e escolher só com teclado, sem Tab.
+  > Fica `[~]` e não `[x]`: não foi percorrido exaustivamente TODO o painel
+  > (por exemplo `DefinicoesTipoDialog.cs`, `VaoDialog`), só os pontos mais
+  > prováveis de prender foco (colapsáveis e o diálogo de Reclassificar).
+- [~] Não há foco preso num painel fechado.
+
+  > **Nota 2026-09-30.** Mesma auditoria do critério acima: os três painéis
+  > colapsáveis (`config`, `maisOpcoes`, `_mosaico` de `PROPRIEDADES`) saem
+  > da árvore de foco por `Visible = false`, não por `Height = 0` com
+  > `Visible` a ficar `true` — que é o padrão que prenderia o Tab num
+  > controlo invisível. Nenhum caso encontrado do padrão perigoso. `[~]`
+  > pela mesma razão do critério acima (auditoria não exaustiva a 100% do
+  > painel) e por depender de confirmação visual no AutoCAD (Fase 8) para
+  > fechar de vez.
 - [ ] Não há regressão perceptível face aos cerca de 20 ms já medidos para 461 linhas com `Rows.AddRange`.
 - [ ] Alto contraste mantém texto, seleção e alertas legíveis.
 
@@ -523,6 +553,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-19 | 2 | Pedido do utilizador: CONFIGURAÇÃO "fica simples", falta borda definida nos campos e cor. Tentativa 1 — `PaletteTheme.ComBorda` desligava a borda nativa de `Serviço`/`Bloco`/`Altura`/`Espessura` (`BorderStyle.None`) e desenhava uma moldura de 1px própria num `Panel` à volta, acesa a acento no foco. **Regressão visual**: o `Panel` wrapper não tinha `AutoSize`/altura própria, e numa `TableLayoutPanel` com `AutoSize=true` isso fez a linha crescer para o `DefaultSize` (200×100) do `Panel` em vez do tamanho normal do campo — reportado pelo utilizador com captura de ecrã (campos viraram blocos cinzentos enormes). Revertido de imediato para os campos nativos. Mantido, por não ter o mesmo problema, um risco de acento de 2 px sob o título "CONFIGURAÇÃO" (`_btnConfigToggle.Paint`), mesma linguagem do separador activo do mockup Eberick | `dotnet test` 304/304 nas duas passagens; build real `net48`/AutoCAD 2021 sem erros nem avisos (`TSKTakeOff.dll` 1.2.6.74 após a reversão). **Risco registado**: dar borda própria a um campo nativo do WinForms exige desligar a borda do sistema e desenhar/envolver à mão — se o wrapper não fixar a sua própria altura, uma `TableLayoutPanel` com linhas `AutoSize` pode explodir a linha para o tamanho por omissão do `Panel`. Uma próxima tentativa tem de fixar `Height`/`MinimumSize` do wrapper (ex.: `PaletteTheme.AlturaCampo + 2`) em vez de confiar só em `Dock=Fill` |
 | 2026-09-20 | 3 | Sessão que arrancou de um checkout local desactualizado (`main` local parado em `597a5ac`, 14 commits atrás da ponta real) e por isso repetiu, sem saber, verificação já feita a 2026-09-17: confirmados de novo os campos `Essencial` por tipo de nó, e refeita (idêntica em espírito) a correcção de `ResultadosAdaptadores.DeMateriais`/`RegraDesconto` já presente em `main`. A divergência só apareceu ao abrir o PR contra `origin/main` e resolver o merge. O contributo líquido novo desta sessão: `MosaicoMetricas.Definir` (`PalettePanelShell.cs`) ainda chamava `Cancelar()` — a verificação de 2026-09-17 tinha confiado no `_editor.Leave → Confirmar()`, que só protege quando um CLIQUE tira o foco ao editor; um refresco em fundo (`PaletteHost.RefreshData()`) a meio de uma edição, sem clique nenhum, continuava a descartar o valor em silêncio. Passou a chamar `Confirmar()`. Confirmado também que `apt-get install dotnet-sdk-8.0` instala o SDK `dotnet` neste sandbox (o instalador oficial via `curl`/`dot.net` continua bloqueado pela política de rede) | `dotnet test` 304/304. `Palette.cs`, `PalettePanelShell.cs` e `PaletteFachada.cs` **não foram compilados** em `net48`/AutoCAD nesta sessão — precisam de build manual antes de merge |
 | 2026-09-21 | 8 | Fila do agente noturno (único item `[ ]`): removido o código morto herdado das quatro abas antigas — `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs` (`FachadaControl`, `LinearControl`, `ContagemControl`) e as três instâncias mortas em `PaletteHost.Show`. Confirmado por `grep` em todo o projecto (`Tests/`, `Commands.cs`, `TSKTakeOff.csproj`) que nada mais referenciava estas classes. `ResultadosPainel.cs` também definia `PropriedadeEditadaEventArgs`, usada pelo painel real (`MosaicoMetricas.Editado`/`AoEditarMetrica`) — movida para `PalettePanelShell.cs` antes de apagar o ficheiro. Limpa também a lista de excepções WinForms de `verificar.py` (`ContagemControl`/`FachadaControl`, tipos que deixaram de existir) | `dotnet test` 304/304 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install dotnet-sdk-8.0` — o cache apt estava desatualizado e dava 404, `update` resolveu); `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
+| 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 
 ### Decisões desta passagem
 
