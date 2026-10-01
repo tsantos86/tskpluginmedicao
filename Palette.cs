@@ -1609,6 +1609,17 @@ namespace TSKTakeOff
                     _txtPesquisa.Text = "";
                     e.Handled = e.SuppressKeyPress = true;
                 }
+                else if (e.KeyCode == Keys.Down || e.KeyCode == Keys.Up ||
+                         e.KeyCode == Keys.PageDown || e.KeyCode == Keys.PageUp)
+                {
+                    // Sem isto, mover a selecção da árvore a partir da
+                    // pesquisa obrigava a sair da caixa com Tab primeiro —
+                    // mesma falha do ArtigoDialog (Fase 7 do plano): uma
+                    // caixa de uma linha não tem para onde mover o cursor
+                    // nesse eixo e não reencaminha setas sozinha.
+                    MoverSeleccaoDaArvore(e.KeyCode);
+                    e.Handled = e.SuppressKeyPress = true;
+                }
             };
 
             // Os chips do que está filtrado. Até dois: com mais, a barra
@@ -2414,6 +2425,42 @@ namespace TSKTakeOff
                 }
             }
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        /// <summary>
+        /// Move a selecção da árvore sem tirar o foco da pesquisa. Chamada
+        /// pelo `KeyDown` de `_txtPesquisa` para Cima/Baixo/PageUp/PageDown —
+        /// o mesmo gesto que `SeleccionarNo`/Home/End já usam a partir da
+        /// própria árvore.
+        /// </summary>
+        private void MoverSeleccaoDaArvore(Keys tecla)
+        {
+            if (_dgvCompacto.Rows.Count == 0) return;
+
+            int actual = _dgvCompacto.CurrentRow?.Index ?? -1;
+            int pagina = Math.Max(1, _dgvCompacto.DisplayedRowCount(false));
+            int alvo;
+
+            switch (tecla)
+            {
+                case Keys.Down:
+                    alvo = Math.Min(_dgvCompacto.Rows.Count - 1, actual + 1);
+                    break;
+                case Keys.Up:
+                    alvo = Math.Max(0, (actual < 0 ? _dgvCompacto.Rows.Count : actual) - 1);
+                    break;
+                case Keys.PageDown:
+                    alvo = Math.Min(_dgvCompacto.Rows.Count - 1, (actual < 0 ? -1 : actual) + pagina);
+                    break;
+                case Keys.PageUp:
+                    alvo = Math.Max(0, (actual < 0 ? _dgvCompacto.Rows.Count : actual) - pagina);
+                    break;
+                default:
+                    return;
+            }
+
+            try { _dgvCompacto.CurrentCell = _dgvCompacto.Rows[alvo].Cells[0]; }
+            catch { }
         }
 
         /// <summary>O nó em que a árvore está, ou nulo.</summary>
