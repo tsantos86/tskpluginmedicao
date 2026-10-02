@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-21
+Última atualização: 2026-10-02
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -427,6 +427,27 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > `AccessibleObject` por mosaico se a Fase 8 revelar que o leitor de ecrã
   > não anuncia qual medida está em foco (fora do âmbito desta passagem).
 
+  > **Nota 2026-10-02.** Feito o que a nota anterior deixava "fora do
+  > âmbito": `MosaicoMetricas` ganhou `CreateAccessibilityInstance()`
+  > (`MosaicoAccessibleObject : ControlAccessibleObject`) com um
+  > `AccessibleObject` filho por mosaico (`TileAccessibleObject`, nome/valor/
+  > papel/estado a partir da `Propriedade` e do índice, `ReadOnly` quando não
+  > editável). Sem isto, um leitor de ecrã só anunciava sempre "Propriedades"
+  > — o painel inteiro — porque mover o "mosaico com foco" por teclado nunca
+  > trocava de controlo, só um índice interno (`_foco`) invisível para quem
+  > não vê o contorno pintado. `DefinirFoco`/`Definir` passaram a chamar
+  > `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` sempre que o
+  > foco muda (incluindo ao trocar de selecção na árvore, que repõe as
+  > métricas do zero), e o `MouseDown` do mosaico passou a usar `DefinirFoco`
+  > em vez de escrever `_foco` directamente, para não ter dois caminhos a
+  > mover o foco sem avisar. De caminho, o `_editor` (a caixa real que recebe
+  > o foco ao editar um mosaico) ganhou `AccessibleName` com o nome da
+  > medida, para não anunciar só "caixa de edição" sem contexto. `[~]`:
+  > revisto por leitura cuidadosa e verificador de chavetas/parênteses
+  > (equilibradas), mas não compilado neste sandbox — aguarda build manual;
+  > falta ainda confirmar com um leitor de ecrã real (NVDA/Narrador) no
+  > AutoCAD (Fase 8) que o anúncio por mosaico funciona como esperado.
+
 ### Dimensão e desempenho
 
 - [ ] Validar larguras de 480, 520, 560 e 760 px e DPI de 100%, 125%, 150% e 200%.
@@ -523,6 +544,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-19 | 2 | Pedido do utilizador: CONFIGURAÇÃO "fica simples", falta borda definida nos campos e cor. Tentativa 1 — `PaletteTheme.ComBorda` desligava a borda nativa de `Serviço`/`Bloco`/`Altura`/`Espessura` (`BorderStyle.None`) e desenhava uma moldura de 1px própria num `Panel` à volta, acesa a acento no foco. **Regressão visual**: o `Panel` wrapper não tinha `AutoSize`/altura própria, e numa `TableLayoutPanel` com `AutoSize=true` isso fez a linha crescer para o `DefaultSize` (200×100) do `Panel` em vez do tamanho normal do campo — reportado pelo utilizador com captura de ecrã (campos viraram blocos cinzentos enormes). Revertido de imediato para os campos nativos. Mantido, por não ter o mesmo problema, um risco de acento de 2 px sob o título "CONFIGURAÇÃO" (`_btnConfigToggle.Paint`), mesma linguagem do separador activo do mockup Eberick | `dotnet test` 304/304 nas duas passagens; build real `net48`/AutoCAD 2021 sem erros nem avisos (`TSKTakeOff.dll` 1.2.6.74 após a reversão). **Risco registado**: dar borda própria a um campo nativo do WinForms exige desligar a borda do sistema e desenhar/envolver à mão — se o wrapper não fixar a sua própria altura, uma `TableLayoutPanel` com linhas `AutoSize` pode explodir a linha para o tamanho por omissão do `Panel`. Uma próxima tentativa tem de fixar `Height`/`MinimumSize` do wrapper (ex.: `PaletteTheme.AlturaCampo + 2`) em vez de confiar só em `Dock=Fill` |
 | 2026-09-20 | 3 | Sessão que arrancou de um checkout local desactualizado (`main` local parado em `597a5ac`, 14 commits atrás da ponta real) e por isso repetiu, sem saber, verificação já feita a 2026-09-17: confirmados de novo os campos `Essencial` por tipo de nó, e refeita (idêntica em espírito) a correcção de `ResultadosAdaptadores.DeMateriais`/`RegraDesconto` já presente em `main`. A divergência só apareceu ao abrir o PR contra `origin/main` e resolver o merge. O contributo líquido novo desta sessão: `MosaicoMetricas.Definir` (`PalettePanelShell.cs`) ainda chamava `Cancelar()` — a verificação de 2026-09-17 tinha confiado no `_editor.Leave → Confirmar()`, que só protege quando um CLIQUE tira o foco ao editor; um refresco em fundo (`PaletteHost.RefreshData()`) a meio de uma edição, sem clique nenhum, continuava a descartar o valor em silêncio. Passou a chamar `Confirmar()`. Confirmado também que `apt-get install dotnet-sdk-8.0` instala o SDK `dotnet` neste sandbox (o instalador oficial via `curl`/`dot.net` continua bloqueado pela política de rede) | `dotnet test` 304/304. `Palette.cs`, `PalettePanelShell.cs` e `PaletteFachada.cs` **não foram compilados** em `net48`/AutoCAD nesta sessão — precisam de build manual antes de merge |
 | 2026-09-21 | 8 | Fila do agente noturno (único item `[ ]`): removido o código morto herdado das quatro abas antigas — `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs` (`FachadaControl`, `LinearControl`, `ContagemControl`) e as três instâncias mortas em `PaletteHost.Show`. Confirmado por `grep` em todo o projecto (`Tests/`, `Commands.cs`, `TSKTakeOff.csproj`) que nada mais referenciava estas classes. `ResultadosPainel.cs` também definia `PropriedadeEditadaEventArgs`, usada pelo painel real (`MosaicoMetricas.Editado`/`AoEditarMetrica`) — movida para `PalettePanelShell.cs` antes de apagar o ficheiro. Limpa também a lista de excepções WinForms de `verificar.py` (`ContagemControl`/`FachadaControl`, tipos que deixaram de existir) | `dotnet test` 304/304 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install dotnet-sdk-8.0` — o cache apt estava desatualizado e dava 404, `update` resolveu); `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
+| 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
 
 ### Decisões desta passagem
 

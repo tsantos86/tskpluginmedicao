@@ -620,10 +620,22 @@ namespace TSKTakeOff
                 {
                     int i = MosaicoEm(e.Location);
                     if (i < 0) return;
-                    _foco = i;
+                    DefinirFoco(i);
                     if (_metricas[i].Editavel) Editar(i);
-                    else Invalidate();
                 };
+            }
+
+            /// <summary>
+            /// Sem isto, um leitor de ecrã só vê "Propriedades" — sempre o
+            /// mesmo nome, nunca o mosaico que tem o foco. Os mosaicos não são
+            /// controlos (são rectângulos pintados à mão), por isso cada um
+            /// precisa do seu próprio <see cref="AccessibleObject"/> filho; ver
+            /// <see cref="TileAccessibleObject"/> e <see cref="DefinirFoco"/>,
+            /// que avisa o sistema sempre que "_foco" muda.
+            /// </summary>
+            protected override AccessibleObject CreateAccessibilityInstance()
+            {
+                return new MosaicoAccessibleObject(this);
             }
 
             /// <summary>
@@ -643,6 +655,7 @@ namespace TSKTakeOff
                 if (metricas != null) _metricas.AddRange(metricas);
                 _foco = _metricas.Count > 0 ? 0 : -1;
                 Invalidate();
+                if (_foco >= 0) AccessibilityNotifyClients(AccessibleEvents.Focus, _foco);
             }
 
             /// <summary>
@@ -866,8 +879,13 @@ namespace TSKTakeOff
             private void DefinirFoco(int indice)
             {
                 if (_caixas.Count == 0) { _foco = -1; return; }
+                int anterior = _foco;
                 _foco = Math.Max(0, Math.Min(_caixas.Count - 1, indice));
                 Invalidate();
+                // Sem isto, um leitor de ecrã nunca sabe que o "mosaico com
+                // foco" mudou — não há troca de controlo, só um índice
+                // interno, e o AccessibleObject do Panel não se repete sozinho.
+                if (_foco != anterior) AccessibilityNotifyClients(AccessibleEvents.Focus, _foco);
             }
 
             // ----------------------------------------------------------
@@ -883,6 +901,10 @@ namespace TSKTakeOff
                 var r = _caixas[i];
                 _editor.Bounds = new Rectangle(r.X + 8, r.Y + 15, Math.Min(r.Width - 14, 110), 20);
                 _editor.Text = ValorCru(_metricas[i]);
+                // Ao entrar em edição, o foco passa de verdade para o
+                // `_editor` — aí é um controlo nativo que qualquer leitor de
+                // ecrã já anuncia, mas sem nome ficaria só "caixa de edição".
+                _editor.AccessibleName = _metricas[i].Nome;
                 _editor.Visible = true;
                 _editor.BringToFront();
                 _editor.Focus();
@@ -949,6 +971,109 @@ namespace TSKTakeOff
                         return sep > 0 ? v.Substring(0, sep) : v;
                     default:
                         return v;
+                }
+            }
+
+            // ----------------------------------------------------------
+            // Acessibilidade — um AccessibleObject filho por mosaico
+            // ----------------------------------------------------------
+
+            /// <summary>
+            /// O <see cref="AccessibleObject"/> do próprio <see cref="MosaicoMetricas"/>.
+            /// Expõe um filho por mosaico (<see cref="TileAccessibleObject"/>) e
+            /// diz qual deles tem o foco — o painel sozinho não sabe fazer isto,
+            /// porque os mosaicos nunca foram controlos.
+            /// </summary>
+            private sealed class MosaicoAccessibleObject : ControlAccessibleObject
+            {
+                private readonly MosaicoMetricas _dono;
+
+                public MosaicoAccessibleObject(MosaicoMetricas dono) : base(dono)
+                {
+                    _dono = dono;
+                }
+
+                public override int GetChildCount()
+                {
+                    return _dono._metricas.Count;
+                }
+
+                public override AccessibleObject GetChild(int index)
+                {
+                    return index >= 0 && index < _dono._metricas.Count
+                        ? new TileAccessibleObject(_dono, index)
+                        : null;
+                }
+
+                public override AccessibleObject GetFocused()
+                {
+                    return _dono._foco >= 0 && _dono._foco < _dono._metricas.Count
+                        ? GetChild(_dono._foco)
+                        : null;
+                }
+            }
+
+            /// <summary>
+            /// Um mosaico, visto por um leitor de ecrã: nome da medida,
+            /// valor actual, e se está editável ou só de leitura. O índice é
+            /// o próprio ID de filho usado em <c>AccessibilityNotifyClients</c>
+            /// (ver <see cref="DefinirFoco"/>/<see cref="Definir"/>).
+            /// </summary>
+            private sealed class TileAccessibleObject : AccessibleObject
+            {
+                private readonly MosaicoMetricas _dono;
+                private readonly int _indice;
+
+                public TileAccessibleObject(MosaicoMetricas dono, int indice)
+                {
+                    _dono = dono;
+                    _indice = indice;
+                }
+
+                private Propriedade Metrica
+                {
+                    get
+                    {
+                        return _indice >= 0 && _indice < _dono._metricas.Count
+                            ? _dono._metricas[_indice]
+                            : null;
+                    }
+                }
+
+                public override string Name
+                {
+                    get { var m = Metrica; return m == null ? "" : m.Nome; }
+                }
+
+                public override string Value
+                {
+                    get { var m = Metrica; return m == null ? "" : m.Valor; }
+                }
+
+                public override AccessibleRole Role
+                {
+                    get
+                    {
+                        var m = Metrica;
+                        return m != null && m.Editavel ? AccessibleRole.Text : AccessibleRole.StaticText;
+                    }
+                }
+
+                public override AccessibleStates State
+                {
+                    get
+                    {
+                        var estado = AccessibleStates.Focusable;
+                        if (_indice == _dono._foco) estado |= AccessibleStates.Focused;
+                        var m = Metrica;
+                        if (m == null || !m.Editavel) estado |= AccessibleStates.ReadOnly;
+                        return estado;
+                    }
+                }
+
+                public override AccessibleObject Parent
+                {
+                    get { return _dono.AccessibilityObject; }
                 }
             }
         }
