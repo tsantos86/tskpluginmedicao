@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-21
+Última atualização: 2026-10-01
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -447,8 +447,63 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
 
 ### Critérios de conclusão
 
-- [ ] Todas as operações principais funcionam sem rato.
-- [ ] Não há foco preso num painel fechado.
+- [~] Todas as operações principais funcionam sem rato.
+
+  > **Nota 2026-09-30.** Auditoria por leitura de todos os pontos de
+  > recolher/expandir do painel (`CONFIGURAÇÃO`, `Mais opções`,
+  > `PROPRIEDADES`) confirmou que todos alternam por `Visible`, nunca só por
+  > `Height` — o WinForms tira o foco sozinho de um controlo que fica
+  > invisível, por isso nenhum deles prende o Tab num painel fechado (ver
+  > critério seguinte). `FiltrosPopup` (`PaletteFiltros.cs`) já tinha
+  > `ProcessDialogKey` a apanhar `Escape` mesmo de dentro de uma
+  > `CheckedListBox`. Os botões de `MEDIR`/Resultados são `Button`/
+  > `ToolStripButton` nativos (Enter/Espaço já funcionam sem código extra).
+  > Gap real encontrado e corrigido: `ArtigoDialog.cs` (usado por
+  > `Reclassificar` e pela célula "classificar") só filtrava a lista ao
+  > escrever na procura — mover a selecção com `↓/↑/PageDown/PageUp`
+  > exigia sair da caixa de procura com Tab primeiro, porque um `TextBox`
+  > de uma linha não tem para onde mover o cursor nesse eixo e não
+  > reencaminha as setas sozinho. Acrescentado `ProcuraKeyDown` que
+  > reencaminha essas quatro teclas para a `ListBox` sem tirar o foco da
+  > procura — agora dá para filtrar e escolher só com teclado, sem Tab.
+  > Fica `[~]` e não `[x]`: auditoria por leitura, a aguardar confirmação
+  > visual no AutoCAD (Fase 8).
+  >
+  > **Continuação 2026-10-01.** Percorridos os dois pontos que ainda
+  > faltavam da nota anterior, `DefinicoesTipoDialog.cs` e `VaoDialog`
+  > (`Palette.cs`): ambos só usam controlos nativos (`ComboBox`,
+  > `NumericUpDown`, `TextBox`, `CheckBox`, `Button`), sem `KeyDown`/`OnPaint`
+  > próprios e com `AcceptButton`/`CancelButton` definidos — Tab, Enter e
+  > Escape já funcionam sem código extra; nenhum gap encontrado. `VaosDialog`
+  > (plural, a tabela de vãos por `DataGridView`) também revisto: edição por
+  > `EditOnEnter`, sem captura de teclas que bloqueie a navegação nativa do
+  > grid. Segundo gap real encontrado e corrigido, mais importante do que o
+  > do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore de
+  > resultados (`_txtPesquisa` em `Palette.cs`, não um diálogo secundário):
+  > o `KeyDown` da pesquisa só tratava `Enter`/`Escape` — `↓/↑/PageDown/
+  > PageUp` não faziam nada a partir dela, a mesma falha do `ArtigoDialog`,
+  > só que aqui bloqueava "escrever e logo navegar" no fluxo mais usado do
+  > painel. Acrescentado `MoverSeleccaoDaArvore`, que reencaminha essas
+  > quatro teclas para `_dgvCompacto` (mesmo padrão de `SeleccionarNo`/
+  > Home-End já usados pela própria árvore), sem tirar o foco da pesquisa.
+- [~] Não há foco preso num painel fechado.
+
+  > **Nota 2026-09-30.** Mesma auditoria do critério acima: os três painéis
+  > colapsáveis (`config`, `maisOpcoes`, `_mosaico` de `PROPRIEDADES`) saem
+  > da árvore de foco por `Visible = false`, não por `Height = 0` com
+  > `Visible` a ficar `true` — que é o padrão que prenderia o Tab num
+  > controlo invisível. Nenhum caso encontrado do padrão perigoso. `[~]`
+  > pela mesma razão do critério acima (auditoria não exaustiva a 100% do
+  > painel) e por depender de confirmação visual no AutoCAD (Fase 8) para
+  > fechar de vez.
+  >
+  > **Continuação 2026-10-01.** `DefinicoesTipoDialog.cs`, `VaoDialog` e
+  > `VaosDialog` (ver nota do critério acima) também não têm nenhum painel
+  > que esconda por `Height=0` mantendo `Visible=true` — são diálogos
+  > modais simples, sem secções colapsáveis. Continua `[~]` só por faltar a
+  > confirmação visual no AutoCAD (Fase 8); a auditoria por leitura, essa,
+  > está agora completa para todo o painel de resultados e os diálogos que
+  > ele abre.
 - [ ] Não há regressão perceptível face aos cerca de 20 ms já medidos para 461 linhas com `Rows.AddRange`.
 - [ ] Alto contraste mantém texto, seleção e alertas legíveis.
 
@@ -535,6 +590,8 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-26 | — | Fila do agente noturno: auditoria de arquitetura e prontidão comercial (só relatório, `Docs/ANALISE_ARQUITETURA.md`, fora do âmbito da paleta de resultados — cobre o projecto inteiro). Veredito 6/10 "comercial em preparação". Achados de maior impacto: bug confirmado no Excel ao vivo (coluna Item vazia no modo item), leitura do desenho sem isolamento por entidade (uma polyline problemática pode abortar a leitura de todas as medições), estado estático (`Config`/`FachadaConfig`/`ContagemConfig`) partilhado por todo o processo AutoCAD nunca validado com dois documentos abertos, e risco de a versão `net8.0-windows` ficar dessincronizada do `net48` no build multi-target. Sem relação directa com as fases da paleta compacta — não altera o estado geral nem a tabela de fases deste documento | `dotnet test` 341/341; nenhum código de produção alterado (tarefa só de documentação, como pedido) |
 | 2026-09-27 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-26`, Passo 0 — a auditoria de arquitetura já lá estava completa e mesclável). Fila do agente noturno, item seguinte: análise de desempenho (`Docs/ANALISE_DESEMPENHO.md`), delegada em 3 agentes de investigação em paralelo. `Leitura.Tudo` percorre TODO o Model Space (Polyline/Hatch/Circle), não só as medições — o próprio código já documenta a preocupação (`Commands.cs:2695-2700`); o debounce de `Palette.cs` (Idle + janela adaptativa) é temporal, sem filtro semântico. `ExcelLiveSync` tem dois caminhos: o principal (com modelo) já escreve em bloco, com ganho de 16× documentado em comentário no próprio código; o de recurso sem modelo (`EscreverSimples`) é célula-a-célula. Nenhum padrão O(n²) real encontrado em `FolhaMedicao`/`MapaQuantidades`/`FiebdcExporter`/`ExcelExporter` — o que parecia quadrático em `AgruparParedes`/`Numerar` é, por leitura cuidadosa, O(n log n)/O(n). Testes de desempenho novos (`Tests/DesempenhoTests.cs`, Fase 7 — "Medir construção do modelo, binding e scroll... com um cenário de milhares de nós"): `ResultadosArvore`/`FolhaMedicao`/`FiebdcExporter` medidos com 100/1.000/5.000 medições sintéticas, todos abaixo de ~110 ms mesmo no maior caso — sem preocupação de desempenho do lado da lógica pura. Achado concreto de código evitável (não corrigido nesta tarefa, é só relatório): `ResultadosArvore.Handles(raiz).Contains(nova)` em `Palette.cs:1989` percorre a árvore inteira só para testar um handle já conhecido. Propostas de otimização acrescentadas em `## Propostas (aguardam aprovação)` de `Docs/TAREFAS_AGENTE.md`, não movidas para a Fila | `dotnet test` 356/356 (341 + 15 testes novos de desempenho); nenhum código de produção alterado — tarefa só de documentação/testes, como pedido |
 | 2026-09-21 | 8 | Fila do agente noturno (único item `[ ]`): removido o código morto herdado das quatro abas antigas — `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs` (`FachadaControl`, `LinearControl`, `ContagemControl`) e as três instâncias mortas em `PaletteHost.Show`. Confirmado por `grep` em todo o projecto (`Tests/`, `Commands.cs`, `TSKTakeOff.csproj`) que nada mais referenciava estas classes. `ResultadosPainel.cs` também definia `PropriedadeEditadaEventArgs`, usada pelo painel real (`MosaicoMetricas.Editado`/`AoEditarMetrica`) — movida para `PalettePanelShell.cs` antes de apagar o ficheiro. Limpa também a lista de excepções WinForms de `verificar.py` (`ContagemControl`/`FachadaControl`, tipos que deixaram de existir) | `dotnet test` 304/304 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install dotnet-sdk-8.0` — o cache apt estava desatualizado e dava 404, `update` resolveu); `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
+| 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
+| 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 
 ### Decisões desta passagem
 
