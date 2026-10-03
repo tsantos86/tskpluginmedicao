@@ -62,6 +62,8 @@ namespace TSKTakeOff
         private static readonly Color _fundoAviso = Color.FromArgb(0xFF, 0xF8, 0xDF);
         private static readonly Color _bordaAviso = Color.FromArgb(0xF4, 0xB7, 0x2B);
         private static readonly Color _textoAviso = Color.FromArgb(0x76, 0x57, 0x00);
+        /// <summary>Fundo de alerta grave (ex.: vãos maiores que a própria parede).</summary>
+        private static readonly Color _fundoPerigo = Color.FromArgb(0xFF, 0xE0, 0xE0);
         /// <summary>
         /// O realce de "isto edita-se": um amarelo pálido, que em fundo claro
         /// se lê sem gritar nem se confundir com o azul da selecção.
@@ -135,6 +137,12 @@ namespace TSKTakeOff
         public static Color FundoAviso { get { return C(_fundoAviso, SystemColors.Info); } }
         public static Color BordaAviso { get { return C(_bordaAviso, SystemColors.InfoText); } }
         public static Color TextoAviso { get { return C(_textoAviso, SystemColors.InfoText); } }
+        /// <summary>
+        /// Fundo de uma linha com alerta grave. Em alto contraste devolve o
+        /// fundo normal da janela: é o texto/tooltip do alerta que tem de
+        /// carregar a informação nesse modo, não a cor.
+        /// </summary>
+        public static Color FundoPerigo { get { return C(_fundoPerigo, SystemColors.Window); } }
         public static Color FundoEditavel { get { return C(_fundoEditavel, SystemColors.Window); } }
         public static Color BordaCampo { get { return C(_bordaCampo, SystemColors.ControlDark); } }
         public static Color SombraCartao { get { return C(_sombraCartao, SystemColors.ControlDark); } }

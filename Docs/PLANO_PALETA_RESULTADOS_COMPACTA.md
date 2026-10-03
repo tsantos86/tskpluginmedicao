@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-09-21
+Última atualização: 2026-10-03
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -440,7 +440,57 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
 - [ ] Todas as operações principais funcionam sem rato.
 - [ ] Não há foco preso num painel fechado.
 - [ ] Não há regressão perceptível face aos cerca de 20 ms já medidos para 461 linhas com `Rows.AddRange`.
-- [ ] Alto contraste mantém texto, seleção e alertas legíveis.
+- [~] Alto contraste mantém texto, seleção e alertas legíveis.
+
+  > **Nota 2026-10-03.** `PaletteTheme.cs` já tinha o mecanismo certo
+  > (`AltoContraste`/`SystemInformation.HighContrast`, com `C(propria,
+  > doSistema)` a devolver a cor do sistema nesse modo) — mas auditoria por
+  > `grep` a `Color.FromArgb`/`Color.DarkRed`/`Color.Gray` fora de
+  > `PaletteTheme.cs` encontrou código VIVO do painel de resultados que
+  > continuava a pintar à mão, ignorando o mecanismo:
+  > - `_lblLayer`/`_lblArtigoMqt` (`Palette.cs`, rótulos secundários em
+  >   CONFIGURAÇÃO/Mais opções) com `Color.FromArgb(90, 90, 90)` fixo —
+  >   corrigido para `PaletteTheme.Apagado`.
+  > - A linha da árvore com alerta `VaosExcessivos`
+  >   (`AtualizarResultadosCompactos`, `Palette.cs`) com
+  >   `Color.FromArgb(255, 224, 224)` fixo no fundo — corrigido para um
+  >   token novo, `PaletteTheme.FundoPerigo` (mesma cor em tema claro,
+  >   `SystemColors.Window` em alto contraste, pelo mesmo princípio que já
+  >   rege `FundoPorClassificar`/`FundoAviso`: nesse modo é o texto/tooltip
+  >   do alerta que tem de chegar, não a cor).
+  > - `_lblTotais` (rodapé "Medições: … Total: …"), o resumo que respondia
+  >   com `Color.DarkRed` (excesso de vãos) e `Color.FromArgb(150, 90, 0)`
+  >   (sem artigo) — corrigidos para `PaletteTheme.Perigo` (existia, nunca
+  >   tinha sido usado em lado nenhum) e `PaletteTheme.TextoPorClassificar`
+  >   (mesma cor ocre já usada no "por classificar" da árvore, em vez de um
+  >   tom quase igual mas duplicado); o ramo sem alerta passou de
+  >   `SystemColors.ControlText` para `PaletteTheme.Tinta`, consistente com
+  >   a cor inicial do rótulo.
+  > - `ArtigoDialog.cs` (Reclassificar) não usa `PaletteTheme` — é só
+  >   controlos nativos, como o resto do diálogo (confirmado na auditoria de
+  >   teclado de 2026-10-01) — mas tinha o mesmo `Color.FromArgb(90, 90,
+  >   90)` fixo na legenda de contagem; corrigido para `SystemColors.GrayText`,
+  >   que já acompanha o alto contraste sozinho, sem precisar do mecanismo
+  >   da paleta.
+  >
+  > Confirmado por `grep` que o resto das ocorrências de `Color.FromArgb`
+  > fora de `PaletteTheme.cs` pertence a código morto já documentado (`_dgv`
+  > e os ajudantes só dele — `GarantirEstilos`, `_estVao`, `_estAlerta`,
+  > `_celEditavel`, `_celAlerta`, `_celSemArtigo`, `FundoTitulo`,
+  > `VermelhoDeducao` local duplicado — ver Fase 8), a diálogos fora do
+  > âmbito da Fase 7 (`SobreDialog.cs`, `LicencaDialog.cs`), ou a cor que não
+  > é texto/alerta (`_corDoPiso`, o swatch de cor por omissão no selector de
+  > cor do piso; `IconFactory.cs`, paleta dos ícones desenhados; `Fachada.cs`,
+  > cores de piso persistidas). Nenhum destes foi alterado.
+  >
+  > **Implementado, aguarda build manual** — `Palette.cs`/`PaletteTheme.cs`/
+  > `ArtigoDialog.cs` não compilam neste sandbox (sem AutoCAD/WinForms);
+  > revistos por leitura cuidadosa e por um verificador de chavetas/parênteses
+  > próprio (equilibrados nos três ficheiros). Falta ainda confirmar
+  > visualmente no AutoCAD, com o Windows em alto contraste real (Fase 8),
+  > que a selecção da árvore e o contorno de foco (`PaletteTheme.ComFoco`)
+  > continuam legíveis — não foram tocados nesta sessão, só os alertas/texto
+  > secundário encontrados na auditoria.
 
 ## Fase 8 — Regressão, documentação e build final [ ]
 
@@ -522,6 +572,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-19 | 3 | Bug real reportado pelo utilizador ao testar no AutoCAD: a árvore de resultados só mostrava `Estrutura / elemento` e `Quantidade`, sem `Comp.`/`Altura` — apesar do item da Fase 3 estar `[x]` desde 2026-09-05. Causa: a marca `[x]` correspondia a `ResultadosPainel.cs`, que não está ligado a nada; o painel real (`_dgvCompacto` em `Palette.cs`) ainda tinha só duas colunas, herdadas de uma decisão anterior ao "conflito resolvido". Corrigido: colunas `Comp.`/`Altura` acrescentadas a `_dgvCompacto`, preenchidas por `NoResultado.TextoComprimento`/`TextoAltura` (mesmos métodos que já existiam no modelo e em `ResultadosPainel.cs`, só não estavam chamados no painel certo) | `dotnet test` 304/304; build real `net48`/AutoCAD 2021 (`TSKTakeOff.dll` 1.2.6.72) sem erros nem avisos. **Falta confirmar visualmente no AutoCAD** que as colunas leem bem no tema claro |
 | 2026-09-19 | 2 | Pedido do utilizador: CONFIGURAÇÃO "fica simples", falta borda definida nos campos e cor. Tentativa 1 — `PaletteTheme.ComBorda` desligava a borda nativa de `Serviço`/`Bloco`/`Altura`/`Espessura` (`BorderStyle.None`) e desenhava uma moldura de 1px própria num `Panel` à volta, acesa a acento no foco. **Regressão visual**: o `Panel` wrapper não tinha `AutoSize`/altura própria, e numa `TableLayoutPanel` com `AutoSize=true` isso fez a linha crescer para o `DefaultSize` (200×100) do `Panel` em vez do tamanho normal do campo — reportado pelo utilizador com captura de ecrã (campos viraram blocos cinzentos enormes). Revertido de imediato para os campos nativos. Mantido, por não ter o mesmo problema, um risco de acento de 2 px sob o título "CONFIGURAÇÃO" (`_btnConfigToggle.Paint`), mesma linguagem do separador activo do mockup Eberick | `dotnet test` 304/304 nas duas passagens; build real `net48`/AutoCAD 2021 sem erros nem avisos (`TSKTakeOff.dll` 1.2.6.74 após a reversão). **Risco registado**: dar borda própria a um campo nativo do WinForms exige desligar a borda do sistema e desenhar/envolver à mão — se o wrapper não fixar a sua própria altura, uma `TableLayoutPanel` com linhas `AutoSize` pode explodir a linha para o tamanho por omissão do `Panel`. Uma próxima tentativa tem de fixar `Height`/`MinimumSize` do wrapper (ex.: `PaletteTheme.AlturaCampo + 2`) em vez de confiar só em `Dock=Fill` |
 | 2026-09-20 | 3 | Sessão que arrancou de um checkout local desactualizado (`main` local parado em `597a5ac`, 14 commits atrás da ponta real) e por isso repetiu, sem saber, verificação já feita a 2026-09-17: confirmados de novo os campos `Essencial` por tipo de nó, e refeita (idêntica em espírito) a correcção de `ResultadosAdaptadores.DeMateriais`/`RegraDesconto` já presente em `main`. A divergência só apareceu ao abrir o PR contra `origin/main` e resolver o merge. O contributo líquido novo desta sessão: `MosaicoMetricas.Definir` (`PalettePanelShell.cs`) ainda chamava `Cancelar()` — a verificação de 2026-09-17 tinha confiado no `_editor.Leave → Confirmar()`, que só protege quando um CLIQUE tira o foco ao editor; um refresco em fundo (`PaletteHost.RefreshData()`) a meio de uma edição, sem clique nenhum, continuava a descartar o valor em silêncio. Passou a chamar `Confirmar()`. Confirmado também que `apt-get install dotnet-sdk-8.0` instala o SDK `dotnet` neste sandbox (o instalador oficial via `curl`/`dot.net` continua bloqueado pela política de rede) | `dotnet test` 304/304. `Palette.cs`, `PalettePanelShell.cs` e `PaletteFachada.cs` **não foram compilados** em `net48`/AutoCAD nesta sessão — precisam de build manual antes de merge |
+| 2026-10-03 | 7 | Fila sem itens `[ ]` novos accionáveis (os dois únicos continuam cobertos pelo PR #7, ainda não mesclado) e PRs #7/#8/#9 abertos já cobrem o resto da Fase 3/5/7 pendente — seguido o plano para o critério de conclusão da Fase 7 ainda por tocar, "Alto contraste mantém texto, seleção e alertas legíveis". Auditoria por `grep` a cores fixas (`Color.FromArgb`/`Color.DarkRed`/`Color.Gray`) fora de `PaletteTheme.cs` encontrou código VIVO que contradizia o próprio princípio documentado em `PaletteTheme.cs` ("todas as cores passam por aqui"): `_lblLayer`/`_lblArtigoMqt` e o fundo do alerta `VaosExcessivos` na árvore, em `Palette.cs`, com cores fixas; `_lblTotais` (rodapé de totais) com `Color.DarkRed`/`Color.FromArgb(150, 90, 0)` fixos, incluindo `PaletteTheme.Perigo`, que já existia mas nunca tinha sido usado; e `ArtigoDialog.cs` com o mesmo cinzento fixo na legenda de contagem. Todos corrigidos para passar por `PaletteTheme` (um token novo, `FundoPerigo`, para o fundo de alerta grave) ou por `SystemColors.GrayText` no caso do diálogo que não usa o tema da paleta | `dotnet test` 341/341 (sem alterações ao projeto de testes). `Palette.cs`/`PaletteTheme.cs`/`ArtigoDialog.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibrados nos três). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação visual com Windows em alto contraste real (Fase 8) |
 | 2026-09-21 | 8 | Fila do agente noturno (único item `[ ]`): removido o código morto herdado das quatro abas antigas — `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs` (`FachadaControl`, `LinearControl`, `ContagemControl`) e as três instâncias mortas em `PaletteHost.Show`. Confirmado por `grep` em todo o projecto (`Tests/`, `Commands.cs`, `TSKTakeOff.csproj`) que nada mais referenciava estas classes. `ResultadosPainel.cs` também definia `PropriedadeEditadaEventArgs`, usada pelo painel real (`MosaicoMetricas.Editado`/`AoEditarMetrica`) — movida para `PalettePanelShell.cs` antes de apagar o ficheiro. Limpa também a lista de excepções WinForms de `verificar.py` (`ContagemControl`/`FachadaControl`, tipos que deixaram de existir) | `dotnet test` 304/304 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install dotnet-sdk-8.0` — o cache apt estava desatualizado e dava 404, `update` resolveu); `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 
 ### Decisões desta passagem
