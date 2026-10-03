@@ -821,7 +821,7 @@ namespace TSKTakeOff
                 Dock = DockStyle.Fill,
                 AutoSize = false,
                 TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Color.FromArgb(90, 90, 90)
+                ForeColor = PaletteTheme.Apagado
             };
 
             // O artigo é escolhido directamente na lista do mapa importado.
@@ -841,7 +841,7 @@ namespace TSKTakeOff
                 Dock = DockStyle.Fill,
                 AutoSize = false,
                 TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Color.FromArgb(90, 90, 90)
+                ForeColor = PaletteTheme.Apagado
             };
 
             // O TEXTO QUE VAI SAIR NA LINHA DE TÍTULO.
@@ -2059,7 +2059,7 @@ namespace TSKTakeOff
                         linha.DefaultCellStyle.ForeColor = PaletteTheme.TextoPorClassificar;
                     }
                     if ((no.Alertas & AlertaNo.VaosExcessivos) != 0 && no.Tipo == TipoNo.Medicao)
-                        linha.DefaultCellStyle.BackColor = Color.FromArgb(255, 224, 224);
+                        linha.DefaultCellStyle.BackColor = PaletteTheme.FundoPerigo;
                 }
 
                 if (item.Correspondeu && vista.AFiltrar)
@@ -3716,15 +3716,15 @@ namespace TSKTakeOff
 
             if (excesso > 0)
             {
-                _lblTotais.ForeColor = Color.DarkRed;
+                _lblTotais.ForeColor = PaletteTheme.Perigo;
                 _lblTotais.Text += string.Format(
                     "   ⚠ {0} parede(s) com vãos maiores que a própria parede", excesso);
             }
             else
             {
                 _lblTotais.ForeColor = semArtigo > 0
-                    ? Color.FromArgb(150, 90, 0)
-                    : SystemColors.ControlText;
+                    ? PaletteTheme.TextoPorClassificar
+                    : PaletteTheme.Tinta;
             }
         }
 

@@ -85,7 +85,7 @@ namespace TSKTakeOff
                 Dock = DockStyle.Bottom,
                 Height = 20,
                 Padding = new Padding(10, 0, 10, 0),
-                ForeColor = Color.FromArgb(90, 90, 90)
+                ForeColor = SystemColors.GrayText
             };
 
             _lista = new ListBox
