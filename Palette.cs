@@ -1543,6 +1543,7 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat, Font = PaletteTheme.Pequeno,
                 Visible = false,
                 BackColor = PaletteTheme.FundoSeccao, ForeColor = PaletteTheme.Apagado,
+                TabIndex = 2,
                 AccessibleName = "Limpar pesquisa e filtros"
             };
             _btnLimparFiltros.FlatAppearance.BorderSize = 0;
@@ -1560,12 +1561,20 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat, Font = PaletteTheme.Pequeno,
                 BackColor = PaletteTheme.Fundo, ForeColor = PaletteTheme.Tinta,
                 UseVisualStyleBackColor = false,
+                TabIndex = 1,
                 AccessibleName = "Filtros"
             };
             _btnFiltros.Click += (s, e) => AbrirFiltros();
 
             _txtPesquisa = new TextBox {
                 Dock = DockStyle.Right, Width = 130, TabStop = true,
+                // TabIndex explícito pela mesma razão dos quatro painéis
+                // directos de _resultadosCompactos (ver CriarResultadosCompactos):
+                // em Dock=Right, o primeiro controlo acrescentado fica mais à
+                // direita, e sem TabIndex o Tab seguia a ordem de Controls.Add
+                // (Limpar, Filtros, Pesquisa) — o INVERSO da ordem visual
+                // (Pesquisa, Filtros, Limpar). Aqui vai pela ordem em que se lêem.
+                TabIndex = 0,
                 AccessibleName = "Pesquisar resultados",
                 // Explícito, e não herdado: uma TextBox nasce branca, e num
                 // painel grafite isso é um buraco de luz.
@@ -1867,6 +1876,12 @@ namespace TSKTakeOff
                 Font = PaletteTheme.Pequeno,
                 BackColor = PaletteTheme.Palido,
                 ForeColor = PaletteTheme.Acento,
+                // TabIndex explícito pela mesma razão de _txtPesquisa/_btnFiltros/
+                // _btnLimparFiltros (CriarResultadosCompactos): em Dock=Right, o
+                // primeiro acrescentado fica mais à direita. Sem isto, o Tab
+                // seguia a ordem de Controls.Add (título, Medir aqui, Essenciais)
+                // — o INVERSO da ordem visual (título, Essenciais, Medir aqui).
+                TabIndex = 1,
                 AccessibleName = "Detalhe das propriedades"
             };
             _btnPropriedadesModo.FlatAppearance.BorderSize = 0;
@@ -1894,6 +1909,7 @@ namespace TSKTakeOff
                 ForeColor = PaletteTheme.Acento,
                 BackColor = PaletteTheme.FundoSeccao,
                 Visible = false,
+                TabIndex = 2,
                 AccessibleName = "Medir aqui",
                 AccessibleDescription =
                     "Copia o piso, o serviço e o artigo deste nó para a próxima medição."
@@ -1915,6 +1931,7 @@ namespace TSKTakeOff
                 ForeColor = PaletteTheme.Tinta,
                 BackColor = PaletteTheme.FundoSeccao,
                 AutoEllipsis = true,
+                TabIndex = 0,
                 AccessibleName = "Propriedades"
             };
             _lblPropriedadeTitulo.FlatAppearance.BorderSize = 0;
