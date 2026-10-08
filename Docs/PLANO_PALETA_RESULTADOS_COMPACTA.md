@@ -402,6 +402,46 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > build manual. Falta ainda ordenar os controlos DENTRO de cada um destes
   > quatro grupos (por exemplo, os botões da barra de pesquisa) se a matriz
   > manual da Fase 8 revelar que a ordem interna também confunde.
+  >
+  > **Nota 2026-10-08.** Não foi preciso esperar pela matriz manual — o
+  > mesmo padrão já descrito acima (Dock=Right: o primeiro controlo
+  > acrescentado fica mais à direita; sem `TabIndex`, o Tab segue a ordem de
+  > `Controls.Add`, que para Dock=Right/Top costuma ser o inverso da ordem
+  > visual) reproduz-se dentro de DOIS dos quatro grupos, confirmado por
+  > leitura directa da ordem de `Controls.Add` em `Palette.cs`:
+  > - `barra` (pesquisa/filtros, `CriarResultadosCompactos`): acrescentados
+  >   `_lblChips`, `_btnLimparFiltros`, `_btnFiltros`, `_txtPesquisa` — por
+  >   omissão o Tab ia `Limpar → Filtros → Pesquisa`, ao contrário da leitura
+  >   visual esquerda-direita (`Pesquisa → Filtros → Limpar`, com "Limpar"
+  >   escondido na maior parte do tempo, `Visible = false` até haver
+  >   filtro/pesquisa activos).
+  > - `cabecalhoProps` (cabeçalho de `PROPRIEDADES`): acrescentados
+  >   `_lblPropriedadeTitulo`, `_btnMedirAqui`, `_btnPropriedadesModo` — por
+  >   omissão o Tab ia `título → Medir aqui → Essenciais/Tudo`, ao contrário
+  >   da leitura visual (`título → Essenciais/Tudo → Medir aqui`, este mais
+  >   perto da borda direita).
+  >
+  > Corrigido com `TabIndex` explícito nos três/quatro controlos de cada
+  > grupo, pela ordem em que se lêem (mesma técnica já usada para os quatro
+  > grupos exteriores): `_txtPesquisa=0`, `_btnFiltros=1`,
+  > `_btnLimparFiltros=2`; `_lblPropriedadeTitulo=0`,
+  > `_btnPropriedadesModo=1`, `_btnMedirAqui=2`. Revistos também os outros
+  > cabeçalhos com botão único (`CONFIGURAÇÃO`, `Mais opções` — um só botão
+  > cada, sem ordem interna para confundir) e a barra de acções
+  > `_barraResultados` (um `ToolStrip`, cuja ordem de Tab segue o índice em
+  > `Items`, não a stacking de `Dock`; o único item com
+  > `Alignment = ToolStripItemAlignment.Right` — "Mais" — já era também o
+  > último do `Items`, por isso já coincidia). Nenhum outro grupo com mais de
+  > um controlo focável em Dock=Right/Left foi encontrado nestes quatro
+  > grupos. `[~]`: sem lógica nova, só `TabIndex` — revisto por leitura
+  > cuidadosa e por um verificador de chavetas/parênteses próprio
+  > (equilibradas, 409/409 e 1539/1539 no ficheiro inteiro) — **implementado,
+  > aguarda build manual** (sem AutoCAD/WinForms neste sandbox); falta ainda
+  > confirmar visualmente no AutoCAD (Fase 8) que a ordem agora bate certo
+  > com a leitura e que não há mais nenhum grupo com o mesmo problema fora
+  > destes quatro (por exemplo, dentro de `CONFIGURAÇÃO`/`Mais opções`, que
+  > usam `TableLayoutPanel` por células, um mecanismo diferente, não
+  > auditado nesta passagem).
 - [x] `PRÓXIMA`, alertas e `Por classificar` têm texto/ícone e não dependem apenas de cor.
 - [~] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
 
@@ -665,6 +705,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-08 | 7 | Fila sem itens `[ ]`; PR aberto da rotina já estava mesclado, sem trabalho por retomar (Passo 0). Seguido o plano: a nota de 2026-09-18 sobre `TabIndex`/`TabStop` deixava registado "falta ainda ordenar os controlos DENTRO de cada um destes quatro grupos... se a matriz manual da Fase 8 revelar que a ordem interna também confunde" — em vez de esperar pela matriz manual, confirmado por leitura directa da ordem de `Controls.Add` que o MESMO padrão (Dock=Right: o primeiro acrescentado fica mais à direita; sem `TabIndex`, o Tab segue a ordem de adição, inversa à leitura visual) já reproduzia dentro de dois dos quatro grupos: `barra` (pesquisa/filtros — Tab ia `Limpar → Filtros → Pesquisa`, ao contrário da leitura `Pesquisa → Filtros → Limpar`) e `cabecalhoProps` (cabeçalho de `PROPRIEDADES` — Tab ia `título → Medir aqui → Essenciais/Tudo`, ao contrário de `título → Essenciais/Tudo → Medir aqui`). Corrigido com `TabIndex` explícito nos seis controlos envolvidos, pela ordem em que se lêem. Revistos também `CONFIGURAÇÃO`/`Mais opções` (um único botão cada, sem ordem interna para confundir) e `_barraResultados` (`ToolStrip`, cuja ordem de Tab já segue o índice em `Items`, não a stacking de `Dock` — já estava certa) — ver nota na Fase 7 acima | `dotnet test` 356/356 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install`); `Palette.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (409/409, 1539/1539, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 
 ### Decisões desta passagem
 
