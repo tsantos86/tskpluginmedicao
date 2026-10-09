@@ -650,11 +650,15 @@ namespace TSKTakeOff
             // recolhida, de propósito. É a única coisa da paleta que muda o
             // que acontece a seguir sem ninguém estar a olhar para ela, e
             // medir dez paredes para o artigo errado descobre-se tarde demais.
+            // TabIndex explícito: ver o comentário junto dos Controls.Add finais
+            // desta função, mais abaixo, sobre a ordem de Tab das seis secções
+            // directas do painel (cabeçalho, CONFIGURAÇÃO, MEDIR, resultados).
             var cabecalho = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaCabecalho,
-                BackColor = PaletteTheme.AzulTopo
+                BackColor = PaletteTheme.AzulTopo,
+                TabIndex = 0
             };
             _lblProximaMedicao = new Label
             {
@@ -716,14 +720,16 @@ namespace TSKTakeOff
                 AutoSize = true,
                 Visible = false,
                 ColumnCount = 2,
-                Padding = new Padding(8)
+                Padding = new Padding(8),
+                TabIndex = 2
             };
 
             var configHost = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaTituloSeccao,
-                BackColor = PaletteTheme.FundoSeccao
+                BackColor = PaletteTheme.FundoSeccao,
+                TabIndex = 1
             };
             _btnConfigToggle = new Button {
                 Dock = DockStyle.Fill,
@@ -1471,8 +1477,24 @@ namespace TSKTakeOff
                 BackColor = PaletteTheme.AzulTopo,
                 Padding = new Padding(PaletteTheme.Margem, 0, PaletteTheme.Margem, 0),
                 AutoEllipsis = true,
-                AccessibleName = "Totais"
+                AccessibleName = "Totais",
+                TabIndex = 5
             };
+
+            // TabIndex explícito nas seis secções directas do painel, na ordem
+            // em que se LEEM (cabeçalho, CONFIGURAÇÃO recolhida, CONFIGURAÇÃO
+            // expandida, MEDIR, árvore de resultados, totais). O MESMO problema
+            // já corrigido dentro de CriarResultadosCompactos (e, mais acima,
+            // dentro de `barra`/`cabecalhoProps`) repete-se aqui um nível mais
+            // alto: todas estas secções têm Dock=Top/Bottom/Fill e, sem
+            // TabIndex próprio, a ordem seguia Controls.Add — que para Dock=Top
+            // é o INVERSO da ordem visual (o último a entrar fica mais acima).
+            // Sem esta correcção, Tab a partir do topo do painel entrava pela
+            // árvore de resultados (o 1.º Controls.Add), depois MEDIR, depois
+            // CONFIGURAÇÃO expandida e só por fim o botão «▶ CONFIGURAÇÃO» —
+            // exactamente ao contrário da leitura visual.
+            var cartaoMedir = PalettePanelShell.CartaoArredondado(medirTitulo, tools);
+            cartaoMedir.TabIndex = 3;
 
             Controls.Add(_resultadosCompactos);
             // A grelha larga já não entra no painel: a árvore compacta é a
@@ -1480,7 +1502,7 @@ namespace TSKTakeOff
             // levar os ajudantes que só ela usava.
             // Controls.Add(_dgv);
             Controls.Add(_lblTotais);
-            Controls.Add(PalettePanelShell.CartaoArredondado(medirTitulo, tools));
+            Controls.Add(cartaoMedir);
             Controls.Add(config);
             Controls.Add(configHost);
             Controls.Add(cabecalho);
@@ -1523,7 +1545,7 @@ namespace TSKTakeOff
             // Fill, e não Bottom: com a grelha larga fora do painel, é a árvore
             // que ocupa o espaço que sobra. Em Bottom ficava uma faixa vazia
             // do tamanho da grelha que já lá não está.
-            _resultadosCompactos = new Panel { Dock = DockStyle.Fill, BackColor = PaletteTheme.Fundo };
+            _resultadosCompactos = new Panel { Dock = DockStyle.Fill, BackColor = PaletteTheme.Fundo, TabIndex = 4 };
             // TabIndex explícito nos quatro filhos directos, na ordem em que se
             // LEEM (pesquisa/filtros, depois as acções, depois a árvore, depois
             // propriedades). Sem isto, o Tab seguia a ordem de Controls.Add, que
