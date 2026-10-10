@@ -402,6 +402,40 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > build manual. Falta ainda ordenar os controlos DENTRO de cada um destes
   > quatro grupos (por exemplo, os botões da barra de pesquisa) se a matriz
   > manual da Fase 8 revelar que a ordem interna também confunde.
+
+  > **Nota 2026-10-10.** O mesmo bug (Tab segue a ordem de `Controls.Add`
+  > em painéis `Dock=Top/Bottom/Right`, o inverso da leitura visual) nunca
+  > tinha sido auditado em `PaletteFiltros.cs` (`FiltrosPopup`), só revisto
+  > antes para `Escape`/navegação por setas na `CheckedListBox`
+  > (2026-09-30). Encontrado em dois níveis do popup de filtros: (1)
+  > `corpo.Controls.Add` acrescenta `conteudo` (as listas de filtro),
+  > depois `rodape` (Aplicar/Repor) e só por fim `Cabecalho()` (título
+  > «FILTROS» + ✕) — o Tab visitava as listas primeiro, os botões
+  > Aplicar/Repor a seguir e o botão fechar em último, o inverso da leitura
+  > topo→fundo; (2) dentro do próprio `Rodape()`, `aplicar` (`Dock=Right`)
+  > é acrescentado antes de `repor`, pela mesma regra de stacking à
+  > direita já documentada para `barra`/`cabecalhoProps` de `Palette.cs` —
+  > o Tab visitava «Aplicar» antes de «Repor», o inverso da leitura
+  > esquerda→direita (Repor fica à esquerda de Aplicar). Corrigido com
+  > `TabIndex` explícito: `Cabecalho()`=0, `conteudo`=1, `Rodape()`=2 ao
+  > nível do `corpo`; `repor`=0, `aplicar`=1 dentro do rodapé. `grelha`
+  > (`TableLayoutPanel`) e `estados` (`FlowLayoutPanel`) já preservam a
+  > ordem visual por construção — confirmados sem precisar de correcção.
+  > **Implementado, aguarda build manual** — `PaletteFiltros.cs` é
+  > WinForms, não compila neste sandbox; revisto por leitura cuidadosa
+  > contra o resto do ficheiro e por um verificador de chavetas/parênteses
+  > próprio (32/32 chavetas, 128/128 parênteses, ficheiro inteiro,
+  > equilibradas). `dotnet test` 356/356 (sem alterações ao projecto de
+  > testes — `PaletteFiltros.cs` não lhe pertence). Falta ainda confirmar
+  > visualmente no AutoCAD (Fase 8) a ordem de Tab do popup de filtros.
+  >
+  > Nota à parte: os PRs `agent/paleta-resultados-2026-10-08` e
+  > `agent/paleta-resultados-2026-10-09` (ainda não mesclados em `main` à
+  > data desta sessão) já tinham resolvido a mesma "ordem interna dos
+  > quatro grupos" referida no parágrafo acima para `barra`/`cabecalhoProps`
+  > dentro de `Palette.cs`, e para as seis secções directas de
+  > `MedPanelControl` — por isso esta sessão não repetiu esse trabalho em
+  > `Palette.cs`, só em `PaletteFiltros.cs`, que nenhum dos dois tocava.
 - [x] `PRÓXIMA`, alertas e `Por classificar` têm texto/ícone e não dependem apenas de cor.
 - [~] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
 
@@ -665,6 +699,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-10 | 7 | Fila (`Docs/TAREFAS_AGENTE.md`) sem itens `[ ]` novos. PRs abertos #11 (`agent/paleta-resultados-2026-10-08`) e #12 (`agent/paleta-resultados-2026-10-09`) completos pelas próprias descrições, sem trabalho cortado a meio — não retomados (Passo 0). Seguido o plano, Fase 7, item `TabIndex`/`TabStop`: a nota de 2026-09-18 deixava "ordenar os controlos DENTRO de cada grupo" pendente; os PRs #11/#12 (ainda não mesclados) já tinham feito isso para `barra`/`cabecalhoProps` e para as seis secções de `MedPanelControl`, ambos em `Palette.cs` — para não duplicar, auditado o mesmo padrão num ficheiro nunca verificado para `TabIndex`, `PaletteFiltros.cs` (`FiltrosPopup`, só revisto antes para `Escape`/setas, 2026-09-30). Encontrado o mesmo bug em dois níveis: `corpo.Controls.Add` (conteúdo → rodapé → cabeçalho, o Tab visitava o botão fechar em último em vez de primeiro) e dentro do próprio `Rodape()` (`aplicar` antes de `repor`, Tab visitava Aplicar antes de Repor apesar de Repor estar à esquerda). Corrigido com `TabIndex` explícito nos dois níveis — ver nota na Fase 7 acima | `dotnet test` 356/356 (sem alterações ao projecto de testes — `PaletteFiltros.cs` não lhe pertence). `PaletteFiltros.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (32/32 chavetas, 128/128 parênteses, ficheiro inteiro, equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 
 ### Decisões desta passagem
 

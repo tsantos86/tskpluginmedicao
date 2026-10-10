@@ -58,13 +58,19 @@ namespace TSKTakeOff
             };
 
             var rodape = Rodape();
+            var cabecalho = Cabecalho();
             var conteudo = new Panel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Padding = new Padding(8, 6, 8, 6),
-                BackColor = PaletteTheme.Fundo
+                BackColor = PaletteTheme.Fundo,
+                // Mesmo bug do TabIndex já corrigido três vezes em Palette.cs:
+                // sem índice explícito, o Tab segue a ordem de `Controls.Add`
+                // em `corpo` (conteúdo, rodapé, cabeçalho), o inverso exacto da
+                // leitura visual (cabeçalho no topo, rodapé no fundo).
+                TabIndex = 1
             };
 
             var grelha = new TableLayoutPanel
@@ -115,7 +121,7 @@ namespace TSKTakeOff
 
             corpo.Controls.Add(conteudo);
             corpo.Controls.Add(rodape);
-            corpo.Controls.Add(Cabecalho());
+            corpo.Controls.Add(cabecalho);
             corpo.Height = conteudo.PreferredSize.Height + rodape.Height +
                            PaletteTheme.AlturaTituloSeccao + 4;
 
@@ -139,7 +145,10 @@ namespace TSKTakeOff
             {
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaTituloSeccao,
-                BackColor = PaletteTheme.FundoSeccao
+                BackColor = PaletteTheme.FundoSeccao,
+                // Primeiro a ler (topo do popup) é também o primeiro a
+                // receber Tab — ver nota em `TabIndex = 1` de `conteudo`.
+                TabIndex = 0
             };
             p.Controls.Add(new Label
             {
@@ -173,7 +182,10 @@ namespace TSKTakeOff
                 Dock = DockStyle.Bottom,
                 Height = 36,
                 BackColor = PaletteTheme.FundoSeccao,
-                Padding = new Padding(8, 5, 8, 5)
+                Padding = new Padding(8, 5, 8, 5),
+                // Rodapé é o último a ler-se no popup inteiro — ver nota em
+                // `TabIndex = 1` de `conteudo`, acima.
+                TabIndex = 2
             };
 
             var aplicar = new Button
@@ -186,7 +198,13 @@ namespace TSKTakeOff
                 ForeColor = PaletteTheme.AltoContraste
                     ? SystemColors.HighlightText : Color.White,
                 Font = PaletteTheme.Negrito,
-                AccessibleName = "Aplicar filtros"
+                AccessibleName = "Aplicar filtros",
+                // `Dock = DockStyle.Right`: o PRIMEIRO acrescentado fica mais
+                // à direita (mesma regra já documentada para `barra`/
+                // `cabecalhoProps` em Palette.cs). Lido da esquerda para a
+                // direita é «Repor» antes de «Aplicar» — TabIndex explícito
+                // para não depender da ordem de `Controls.Add`.
+                TabIndex = 1
             };
             aplicar.FlatAppearance.BorderColor = PaletteTheme.AcentoEscuro;
             aplicar.Click += (s, e) =>
@@ -209,7 +227,8 @@ namespace TSKTakeOff
                 Margin = new Padding(0, 0, 6, 0),
                 AccessibleName = "Repor",
                 AccessibleDescription =
-                    "Devolve as escolhas ao filtro que está em vigor. Não limpa."
+                    "Devolve as escolhas ao filtro que está em vigor. Não limpa.",
+                TabIndex = 0
             };
             repor.Click += (s, e) => ReporRascunho();
 
