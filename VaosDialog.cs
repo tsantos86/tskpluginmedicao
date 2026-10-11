@@ -127,9 +127,24 @@ namespace TSKTakeOff
                 Padding = new Padding(6)
             };
             var btnOk = new Button
-            { Text = "Gravar vãos", DialogResult = DialogResult.OK, AutoSize = true };
+            {
+                Text = "Gravar vãos",
+                DialogResult = DialogResult.OK,
+                AutoSize = true,
+                // `btnCancel` entra primeiro no FlowLayoutPanel RightToLeft,
+                // logo fica mais à direita; "Gravar vãos" fica à esquerda.
+                // TabIndex explícito para o Tab seguir a leitura
+                // esquerda→direita em vez da ordem de Controls.Add (mesmo
+                // bug já corrigido em Rodape()/PaletteFiltros.cs).
+                TabIndex = 0
+            };
             var btnCancel = new Button
-            { Text = "Sem vãos", DialogResult = DialogResult.Cancel, AutoSize = true };
+            {
+                Text = "Sem vãos",
+                DialogResult = DialogResult.Cancel,
+                AutoSize = true,
+                TabIndex = 1
+            };
             buttons.Controls.Add(btnCancel);
             buttons.Controls.Add(btnOk);
 

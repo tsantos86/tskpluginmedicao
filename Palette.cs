@@ -4489,8 +4489,23 @@ namespace TSKTakeOff
                 Height = 40,
                 Padding = new Padding(6)
             };
-            var btnOk = new Button { Text = "OK", DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel };
+            var btnOk = new Button
+            {
+                Text = "OK",
+                DialogResult = DialogResult.OK,
+                // `Controls.Add(btnCancel)` entra primeiro, logo fica mais à
+                // direita (mesma regra do FlowLayoutPanel RightToLeft já
+                // documentada em `Rodape()`/`PaletteFiltros.cs`); OK fica à
+                // esquerda. TabIndex explícito para o Tab seguir a leitura
+                // esquerda→direita em vez da ordem de `Controls.Add`.
+                TabIndex = 0
+            };
+            var btnCancel = new Button
+            {
+                Text = "Cancelar",
+                DialogResult = DialogResult.Cancel,
+                TabIndex = 1
+            };
             btnOk.Click += (s, e) =>
             {
                 Resultado = new Vao
