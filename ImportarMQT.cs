@@ -747,10 +747,16 @@ namespace TSKTakeOff
                 ok.Text = "Importar";
                 ok.DialogResult = DialogResult.OK;
                 ok.Size = new Size(130, 34);
+                // Fica à esquerda (ver nota abaixo); TabIndex explícito para
+                // o Tab seguir a leitura esquerda→direita em vez da ordem de
+                // Controls.Add — mesmo bug já corrigido em
+                // Rodape()/PaletteFiltros.cs.
+                ok.TabIndex = 0;
                 cancelar.Text = "Cancelar";
                 cancelar.DialogResult = DialogResult.Cancel;
                 cancelar.Size = new Size(120, 34);
                 cancelar.Margin = new Padding(8, 0, 0, 0);
+                cancelar.TabIndex = 1;
 
                 // Primeiro o Cancelar: com o fluxo da direita para a esquerda,
                 // o primeiro fica MAIS à direita. O Importar vem a seguir, à

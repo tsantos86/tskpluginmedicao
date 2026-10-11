@@ -402,6 +402,40 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > build manual. Falta ainda ordenar os controlos DENTRO de cada um destes
   > quatro grupos (por exemplo, os botões da barra de pesquisa) se a matriz
   > manual da Fase 8 revelar que a ordem interna também confunde.
+  >
+  > **Continuação 2026-10-11.** As sessões de 2026-10-08/09/10 (PRs #11, #12
+  > e #13, ainda abertos, não mesclados) já tinham corrigido este mesmo bug
+  > (TabIndex a seguir à ordem de `Controls.Add`, inversa da leitura visual
+  > para `Dock`/`FlowLayoutPanel` empilhados) dentro de `barra`/
+  > `cabecalhoProps`, nas seis secções directas de `MedPanelControl` e no
+  > popup `FiltrosPopup` (`PaletteFiltros.cs`). Para não duplicar, auditados
+  > hoje os pares de botões OK/Cancelar em `FlowLayoutPanel` com
+  > `FlowDirection.RightToLeft` fora de `Palette.cs`/`PaletteFiltros.cs` —
+  > uma área ainda não coberta. Encontrado o MESMO bug em **cinco**
+  > diálogos: `VaoDialog` (`Palette.cs`, "Adicionar vão"),
+  > `DefinicoesTipoDialog.Botoes()`, `VaosDialog.cs`, `ArtigoDialog.cs`
+  > (Reclassificar) e `ImportarMQT.EscolherFolhas`. Em todos, o botão
+  > acrescentado PRIMEIRO ao `FlowLayoutPanel` fica mais à direita (regra já
+  > confirmada empiricamente no código original do próprio
+  > `ImportarMQT.cs`, escrito pelo utilizador antes desta rotina — não é
+  > suposição), e sem `TabIndex` explícito o Tab seguia essa ordem de
+  > inserção, ao contrário da leitura esquerda→direita. Corrigido com
+  > `TabIndex` explícito nos dez botões envolvidos, sem tocar na ordem de
+  > `Controls.Add` nem no leiaute visual (mesma técnica cirúrgica dos PRs
+  > #11-13). NÃO auditado nesta passagem, por incerteza genuína sobre a
+  > direcção real do empilhamento `Dock=Top`/`Bottom` com múltiplos
+  > controlos no MESMO painel de nível superior (ex.: `info`/`_dgv`/
+  > `buttons` em `VaosDialog.cs`, `topo`/`rotProcura`/`_procura`/`_conta`/
+  > `_lista`/`baixo` em `ArtigoDialog.cs`): as notas anteriores deste
+  > ficheiro afirmam "o último a entrar fica mais acima" para `Dock=Top`
+  > (último = mais próximo da margem), mas a correcção já aplicada em
+  > `Rodape()`/`PaletteFiltros.cs` (PR #13, confirmada por leitura do diff)
+  > usa a regra oposta para `Dock=Right` ("o primeiro fica mais à direita",
+  > primeiro = mais próximo da margem). Pode ser que a regra realmente
+  > dependa da margem (Top/Right vs. Bottom/Left) e as duas estejam
+  > certas, mas não há aqui confiança suficiente para tocar nesses diálogos
+  > sem arriscar inverter o leiaute ao contrário — registado como achado
+  > para confirmação numa próxima sessão, não corrigido.
 - [x] `PRÓXIMA`, alertas e `Por classificar` têm texto/ícone e não dependem apenas de cor.
 - [~] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
 
@@ -665,6 +699,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-11 | 7 | Três PRs abertos desta rotina (#11, #12, #13 — Tab dentro dos quatro grupos exteriores, das seis secções de `MedPanelControl`, e do `FiltrosPopup`), todos completos pelas próprias descrições; não retomados (Passo 0). Fila sem itens `[ ]`. Seguido o plano: continuação da mesma auditoria de TabIndex, agora em `FlowLayoutPanel`/`FlowDirection.RightToLeft` fora de `Palette.cs`/`PaletteFiltros.cs`. Encontrado o mesmo bug (TabIndex a seguir à ordem de `Controls.Add`, inversa da leitura esquerda→direita num fluxo RightToLeft) nos pares de botões OK/Cancelar de cinco diálogos ainda não auditados: `VaoDialog` (`Palette.cs`), `DefinicoesTipoDialog.Botoes()`, `VaosDialog.cs`, `ArtigoDialog.cs` e `ImportarMQT.EscolherFolhas`. Corrigido com `TabIndex` explícito nos dez botões, sem alterar `Controls.Add` nem o leiaute visual. Achado registado, não corrigido por incerteza genuína: a direcção do empilhamento `Dock=Top`/`Bottom` ao nível do `Form` nestes mesmos diálogos (`info`/`_dgv`/`buttons` em `VaosDialog.cs`; `topo`/`rotProcura`/`_procura`/`_conta`/`_lista`/`baixo` em `ArtigoDialog.cs`) parece contradizer a regra já usada nas correções anteriores de `Dock=Right` — ver nota na Fase 7 acima | `dotnet test` 356/356 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox; sem alterações ao projecto de testes). `Palette.cs`, `DefinicoesTipoDialog.cs`, `VaosDialog.cs`, `ArtigoDialog.cs` e `ImportarMQT.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibradas nos cinco). **Não compilados em `net48`** — sem AutoCAD/WinForms neste sandbox; aguardam build manual antes do merge |
 
 ### Decisões desta passagem
 
