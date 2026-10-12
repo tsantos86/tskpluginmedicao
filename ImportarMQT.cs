@@ -672,12 +672,21 @@ namespace TSKTakeOff
                 rot.Dock = DockStyle.Top;
                 rot.Height = 56;
                 rot.Padding = new Padding(10, 8, 10, 0);
+                // Sem TabIndex explícito, o Tab segue a ordem de Controls.Add
+                // (abaixo: previa, rot2, lista, rot, baixo), que para
+                // Dock=Top/Bottom é o INVERSO da ordem visual — o foco inicial
+                // ia parar à pré-visualização (só de leitura, ao fundo) antes
+                // da lista de folhas (o controlo que há realmente para usar).
+                // TabIndex aqui repõe a leitura: instruções → lista → rótulo
+                // da pré-visualização → pré-visualização → botões.
+                rot.TabIndex = 0;
 
                 lista.Dock = DockStyle.Top;
                 // Mais alta: um livro de obra traz sete ou mais folhas e não
                 // vale a pena obrigar a rolar para as ver todas.
                 lista.Height = 230;
                 lista.CheckOnClick = true;
+                lista.TabIndex = 1;
                 foreach (var f in folhas)
                 {
                     lista.Items.Add(f, f.Artigos > 0);
@@ -688,12 +697,14 @@ namespace TSKTakeOff
                     Text = "Pré-visualização do que vai ser importado:",
                     Dock = DockStyle.Top,
                     Height = 22,
-                    Padding = new Padding(10, 4, 10, 0)
+                    Padding = new Padding(10, 4, 10, 0),
+                    TabIndex = 2
                 };
 
                 previa.Dock = DockStyle.Fill;
                 previa.Font = new Font(FontFamily.GenericMonospace, 8.25f);
                 previa.IntegralHeight = false;
+                previa.TabIndex = 3;
 
                 EventHandler refazer = (s, e) =>
                 {
@@ -741,7 +752,8 @@ namespace TSKTakeOff
                     Dock = DockStyle.Bottom,
                     Height = 58,
                     FlowDirection = FlowDirection.RightToLeft,
-                    Padding = new Padding(10, 10, 12, 10)
+                    Padding = new Padding(10, 10, 12, 10),
+                    TabIndex = 4
                 };
 
                 ok.Text = "Importar";

@@ -448,6 +448,52 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > falta ainda confirmar com um leitor de ecrã real (NVDA/Narrador) no
   > AutoCAD (Fase 8) que o anúncio por mosaico funciona como esperado.
 
+  > **Nota 2026-10-12.** Uma sessão anterior (PR #14, `agent/paleta-
+  > resultados-2026-10-11`, ainda aberto) tinha deixado em aberto, sem
+  > confiança para decidir, se a ordem de Tab entre os PAINÉIS DE NÍVEL
+  > SUPERIOR do próprio `Form` (não os pares de botões OK/Cancelar, já
+  > corrigidos nesse PR) sofria do mesmo bug — citando `VaosDialog.cs` e
+  > `ArtigoDialog.cs` como exemplos por confirmar. Investigado por leitura
+  > cuidadosa da regra real do WinForms: para `Dock=Top/Bottom`, o
+  > `Controls.Add` empilha em ordem INVERSA (o último filho acrescentado
+  > fica encostado à borda), mas o `TabIndex` implícito segue a ordem
+  > DIRECTA de `Controls.Add` — a mesma mecânica já usada em todas as
+  > correcções anteriores desta fase, só que agora aplicada ao nível do
+  > `Form` em vez de um painel filho.
+  >
+  > Em `VaosDialog.cs` (`info`=Top, `_dgv`=Fill, `buttons`=Bottom,
+  > acrescentados `_dgv, buttons, info`) e em `ArtigoDialog.cs` (`topo`,
+  > `rotProcura`, `_procura`, `_conta`, `_lista`, `baixo`, acrescentados
+  > `_lista, _conta, baixo, _procura, rotProcura, topo`): confirmado que a
+  > ordem de Tab resultante, apesar de parecer "ao contrário" da ordem
+  > visual à primeira vista, não produz nenhum problema real — os únicos
+  > controlos que ficam fora de posição são `Label`s sem `TabStop`
+  > (`info`, `topo`, `rotProcura`), que nunca recebem foco de qualquer
+  > forma, e o `ArtigoDialog` já força o foco inicial para `_procura` por
+  > código (`Shown += ... _procura.Focus()`), o que também disfarça a
+  > ordem implícita. Nenhuma alteração feita a estes dois ficheiros — é a
+  > mesma conclusão "confirmado por leitura, sem necessidade de código
+  > novo" já usada noutros critérios desta fase.
+  >
+  > Continuando a mesma auditoria a TODOS os diálogos com `Dock=Top/Bottom`
+  > ao nível do `Form` (não só os dois citados pelo PR #14), encontrado um
+  > bug real e novo em `ImportarMQT.EscolherFolhas` (o diálogo "que folhas
+  > do mapa importar"): `Controls.Add` na ordem `previa, rot2, lista, rot,
+  > baixo` — a pré-visualização (`previa`, só de leitura) ficava com o
+  > `TabIndex` implícito mais baixo (0), por ser a PRIMEIRA a entrar, e por
+  > isso recebia o FOCO INICIAL ao abrir o diálogo, antes da lista de
+  > folhas a marcar (`lista`), que é o controlo que há de facto para usar
+  > primeiro. Ao contrário dos dois diálogos acima, aqui não havia nenhum
+  > `Shown += ... Focus()` a compensar, e a pré-visualização É focável
+  > (`ListBox` normal, sem `TabStop=false`) — por isso o efeito era real,
+  > não só teórico. Corrigido com `TabIndex` explícito (`rot`=0, `lista`=1,
+  > `rot2`=2, `previa`=3, `baixo`=4), repondo a leitura visual
+  > (instruções → lista de folhas → rótulo da pré-visualização →
+  > pré-visualização → botões) e pondo o foco inicial em `lista`. O par
+  > `cancelar`/`ok` dentro de `baixo` (mesmo padrão de bug, já identificado
+  > pelo PR #14 como item #5 da sua lista) não foi tocado aqui, para não
+  > duplicar esse PR — fica para quando #14 for mesclado.
+
 ### Dimensão e desempenho
 
 - [ ] Validar larguras de 480, 520, 560 e 760 px e DPI de 100%, 125%, 150% e 200%.
@@ -665,6 +711,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-12 | 7 | Passo 0: quatro PRs abertos desta rotina (#11-#14), todos completos pela própria descrição (só falta a matriz manual da Fase 8) — não retomados; confirmado por `git merge --no-commit` de teste que os quatro se mesclam sem conflito de código entre si (só o próprio `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`, por todos editarem o Registo de progresso). Fila sem itens `[ ]` novos. Seguido o plano, Fase 7: resolvida a dúvida que o PR #14 tinha deixado em aberto sobre a ordem de Tab nos painéis de nível superior do `Form` (`VaosDialog.cs`, `ArtigoDialog.cs`) — confirmado por leitura cuidadosa da regra real do WinForms (`Controls.Add` empilha ao contrário para `Dock=Top/Bottom`, mas o `TabIndex` implícito segue a ordem directa) que não há bug nos dois: os controlos "fora de posição" são só `Label`s sem `TabStop`, inofensivo. Continuando a mesma auditoria a outros diálogos com o mesmo padrão, encontrado um bug novo e real em `ImportarMQT.EscolherFolhas`: o foco inicial ao abrir ia para a pré-visualização (só de leitura, ao fundo) antes da lista de folhas a marcar, porque esta última entra primeiro em `Controls.Add`. Corrigido com `TabIndex` explícito nos cinco painéis de nível superior (ver nota na Fase 7 acima) | `dotnet test` 356/356 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox; sem alterações ao projeto de testes). `ImportarMQT.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (94/94 chavetas, 302/302 parênteses, ficheiro inteiro, equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 
 ### Decisões desta passagem
 
