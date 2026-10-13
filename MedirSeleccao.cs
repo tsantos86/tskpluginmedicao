@@ -1996,7 +1996,9 @@ namespace TSKTakeOff
                 var baixo = new Panel { Dock = DockStyle.Bottom, Height = 98 };
                 var rotNovo = new Label { Text = "Serviço novo (opcional):" };
                 rotNovo.SetBounds(10, 6, 150, 20);
+                rotNovo.TabIndex = 0;
                 novo.SetBounds(160, 4, 260, 22);
+                novo.TabIndex = 1;
 
                 var cbJuntar = new CheckBox
                 {
@@ -2009,13 +2011,21 @@ namespace TSKTakeOff
                     Checked = true
                 };
                 cbJuntar.SetBounds(10, 30, 420, 20);
+                // Sem TabIndex explícito, o Tab seguia a ordem de Controls.Add
+                // (cbJuntar, rotNovo, novo, ok, cancelar) — entrava pela caixa
+                // "Juntar troços" antes do campo "Serviço novo", que fica
+                // visualmente acima dela. Ordem explícita pela leitura:
+                // serviço novo → juntar troços → Medir/Cancelar.
+                cbJuntar.TabIndex = 2;
 
                 ok.Text = "Medir";
                 ok.DialogResult = DialogResult.OK;
                 ok.SetBounds(240, 56, 90, 28);
+                ok.TabIndex = 3;
                 cancelar.Text = "Cancelar";
                 cancelar.DialogResult = DialogResult.Cancel;
                 cancelar.SetBounds(338, 56, 90, 28);
+                cancelar.TabIndex = 4;
 
                 baixo.Controls.Add(cbJuntar);
                 baixo.Controls.Add(rotNovo);
