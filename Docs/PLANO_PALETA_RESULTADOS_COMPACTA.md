@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-03
+Última atualização: 2026-10-13
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -402,6 +402,40 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > build manual. Falta ainda ordenar os controlos DENTRO de cada um destes
   > quatro grupos (por exemplo, os botões da barra de pesquisa) se a matriz
   > manual da Fase 8 revelar que a ordem interna também confunde.
+
+  > **Nota 2026-10-13.** Cinco sessões anteriores (PRs #11-#15, ainda
+  > abertos à data desta nota — ver Passo 0) já auditaram exaustivamente o
+  > mesmo padrão (`TabIndex` implícito = ordem de `Controls.Add`, inversa à
+  > ordem visual para `Dock=Top/Bottom`) em `Palette.cs`, `PaletteFiltros.cs`,
+  > `VaosDialog.cs`, `ArtigoDialog.cs`, `DefinicoesTipoDialog.cs` e
+  > `ImportarMQT.cs`. Para não duplicar, auditado um diálogo secundário
+  > nunca revisto por nenhuma sessão desta fase: `MedirSeleccao.cs` (os dois
+  > diálogos modais atrás do botão `Medir seleção` da barra MEDIR — escolher
+  > layers dentro de um XREF, e escolher camadas/hachuras/serviço novo ao
+  > medir uma selecção). Confirmado por leitura cuidadosa: ao nível do
+  > `Form`, em ambos os diálogos, a ordem de `Controls.Add` já batia certo
+  > com a ordem visual (Fill/Top únicos, e os dois `Dock=Bottom` do segundo
+  > diálogo — `baixo`/`caixaHachura` — ficam, pela mesma regra já
+  > documentada, na ordem que a adição também produz). Bug real encontrado
+  > um nível mais fundo, dentro do painel `baixo` do SEGUNDO diálogo (o de
+  > hachuras): `Controls.Add` entrava `cbJuntar, rotNovo, novo, ok,
+  > cancelar`, pondo o Tab a entrar pela caixa "Juntar troços" (linha do
+  > meio) antes do campo "Serviço novo" (linha de cima) — o inverso da
+  > leitura. Corrigido com `TabIndex` explícito (`rotNovo=0, novo=1,
+  > cbJuntar=2, ok=3, cancelar=4`), sem tocar em `Controls.Add` nem no
+  > leiaute visual. O primeiro diálogo (escolha de layers do XREF) e o
+  > `GroupBox` "Hachuras" do segundo já estavam correctos — nenhuma
+  > alteração aí. **Implementado, aguarda build manual** — `MedirSeleccao.cs`
+  > usa `Autodesk.*`, não compila neste sandbox; revisto por leitura
+  > cuidadosa e confirmado por contagem de chavetas/parênteses contra a
+  > versão em `main` (mesma margem pré-existente, sem desequilíbrio novo).
+  > `dotnet test` 356/356 (sem alterações ao projecto de testes). **Achado
+  > avulso, não corrigido aqui**: há cinco PRs abertos desta rotina
+  > (`agent/paleta-resultados-2026-10-08` a `-2026-10-12`, #11-#15) ainda por
+  > mesclar, todos completos pelas próprias descrições — só acumulam
+  > conflito trivial no "Registo de progresso" deste ficheiro entre si.
+  > Recomendado ao utilizador mesclá-los por ordem antes de mais sessões se
+  > somarem.
 - [x] `PRÓXIMA`, alertas e `Por classificar` têm texto/ícone e não dependem apenas de cor.
 - [~] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
 
@@ -665,6 +699,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-13 | 7 | Passo 0: cinco PRs abertos desta rotina (#11-#15, `agent/paleta-resultados-2026-10-08` a `-2026-10-12`), todos completos pelas próprias descrições — não retomados, só sinalizados ao utilizador para merge (ver achado abaixo). Fila sem itens `[ ]` novos. Seguido o plano, Fase 7: auditado `MedirSeleccao.cs` (diálogos de "Medir seleção" — escolha de layers do XREF, e escolha de camadas/hachuras/serviço novo), nunca revisto por nenhuma das cinco sessões anteriores desta mesma auditoria de `TabIndex`. Bug real encontrado um nível dentro do painel `baixo` do diálogo de hachuras: `Controls.Add` entrava `cbJuntar, rotNovo, novo, ok, cancelar`, pondo o Tab a entrar pela caixa "Juntar troços" antes do campo "Serviço novo" que fica visualmente acima — o inverso da leitura. Corrigido com `TabIndex` explícito (`rotNovo=0, novo=1, cbJuntar=2, ok=3, cancelar=4`), sem tocar em `Controls.Add` nem no leiaute. Os dois diálogos já estavam correctos ao nível do `Form` e no `GroupBox` "Hachuras" — nenhuma alteração aí. **Achado avulso**: os cinco PRs abertos (#11-#15) acumulam-se sem mesclar, todos completos — recomendado ao utilizador mesclá-los por ordem antes de mais sessões se somarem | `dotnet test` 356/356 (SDK `dotnet-sdk-8.0` instalado de novo neste sandbox novo); `MedirSeleccao.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por contagem de chavetas/parênteses (mesma margem pré-existente de `main`, sem desequilíbrio novo). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 
 ### Decisões desta passagem
 
