@@ -1185,6 +1185,16 @@ namespace TSKTakeOff
                 if (l.Tipo == TipoLinha.Capitulo) artigos.Add(linha);
                 if (l.Tipo == TipoLinha.Alcado || l.Tipo == TipoLinha.Piso) subgrupos.Add(linha);
 
+                // A numeração A001… (FolhaMedicao.Numerar) cobre Medição/
+                // Dedução/Capítulo/Alçado/Piso, não só os títulos — mas só
+                // os títulos chegavam à coluna Item aqui. O .xlsx exportado
+                // e o modelo clássico ao vivo (ExcelExporter, EscreverSimples
+                // mais abaixo) sempre escreveram em todas; faltava paridade
+                // neste modo. Por() já ignora valores nulos (caso do
+                // Capítulo, que a Numerar deixa sem número), por isso é
+                // seguro chamar para qualquer tipo de linha.
+                Por(dados, i, c1, m.ColItem, l.Item);
+
                 // Linha de título: guardar de que medição veio, para na próxima
                 // passagem se ir buscar aqui o que o utilizador escrever.
                 if (!string.IsNullOrEmpty(l.HandleOrigem))
@@ -1211,7 +1221,6 @@ namespace TSKTakeOff
                     // Fora do mapa é também o que o MedicaoNaCelulaSeleccionada
                     // já dizia esperar: sem título no mapa, clicar num cai na
                     // medição anterior, que é o bloco onde se está.
-                    Por(dados, i, c1, m.ColItem, l.Item);
                 }
                 else if (!string.IsNullOrEmpty(l.Handle))
                 {
