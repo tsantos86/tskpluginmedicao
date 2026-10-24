@@ -4465,11 +4465,13 @@ namespace TSKTakeOff
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            _txtDesignacao = new TextBox { Text = "", Dock = DockStyle.Fill };
+            _txtDesignacao = new TextBox { Text = "", Dock = DockStyle.Fill, AccessibleName = "Designação do vão" };
             _numLargura = Num(0.80M);
+            _numLargura.AccessibleName = "Largura do vão, em metros";
             _numAltura = Num(2.10M);
-            _numQtd = new NumericUpDown { Minimum = 1, Maximum = 500, Value = 1, Dock = DockStyle.Fill };
-            _cmbTipo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
+            _numAltura.AccessibleName = "Altura do vão, em metros";
+            _numQtd = new NumericUpDown { Minimum = 1, Maximum = 500, Value = 1, Dock = DockStyle.Fill, AccessibleName = "Quantidade de vãos iguais" };
+            _cmbTipo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "Tipo de vão" };
             _cmbTipo.Items.Add("Porta");
             _cmbTipo.Items.Add("Janela");
             _cmbTipo.SelectedIndex = 0;
