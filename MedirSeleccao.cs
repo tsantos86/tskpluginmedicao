@@ -751,6 +751,9 @@ namespace TSKTakeOff
 
                 lista.Dock = DockStyle.Fill;
                 lista.CheckOnClick = true;
+                lista.AccessibleName = "Layers do XREF a medir";
+                lista.AccessibleDescription = "Marque as layers cujos objectos quer medir " +
+                    "dentro do XREF; sai uma medição por objecto.";
                 foreach (string n in nomes)
                     lista.Items.Add(n + "   (" + contagem[n] + " objectos)", false);
 
@@ -758,9 +761,12 @@ namespace TSKTakeOff
                 ok.Text = "Medir";
                 ok.DialogResult = DialogResult.OK;
                 ok.SetBounds(320, 9, 90, 28);
+                ok.AccessibleDescription = "Mede os objectos das layers marcadas, " +
+                    "colocados no sítio certo do seu desenho.";
                 cancelar.Text = "Cancelar";
                 cancelar.DialogResult = DialogResult.Cancel;
                 cancelar.SetBounds(418, 9, 90, 28);
+                cancelar.AccessibleDescription = "Cancela sem medir nada.";
                 baixo.Controls.Add(ok);
                 baixo.Controls.Add(cancelar);
 
@@ -1913,6 +1919,9 @@ namespace TSKTakeOff
                 lista.Dock = DockStyle.Fill;
                 lista.CheckOnClick = true;
                 lista.IntegralHeight = false;
+                lista.AccessibleName = "Camadas a medir";
+                lista.AccessibleDescription = "Marque uma ou mais camadas; marcando mais " +
+                    "do que uma, cada objecto dá origem a uma medição em cada.";
                 // Cada serviço mostra o artigo do mapa a que está ligado.
                 // Marcar três camadas às cegas e só descobrir na folha que
                 // duas foram para o artigo errado é o tipo de erro que se
@@ -1968,6 +1977,9 @@ namespace TSKTakeOff
                     Value = (decimal)(Config.Espessura > 0 ? Config.Espessura : 0.15)
                 };
                 numEsp.SetBounds(105, 64, 70, 22);
+                numEsp.AccessibleName = rotEsp.Text;
+                numEsp.AccessibleDescription = "Espessura usada para converter a área da " +
+                    "hachura em comprimento, quando a interpretação é Planta.";
 
                 // O resultado à vista ANTES de criar. É isto que faz saltar à
                 // vista uma espessura trocada: uma forra de 2,5 cm medida com
@@ -1997,6 +2009,9 @@ namespace TSKTakeOff
                 var rotNovo = new Label { Text = "Serviço novo (opcional):" };
                 rotNovo.SetBounds(10, 6, 150, 20);
                 novo.SetBounds(160, 4, 260, 22);
+                novo.AccessibleName = "Serviço novo";
+                novo.AccessibleDescription = "Nome de um serviço a criar, além dos já " +
+                    "existentes marcados na lista acima. Pode ficar em branco.";
 
                 var cbJuntar = new CheckBox
                 {
@@ -2013,9 +2028,12 @@ namespace TSKTakeOff
                 ok.Text = "Medir";
                 ok.DialogResult = DialogResult.OK;
                 ok.SetBounds(240, 56, 90, 28);
+                ok.AccessibleDescription = "Cria as medições para as camadas marcadas, " +
+                    "com a interpretação de hachura e o serviço novo indicados acima.";
                 cancelar.Text = "Cancelar";
                 cancelar.DialogResult = DialogResult.Cancel;
                 cancelar.SetBounds(338, 56, 90, 28);
+                cancelar.AccessibleDescription = "Cancela sem criar nenhuma medição.";
 
                 baixo.Controls.Add(cbJuntar);
                 baixo.Controls.Add(rotNovo);

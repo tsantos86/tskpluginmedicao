@@ -678,6 +678,9 @@ namespace TSKTakeOff
                 // vale a pena obrigar a rolar para as ver todas.
                 lista.Height = 230;
                 lista.CheckOnClick = true;
+                lista.AccessibleName = "Folhas do livro";
+                lista.AccessibleDescription = "Marque as folhas a importar. " +
+                    "Vêm marcadas por omissão as que têm articulado.";
                 foreach (var f in folhas)
                 {
                     lista.Items.Add(f, f.Artigos > 0);
@@ -694,6 +697,9 @@ namespace TSKTakeOff
                 previa.Dock = DockStyle.Fill;
                 previa.Font = new Font(FontFamily.GenericMonospace, 8.25f);
                 previa.IntegralHeight = false;
+                previa.AccessibleName = rot2.Text;
+                previa.AccessibleDescription = "Mostra a árvore das folhas marcadas acima, " +
+                    "sem números — é só o articulado que vai ser importado.";
 
                 EventHandler refazer = (s, e) =>
                 {
@@ -747,10 +753,14 @@ namespace TSKTakeOff
                 ok.Text = "Importar";
                 ok.DialogResult = DialogResult.OK;
                 ok.Size = new Size(130, 34);
+                ok.AccessibleDescription = "Importa o articulado das folhas marcadas. " +
+                    "Se já houver um mapa de quantidades neste desenho, pergunta antes " +
+                    "de o substituir.";
                 cancelar.Text = "Cancelar";
                 cancelar.DialogResult = DialogResult.Cancel;
                 cancelar.Size = new Size(120, 34);
                 cancelar.Margin = new Padding(8, 0, 0, 0);
+                cancelar.AccessibleDescription = "Cancela sem importar nada.";
 
                 // Primeiro o Cancelar: com o fluxo da direita para a esquerda,
                 // o primeiro fica MAIS à direita. O Importar vem a seguir, à
