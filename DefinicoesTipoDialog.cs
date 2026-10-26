@@ -215,7 +215,9 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat,
                 BackColor = PaletteTheme.Palido,
                 ForeColor = PaletteTheme.Acento,
-                UseVisualStyleBackColor = false
+                UseVisualStyleBackColor = false,
+                AccessibleDescription = "Grava material e altura de piso, e os dados da " +
+                    "contagem, para o TSKRET, o TSKPOLF e o TSKCONTAR usarem na próxima vez."
             };
             var btnCancel = new Button
             {
@@ -226,7 +228,8 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat,
                 BackColor = PaletteTheme.Fundo,
                 ForeColor = PaletteTheme.Tinta,
-                UseVisualStyleBackColor = false
+                UseVisualStyleBackColor = false,
+                AccessibleDescription = "Fecha sem gravar nenhuma alteração destes campos."
             };
             // A ordem de inserção num FlowLayoutPanel RightToLeft conta: o
             // primeiro fica mais à direita. "Guardar" entra primeiro para
