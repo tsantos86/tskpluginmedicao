@@ -323,7 +323,18 @@ namespace TSKTakeOff
                 var noArtigo = Grupo(grupos, noTipo, TipoNo.Artigo, idArtigo,
                     semArtigo ? PorClassificar : TextoDoArtigo(m.Artigo),
                     piso, servico, m.Artigo);
-                if (semArtigo) noArtigo.Alertas |= AlertaNo.PorClassificar;
+                // O alerta do GRUPO segue o da própria medição (`m.Alertas`),
+                // não um recálculo próprio de `semArtigo` — bug encontrado
+                // 2026-10-28: antes disto, o grupo "Por classificar" ficava
+                // com o alerta mesmo sem mapa importado (quando `m.Alertas`
+                // correctamente não o tem, por `DeParedes`/`DeMateriais` só o
+                // ligarem com `artigoConhecido != null`) e mesmo em Lineares/
+                // Contagens, que nunca têm Artigo e por isso nunca deviam
+                // acender o alerta. `m.Alertas` já respeita as duas regras —
+                // só faltava o grupo lê-lo em vez de recalcular por conta
+                // própria.
+                if ((m.Alertas & AlertaNo.PorClassificar) != 0)
+                    noArtigo.Alertas |= AlertaNo.PorClassificar;
 
                 var noMed = new NoResultado
                 {
