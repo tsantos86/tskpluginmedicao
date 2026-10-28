@@ -184,6 +184,18 @@ namespace TSKTakeOff.Tests
             Assert.Equal(ResultadosArvore.SemPiso, raiz.Filhos[0].Rotulo);
         }
 
+        [Fact]
+        public void Lineares_nunca_ficam_marcados_como_por_classificar()
+        {
+            // Mesmo bug do teste equivalente em Contagens: Lineares também
+            // não tem Artigo, e o grupo "Por classificar" não pode acender
+            // o alerta só porque o campo está vazio por não se aplicar.
+            var raiz = ResultadosArvore.Construir(ResultadosAdaptadores.DeLineares(
+                new List<MedItem> { new MedItem { Handle = "L1", Comprimento = 5.0 } }, Pt), Pt);
+
+            Assert.True((raiz.Alertas & AlertaNo.PorClassificar) == 0);
+        }
+
         // -----------------------------------------------------------------
         // Contagens
         // -----------------------------------------------------------------
@@ -200,6 +212,23 @@ namespace TSKTakeOff.Tests
 
             Assert.Equal(2.0, raiz.Quantidades.De("un"), 3);
             Assert.Equal("2 un.", raiz.Quantidades.Texto(Pt));
+        }
+
+        [Fact]
+        public void Contagens_nunca_ficam_marcadas_como_por_classificar()
+        {
+            // Bug encontrado 2026-10-28: Contagens não tem campo Artigo (o
+            // ContRepo nunca o leu nem gravou), por isso `Construir` sempre
+            // as metia no grupo "Por classificar" — e, antes da correcção,
+            // acendia ali o alerta mesmo não havendo nada para classificar,
+            // poluindo o indicador do Piso/raiz para todo o projecto.
+            var raiz = ResultadosArvore.Construir(ResultadosAdaptadores.DeContagens(
+                new List<MedContagem>
+                {
+                    new MedContagem { Handle = "C1", Nome = "P.01", Piso = "PISO 0" },
+                }, Pt), Pt);
+
+            Assert.True((raiz.Alertas & AlertaNo.PorClassificar) == 0);
         }
 
         [Fact]
