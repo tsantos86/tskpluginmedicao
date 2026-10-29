@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-03
+Última atualização: 2026-10-29
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -373,6 +373,21 @@ uma árvore global nem uma nova leitura do DWG.
   Fase 8 — o código está sob compilação e teste unitário, não sob teste de
   interface).
 
+> **Bug encontrado e corrigido em 2026-10-29.** `ResultadosAdaptadores.DeMateriais`
+> construía a linha de Dedução de cada vão com `f.Vaos[i].AreaTotal` — a área
+> bruta da janela/porta, sempre, qualquer que fosse `RegraDesconto` — em vez de
+> `f.Vaos[i].Desconto(regra)`, que é o que `ResultadosArvore.DeducaoDoVao` (lado
+> da Alvenaria) já usa para o mesmo cálculo. O TOTAL do pano (`m.Quantidade`,
+> via `f.AreaLiquida(regra)`/`f.DescontoVaos(regra)`) sempre respeitou a regra;
+> só a linha individual do vão, visível em PROPRIEDADES/árvore, ignorava-a. Com
+> `Sinapi2m2` (vãos ≤ 2 m² não descontam) ou `NaoDescontar`, a linha do vão
+> mostrava um desconto que contradizia o total do pano ao lado — um número com
+> ar de estar certo. Passou despercebido porque todos os testes existentes de
+> `DeMateriais` usavam `RegraDesconto.DescontarTudo`, onde `Desconto(regra) ==
+> AreaTotal` por definição, nunca expondo a divergência.
+
+
+
 ## Fase 7 — Teclado, acessibilidade, DPI e desempenho [~]
 
 Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md` e validar uso prolongado no AutoCAD.
@@ -665,6 +680,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-29 | 6 | Passo 0: confirmados 11 PRs abertos desta rotina sem nenhum merge (#11-#21, 2026-10-08 a 2026-10-28) — todos completos pelas próprias descrições, nenhum retomado; ver aviso urgente no PR desta sessão. Fila sem itens `[ ]` novos (todos em `## Fila` já `[x]`; os de `## Propostas` continuam sem aprovação). A auditoria de acessibilidade da Fase 7 parece esgotada sem forçar achados cosméticos (nota do PR #21); em vez de a repetir, uma investigação dedicada aos três ficheiros de lógica pura (delegada a um agente de verificação) encontrou um bug real e novo, nunca antes reportado: `ResultadosAdaptadores.DeMateriais` descontava sempre a área bruta do vão (`AreaTotal`) na linha de Dedução de cada vão, ignorando `RegraDesconto` — ao contrário de `ResultadosArvore.DeducaoDoVao` (Alvenaria), que já usa `v.Desconto(regra)` para o mesmo cálculo. O TOTAL do pano sempre respeitou a regra; só a linha do vão (visível em PROPRIEDADES/árvore) mostrava um número que contradizia esse total sob SINAPI/"não descontar". Corrigido trocando `f.Vaos[i].AreaTotal` por `f.Vaos[i].Desconto(regra)` (uma linha). Teste novo confirmado a falhar sem a correção (−2 m² em vez de 0) e a passar com ela | `dotnet test` 357/357 (1 teste novo, `A_linha_do_vao_de_um_pano_respeita_a_regra_de_desconto_em_vigor`); `ResultadosAdaptadores.cs` e o teste não usam `Autodesk.*`/`System.Windows.Forms` (confirmado por `grep`) — correcção 100% verificada neste sandbox, sem build manual necessário |
 
 ### Decisões desta passagem
 
