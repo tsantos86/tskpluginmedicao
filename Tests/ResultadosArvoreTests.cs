@@ -398,6 +398,28 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void O_tipo_e_o_pre_aro_do_vao_sao_de_leitura_sem_metodo_para_os_gravar()
+        {
+            // AlvRepo.AlterarVao só sabe gravar "larg"/"alt"/"qt" (confirmado
+            // por leitura de AlvRepo.cs) e Palette.cs não tem case "tipoVao"
+            // nem "preAro" no switch de PROPRIEDADES — editável aqui deixava
+            // o utilizador escrever um valor que revertia em silêncio.
+            var medicao = PorRotulo(Arvore(DoisPisos()), TipoNo.Medicao, "Parede 2A0");
+            var vao = medicao.Filhos.Find(f => f.Tipo == TipoNo.Vao);
+
+            Assert.NotNull(vao);
+            Assert.False(vao.Propriedades.Find(x => x.Campo == "tipoVao").Editavel);
+            Assert.False(vao.Propriedades.Find(x => x.Campo == "preAro").Editavel);
+
+            // Designação, largura, altura e quantidade continuam editáveis —
+            // estas é que AlvRepo sabe gravar.
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "designacao").Editavel);
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "larguraVao").Editavel);
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "alturaVao").Editavel);
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "quantidadeVao").Editavel);
+        }
+
+        [Fact]
         public void Um_grupo_diz_quantas_medicoes_tem()
         {
             var piso0 = Arvore(DoisPisos()).Filhos[0];

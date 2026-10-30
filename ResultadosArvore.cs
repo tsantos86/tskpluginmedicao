@@ -218,7 +218,9 @@ namespace TSKTakeOff
             };
 
             d.Propriedades.Add(new Propriedade("designacao", "Designação", designacao, true, true));
-            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, true));
+            // Sem AlvRepo.AlterarVao/Palette.cs a saber gravar Tipo, marcar
+            // isto como editável deixava escrever e descartar em silêncio.
+            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, false));
             d.Propriedades.Add(new Propriedade("larguraVao", "Largura",
                 Unidades.Texto(Unidades.Metro, v.Largura, cultura), true, true));
             d.Propriedades.Add(new Propriedade("alturaVao", "Altura",
@@ -229,8 +231,10 @@ namespace TSKTakeOff
                 Unidades.Texto(Unidades.M2, v.AreaTotal, cultura), false, false));
             d.Propriedades.Add(new Propriedade("descontoVao", "Desconto",
                 "−" + Unidades.Texto(p.Unidade, d.Desconto, cultura), true, false));
+            // Mesma razão do "tipoVao" acima — sem gravação própria, fica
+            // só de leitura (o Pré-aro define-se ao criar/importar o vão).
             d.Propriedades.Add(new Propriedade("preAro", "Pré-aro",
-                v.PreAro ? "Sim" : "Não", false, true));
+                v.PreAro ? "Sim" : "Não", false, false));
             if (v.PreAro)
                 d.Propriedades.Add(new Propriedade("preAroVaoMl", "Pré-aro (desenvolvimento)",
                     Unidades.Texto(Unidades.Metro, v.PreAroMetros, cultura), false, false));
