@@ -269,14 +269,22 @@ namespace TSKTakeOff
                 TextoPesquisa = ResultadosArvore.Normalizar(designacao + " " + tipo + " vao")
             };
 
-            d.Propriedades.Add(new Propriedade("designacao", "Designação", designacao, true, true));
-            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, true));
+            // Sem editavel aqui: o FacRepo não tem nenhum método para alterar
+            // um vão já existente dentro de um pano — só AdicionarVaos, em
+            // bloco, para vãos novos. Marcar estes campos como editáveis
+            // deixava o mosaico aceitar a edição e, ao confirmar, o valor
+            // revertia em silêncio (mesmo anti-padrão já corrigido para
+            // Tipo/Pré-aro do vão da alvenaria — aqui são cinco campos, não
+            // dois, porque nem a designação/largura/altura/quantidade do vão
+            // de um pano têm onde gravar).
+            d.Propriedades.Add(new Propriedade("designacao", "Designação", designacao, true, false));
+            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, false));
             d.Propriedades.Add(new Propriedade("larguraVao", "Largura",
-                Unidades.Texto(Unidades.Metro, v.Largura, cultura), true, true));
+                Unidades.Texto(Unidades.Metro, v.Largura, cultura), true, false));
             d.Propriedades.Add(new Propriedade("alturaVao", "Altura",
-                Unidades.Texto(Unidades.Metro, v.Altura, cultura), true, true));
+                Unidades.Texto(Unidades.Metro, v.Altura, cultura), true, false));
             d.Propriedades.Add(new Propriedade("quantidadeVao", "Quantidade",
-                Unidades.Texto(Unidades.Unidade, v.Quantidade, cultura), true, true));
+                Unidades.Texto(Unidades.Unidade, v.Quantidade, cultura), true, false));
             d.Propriedades.Add(new Propriedade("descontoVao", "Desconto",
                 "−" + Unidades.Texto(unidade, desconto, cultura), true, false));
             return d;

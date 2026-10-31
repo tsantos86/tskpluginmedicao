@@ -127,6 +127,31 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void O_vao_de_um_pano_e_de_leitura_sem_metodo_para_o_gravar()
+        {
+            // O FacRepo só tem AdicionarVaos (em bloco, para vãos novos) —
+            // nenhum método para alterar um vão já existente de um pano.
+            // Marcar estes campos como editáveis deixava o mosaico aceitar a
+            // edição e, ao confirmar, o valor revertia em silêncio: o mesmo
+            // anti-padrão já corrigido para Tipo/Pré-aro do vão da alvenaria.
+            var f = Pano("F1", "PISO 0", "ETICS", 10.0, 2.0);
+            f.Vaos.Add(new Vao { Designacao = "J1", Largura = 2.0, Altura = 1.0, Quantidade = 1 });
+
+            var raiz = ResultadosArvore.Construir(
+                ResultadosAdaptadores.DeMateriais(
+                    new List<MedFachada> { f }, RegraDesconto.DescontarTudo, null, Pt), Pt);
+
+            var vao = ResultadosArvoreTests.Procurar(raiz, "M:F1/V:0");
+            foreach (var campo in new[]
+                     { "designacao", "tipoVao", "larguraVao", "alturaVao", "quantidadeVao" })
+            {
+                var prop = vao.Propriedades.Find(p => p.Campo == campo);
+                Assert.NotNull(prop);
+                Assert.False(prop.Editavel, campo + " não devia ser editável (sem gravação no FacRepo)");
+            }
+        }
+
+        [Fact]
         public void Um_pano_com_vaos_maiores_do_que_ele_e_alerta()
         {
             var f = Pano("F1", "PISO 0", "ETICS", 2.0, 2.0);           // 4 m²

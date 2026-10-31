@@ -263,7 +263,35 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 
 - [x] Parede: editar Serviço, Artigo, Piso, Altura, Largura e Espessura.
 - [x] Vão: editar Designação, Largura e Altura.
+
+  > **Nota 2026-10-31.** Vale só para o vão de uma PAREDE (Alvenaria/Camadas),
+  > que grava por `AlvRepo.AlterarVao`/`DefinirDesignacaoVao`. O vão de um
+  > PANO (Materiais), construído por `ResultadosAdaptadores.Deducao()` (único
+  > ponto de entrada, chamado por `DeMateriais`), marcava os mesmos cinco
+  > campos (`designacao`/`tipoVao`/`larguraVao`/`alturaVao`/`quantidadeVao`)
+  > como editáveis sem que o `FacRepo` tivesse QUALQUER método para alterar
+  > um vão já existente — só `AdicionarVaos`, em bloco, para vãos novos. Na
+  > prática, editar um destes campos num pano chamava sempre `AlvRepo` (a
+  > Fase 5 nunca distinguia a origem do nó), que procura a XData com o nome
+  > de aplicação errado (`CASQUILHO_ALV` em vez de `CASQUILHO_FAC`) para um
+  > pano — devolve `false`/`null` e o valor revertia em silêncio. Mesmo
+  > anti-padrão já encontrado e corrigido (PR aberto, ainda não mesclado) para
+  > Tipo/Pré-aro do vão da PAREDE, aqui alastrado aos cinco campos do vão do
+  > PANO. Corrigido o mínimo: os cinco campos de `Deducao()` passaram a
+  > `editavel: false` — "editável só onde há quem grave".
 - [x] Título: editar o código sem truncar/perder a descrição persistida.
+
+  > **Nota 2026-10-31.** Mesma auditoria do bullet acima, mas aqui o `FacRepo`
+  > TEM o método certo (`FacRepo.DefinirTextoDeTitulo`, usado pelo `TSKRET`/
+  > `TSKPOLF` para gravar marcas de capítulo/artigo num pano) — só que o
+  > `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) chamava sempre
+  > `AlvRepo.DefinirTextoDeTitulo`, nunca `FacRepo`, para os casos
+  > `codigoTitulo`/`descricaoTitulo`. Resultado: editar o título de um pano
+  > (Materiais) revertia sempre em silêncio (devolução descartada, sem
+  > `Confirmar()` a avisar), enquanto o de uma parede (Alvenaria/Camadas)
+  > sempre funcionou. Corrigido a dispatch: `no.Pai.TipoMedida == "Materiais"`
+  > escolhe `FacRepo`, o resto mantém `AlvRepo` — é a primeira vez que este
+  > switch distingue a origem do nó, porque é a primeira vez que precisa.
 - [x] Manter Comprimento como valor geométrico apenas de leitura.
 - [x] Manter Área bruta, desconto, Área líquida, Quantidade, Volume e Pré-aros como cálculos de leitura.
 - [x] Preservar multisseleção e operações em lote para Artigo, Piso e dimensões já suportadas.
@@ -665,6 +693,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-31 | 5 | Fila sem itens `[ ]` novos; Passo 0 confirmou 13 PRs abertos desta rotina (#11-#23, nenhum mesclado) e nenhum indicava trabalho cortado a meio — não retomado, seguido o plano a partir de `main`. PR #23 (aberto, ainda não mesclado) tinha acabado de corrigir `tipoVao`/`preAro` editáveis sem gravação no vão da PAREDE; esta sessão estendeu a mesma auditoria de paridade (editável ⇄ quem grava) ao resto da árvore e encontrou o mesmo anti-padrão em dois sítios que o PR #23 não cobria: (1) `ResultadosAdaptadores.Deducao()` — usado só pelos vãos de um PANO (Materiais) — marcava `designacao`/`tipoVao`/`larguraVao`/`alturaVao`/`quantidadeVao` como editáveis sem o `FacRepo` ter qualquer método para alterar um vão já existente (só `AdicionarVaos`, em bloco, para vãos novos); corrigido para `editavel: false` nos cinco; (2) o título de um PANO tinha mesmo onde gravar (`FacRepo.DefinirTextoDeTitulo`, já usado por `TSKRET`/`TSKPOLF`), mas o `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) chamava sempre `AlvRepo.DefinirTextoDeTitulo` para `codigoTitulo`/`descricaoTitulo`, independentemente da origem do nó — a XData do pano vive sob `CASQUILHO_FAC`, não `CASQUILHO_ALV`, por isso a escrita falhava sempre em silêncio; corrigido a despachar por `no.Pai.TipoMedida == "Materiais"` → `FacRepo`, resto → `AlvRepo` (ver notas na Fase 5, bullets Vão/Título) | `dotnet test` 357/357 (1 teste novo, `O_vao_de_um_pano_e_de_leitura_sem_metodo_para_o_gravar`); confirmado que falha sem a correção em `ResultadosAdaptadores.cs` (revertido temporariamente) e passa com ela. **Ficheiros NÃO compilados no sandbox**: `Palette.cs` (dispatch do título) — revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409, 1539/1539 equilibradas); aguarda build manual em Visual Studio (`net48`/AutoCAD) antes do merge. `ResultadosAdaptadores.cs` (o fix dos cinco campos do vão) não usa `Autodesk.*`/`System.Windows.Forms` — **100% verificado por teste**, sem ressalva |
 
 ### Decisões desta passagem
 
