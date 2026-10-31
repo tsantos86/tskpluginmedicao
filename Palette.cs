@@ -2592,8 +2592,19 @@ namespace TSKTakeOff
                     string descricao = ValorPropriedade(no.Propriedades, "descricaoTitulo");
                     if (p.Campo == "codigoTitulo") codigo = bruto; else descricao = bruto;
 
-                    AlvRepo.DefinirTextoDeTitulo(handle, no.Indice,
-                        codigo + ChaveArtigo.Sep + descricao);
+                    string textoTitulo = codigo + ChaveArtigo.Sep + descricao;
+
+                    // O título de um pano (Materiais) vive na XData do
+                    // FacRepo ("CASQUILHO_FAC"), não na do AlvRepo
+                    // ("CASQUILHO_ALV") — chamar sempre AlvRepo fazia o
+                    // GetXDataForApplication devolver null e a edição
+                    // revertia em silêncio ao texto antigo, só nos títulos de
+                    // Materiais (os de Alvenaria/Camadas, que são Parede,
+                    // continuavam a gravar bem).
+                    if (no.Pai != null && no.Pai.TipoMedida == "Materiais")
+                        FacRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);
+                    else
+                        AlvRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);
                     break;
                 }
 
