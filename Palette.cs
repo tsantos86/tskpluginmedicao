@@ -4214,6 +4214,21 @@ namespace TSKTakeOff
                 return;
             }
 
+            // Este botão usa SEMPRE o AlvRepo, mas o alvo pode vir da célula do
+            // Excel ou da árvore unificada — e essas também mostram Materiais,
+            // Lineares e Contagens. Só a Parede tem o contador "linhas em
+            // branco DEPOIS" no modelo (MedFachada só tem o separador "antes",
+            // semântica diferente; Lineares/Contagens não têm nenhum). Sem esta
+            // verificação, carregar no botão com um pano/linear/contagem como
+            // alvo dizia "linha acrescentada" e não gravava nada — o mesmo
+            // anti-padrão já corrigido para Tipo/Pré-aro do vão e para o vão de
+            // um pano (ver Fase 5 do plano).
+            if (!_paredes.Exists(p => p.Handle == handle))
+            {
+                PaletteHost.Log("Linha em branco só está disponível para medições de Alvenaria.");
+                return;
+            }
+
             string onde = DescreverAlvo(handle), quem = OrigemDoAlvo(handle);
 
             // Quantas ficam depois de somar. Lido da lista que já temos em
@@ -4254,10 +4269,29 @@ namespace TSKTakeOff
                 return;
             }
 
+            // O alvo pode vir da célula do Excel ou da árvore unificada, que
+            // também mostram Materiais, Lineares e Contagens — não só
+            // Alvenaria. O FacRepo sabe gravar título num pano (o mesmo
+            // AlternarTitulo/DefinirTextoDeTitulo que TSKRET/TSKPOLF já usam),
+            // mas Lineares e Contagens não têm nenhum campo de título no
+            // modelo. Sem esta verificação, o botão dizia "título
+            // acrescentado" sem gravar nada nesses dois casos — mesmo
+            // anti-padrão já corrigido noutros pontos da Fase 5.
+            bool ehParede = _paredes.Exists(p => p.Handle == handle);
+            bool ehFachada = !ehParede && _fachadas.Exists(f => f.Handle == handle);
+            if (!ehParede && !ehFachada)
+            {
+                PaletteHost.Log(nome + " não está disponível para esta medição " +
+                                "(só Alvenaria e Materiais têm título).");
+                return;
+            }
+
             // Acrescenta o nível, ou tira-o se já lá estiver. Os outros níveis
             // ficam: um sub-artigo por baixo de um artigo não apaga o artigo.
-            bool tinha = MarcaDe(handle).Contains(marca);
-            AlvRepo.AlternarTitulo(handle, marca);
+            string marcaActual = ehFachada ? MarcaDeFachada(handle) : MarcaDe(handle);
+            bool tinha = marcaActual.Contains(marca);
+            if (ehFachada) FacRepo.AlternarTitulo(handle, marca);
+            else AlvRepo.AlternarTitulo(handle, marca);
 
             if (tinha)
             {
@@ -4287,12 +4321,13 @@ namespace TSKTakeOff
                 // capítulo, artigo, sub-artigo, independentemente da ordem por
                 // que se carregou nos botões.
                 int i = 0;
-                foreach (string mm in MarcaDe(handle).Split(';'))
+                foreach (string mm in marcaActual.Split(';'))
                 {
                     if (mm == marca) break;
                     if (mm.Length > 0) i++;
                 }
-                AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                if (ehFachada) FacRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                else AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
             }
 
             PaletteHost.Log("Linha de " + nome.ToLowerInvariant() +
@@ -4336,6 +4371,14 @@ namespace TSKTakeOff
         {
             foreach (var p in _paredes)
                 if (p.Handle == handle) return p.MarcaDepois ?? "";
+            return "";
+        }
+
+        /// <summary>Como <see cref="MarcaDe"/>, mas para um pano (Materiais).</summary>
+        private string MarcaDeFachada(string handle)
+        {
+            foreach (var f in _fachadas)
+                if (f.Handle == handle) return f.MarcaDepois ?? "";
             return "";
         }
 
