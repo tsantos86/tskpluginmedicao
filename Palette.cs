@@ -2557,7 +2557,7 @@ namespace TSKTakeOff
                 // ---- vão ----------------------------------------------------
                 case "designacao":
                     if (no.Indice < 0) return;
-                    AlvRepo.DefinirDesignacaoVao(handle, no.Indice, bruto);
+                    Confirmar(AlvRepo.DefinirDesignacaoVao(handle, no.Indice, bruto), p.Nome);
                     break;
 
                 case "larguraVao":
