@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-03
+Última atualização: 2026-11-02
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -263,6 +263,26 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 
 - [x] Parede: editar Serviço, Artigo, Piso, Altura, Largura e Espessura.
 - [x] Vão: editar Designação, Largura e Altura.
+
+  > **Nota 2026-11-02.** Bug encontrado na mesma família já corrigida nos
+  > PRs #21-25 (campo editável sem aviso quando a gravação falha): em
+  > `Palette.cs` (`AplicarEdicaoDePropriedade`), o campo "Designação" do vão
+  > era o único caso que chamava `AlvRepo.DefinirDesignacaoVao` e **descartava
+  > o `bool` devolvido**, sem passar por `Confirmar(...)` — ao contrário de
+  > `larguraVao`/`alturaVao`/`quantidadeVao` do mesmo vão, que já usam
+  > `Confirmar(AlvRepo.AlterarVao(...), p.Nome)`. Quando `EditarParede`
+  > devolve `false` (por exemplo, a parede foi apagada do desenho entre a
+  > seleção e a confirmação da edição), a árvore refresca com o nome antigo
+  > sem qualquer mensagem — o mesmo silêncio que o próprio `Confirmar` existe
+  > para evitar (ver o seu comentário: "antes não dizia nada... foi assim que
+  > uma limpeza do Piso funcionou em metade das medições e na outra metade
+  > não"). Corrigido envolvendo a chamada em `Confirmar(..., p.Nome)`, igual
+  > ao padrão já usado pelos outros três campos do vão. Correção de uma linha
+  > — nenhum método novo, nenhum campo novo persistido. **Implementado,
+  > aguarda build manual** — `Palette.cs` não compila neste sandbox (sem
+  > AutoCAD/WinForms); revisto por leitura cuidadosa contra o resto do
+  > ficheiro e por uma contagem de chavetas/parênteses/parênteses-retos
+  > (409/409, 1534/1534, 65/65, ficheiro inteiro, equilibradas).
 - [x] Título: editar o código sem truncar/perder a descrição persistida.
 - [x] Manter Comprimento como valor geométrico apenas de leitura.
 - [x] Manter Área bruta, desconto, Área líquida, Quantidade, Volume e Pré-aros como cálculos de leitura.
@@ -665,6 +685,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-11-02 | 5 | Passo 0: confirmados **15 PRs abertos desta rotina sem nenhum merge** (#11-#25, `agent/paleta-resultados-2026-10-08` a `-2026-11-01`), cobrindo quase todo o espaço restante de Fase 7 (ordem de Tab/acessibilidade em todos os diálogos secundários e secções do painel) e a família de bugs "editável sem gravação real" da Fase 5 (#21-25). Nenhum indicava trabalho cortado a meio — não houve PR para retomar. Fila sem itens `[ ]` novos. Em vez de repetir a mesma busca (duplicaria #21-25), listados os ficheiros tocados por cada PR aberto (sem publicar nenhum merge local) para não sobrepor trabalho, e percorrido o resto da mesma família de bug em `AplicarEdicaoDePropriedade` (`Palette.cs`): dos sete campos editáveis de um vão/parede que gravam por `AlvRepo`, só "Designação" descartava o `bool` de `AlvRepo.DefinirDesignacaoVao` sem passar por `Confirmar(...)` — ao contrário de Largura/Altura/Quantidade do mesmo vão, que já usam esse padrão. Quando a parede é apagada entre a selecção e a confirmação da edição, a gravação falha em silêncio e a árvore volta a mostrar o nome antigo sem qualquer aviso. Corrigido com uma linha, replicando o padrão já usado pelos três campos vizinhos | `dotnet test` 356/356 (sem alterações ao projecto de testes — a lógica alterada é só WinForms). `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por uma contagem de chavetas/parênteses/parênteses-retos (409/409, 1534/1534, 65/65, ficheiro inteiro, equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge. **Aviso urgente ao utilizador repetido** (ver corpo do PR): a fila de PRs abertos sem merge continua a crescer |
 
 ### Decisões desta passagem
 
