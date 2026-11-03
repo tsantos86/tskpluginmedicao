@@ -293,6 +293,29 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > `alt/larg/esp`) — o painel novo, ao deixar Comprimento só de leitura,
   > corrige esse aparente-mas-falso campo editável. Título ganhou uma
   > capacidade a mais (editar a Descrição, não só o Código).
+
+  > **Nota 2026-11-03.** Continuação da família "campo editável que grava
+  > sem confirmar, e falha em silêncio" (PRs #21-26, ainda abertos). Editar
+  > o Código/Descrição de um título em `PROPRIEDADES`
+  > (`AplicarEdicaoDePropriedade`, caso `codigoTitulo`/`descricaoTitulo`)
+  > chamava `AlvRepo.DefinirTextoDeTitulo` descartando o `bool` — a mesma
+  > condição de falha (parede apagada do desenho entre a seleção e a
+  > confirmação) que o `Confirmar()` já trata para `designacao`/`larguraVao`/
+  > `alturaVao`/`quantidadeVao` do mesmo vão, mas sem o aviso. Corrigido com
+  > a mesma linha: `Confirmar(AlvRepo.DefinirTextoDeTitulo(...), p.Nome)`.
+  >
+  > **Achado relacionado, NÃO corrigido nesta sessão** (para não empilhar
+  > conflito sobre o PR #25, `agent/paleta-resultados-2026-11-01`, ainda
+  > aberto e que toca as mesmas funções): `AlternarSeparador()` e
+  > `MarcarTitulo()` (handlers do menu `Mais` → Linha branca/Artigo, em
+  > `Palette.cs`) continuam a descartar o `bool` de
+  > `AlvRepo.AcrescentarSeparadorDepois`/`AlternarTitulo`/
+  > `DefinirTextoDeTitulo` mesmo na versão já corrigida pelo PR #25 (que só
+  > tratou o falso-sucesso de tipo errado — pano/linear/contagem — não o
+  > de parede apagada do desenho, a mesma classe de bug do `designacao`).
+  > Próxima sessão: aplicar `Confirmar(...)` às três chamadas depois de o
+  > PR #25 ser mesclado (ou directamente no PR #25 antes de mesclar, se
+  > ainda estiver aberto), para não duplicar o conflito.
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
@@ -665,6 +688,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-11-03 | 5 | Passo 0: 16 PRs abertos desta rotina sem nenhum merge (#11-#26), nenhum a indicar trabalho cortado a meio pela própria descrição — ver aviso urgente abaixo. Fila sem itens `[ ]`. Seguido o plano, Fase 5 ("paridade de campos/comandos"): continuação da família "campo editável que grava sem confirmar, e falha em silêncio" dos PRs #21-26. Gap novo e isolado (sem tocar nas mesmas linhas que qualquer PR aberto): o caso `codigoTitulo`/`descricaoTitulo` de `AplicarEdicaoDePropriedade` (editar Código/Descrição de um título em PROPRIEDADES) chamava `AlvRepo.DefinirTextoDeTitulo` descartando o `bool`, tal como `designacao` antes do PR #26. Corrigido com `Confirmar(AlvRepo.DefinirTextoDeTitulo(...), p.Nome)`. Achado relacionado mas **não corrigido** por sobrepor o PR #25 ainda aberto: `AlternarSeparador()`/`MarcarTitulo()` continuam a descartar o mesmo `bool` mesmo depois da correcção do PR #25 — ver nota na Fase 5 acima | `dotnet test` 356/356 (sem alterações ao projecto de testes — SDK `dotnet-sdk-8.0` reinstalado neste sandbox). `Palette.cs` revisto por leitura cuidadosa e por uma contagem de chavetas/parênteses/parênteses-retos do ficheiro inteiro (409/409, 1534/1534, 65/65, equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 
 ### Decisões desta passagem
 

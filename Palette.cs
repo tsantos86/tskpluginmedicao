@@ -2592,8 +2592,8 @@ namespace TSKTakeOff
                     string descricao = ValorPropriedade(no.Propriedades, "descricaoTitulo");
                     if (p.Campo == "codigoTitulo") codigo = bruto; else descricao = bruto;
 
-                    AlvRepo.DefinirTextoDeTitulo(handle, no.Indice,
-                        codigo + ChaveArtigo.Sep + descricao);
+                    Confirmar(AlvRepo.DefinirTextoDeTitulo(handle, no.Indice,
+                        codigo + ChaveArtigo.Sep + descricao), p.Nome);
                     break;
                 }
 
