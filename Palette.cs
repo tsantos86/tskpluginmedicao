@@ -4224,7 +4224,17 @@ namespace TSKTakeOff
             int agora = antes + 1;
             if (agora > Parede.MaxLinhasEmBranco) agora = 0;
 
-            AlvRepo.AcrescentarSeparadorDepois(handle);
+            // A parede pode ter sido apagada do desenho entre a selecção e
+            // este clique (mesma condição de falha já tratada em PROPRIEDADES
+            // para designacao/larguraVao/alturaVao/quantidadeVao do vão) —
+            // sem verificar o retorno, dizia-se "linha acrescentada" sem ter
+            // gravado nada: falso sucesso, pior do que a reversão silenciosa.
+            if (!AlvRepo.AcrescentarSeparadorDepois(handle))
+            {
+                Confirmar(false, "separador");
+                PaletteHost.RefreshData();
+                return;
+            }
 
             PaletteHost.Log(agora == 0
                 ? "Linhas em branco removidas por baixo da medição " + onde +
@@ -4257,7 +4267,16 @@ namespace TSKTakeOff
             // Acrescenta o nível, ou tira-o se já lá estiver. Os outros níveis
             // ficam: um sub-artigo por baixo de um artigo não apaga o artigo.
             bool tinha = MarcaDe(handle).Contains(marca);
-            AlvRepo.AlternarTitulo(handle, marca);
+
+            // Mesma condição de falha silenciosa do separador acima: a
+            // parede pode ter sido apagada do desenho entretanto, e
+            // AlternarTitulo devolve false sem gravar nada.
+            if (!AlvRepo.AlternarTitulo(handle, marca))
+            {
+                Confirmar(false, nome.ToLowerInvariant());
+                PaletteHost.RefreshData();
+                return;
+            }
 
             if (tinha)
             {
@@ -4292,7 +4311,12 @@ namespace TSKTakeOff
                     if (mm == marca) break;
                     if (mm.Length > 0) i++;
                 }
-                AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                if (!AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto))
+                {
+                    Confirmar(false, nome.ToLowerInvariant());
+                    PaletteHost.RefreshData();
+                    return;
+                }
             }
 
             PaletteHost.Log("Linha de " + nome.ToLowerInvariant() +
