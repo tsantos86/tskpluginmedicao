@@ -4071,7 +4071,14 @@ namespace TSKTakeOff
             using (var dlg = new VaoDialog())
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                AlvRepo.AdicionarVao(handle, dlg.Resultado);
+                if (!AlvRepo.AdicionarVao(handle, dlg.Resultado))
+                {
+                    PaletteHost.Log("Não consegui acrescentar o vão — a medição pode ter " +
+                                    "sido apagada do desenho. Carregue em Atualizar e tente " +
+                                    "outra vez.");
+                    PaletteHost.RefreshData();
+                    return;
+                }
             }
             PaletteHost.RefreshData();
         }
@@ -4167,7 +4174,14 @@ namespace TSKTakeOff
                 // AlternarTitulo com a marca presente leva o texto com ela —
                 // senão reaparecia sozinho da próxima vez que se pusesse um
                 // título.
-                AlvRepo.AlternarTitulo(h, marcaT);
+                if (!AlvRepo.AlternarTitulo(h, marcaT))
+                {
+                    PaletteHost.Log("Não consegui apagar o " + nivel.ToLowerInvariant() +
+                                    " — a medição pode ter sido apagada do desenho. " +
+                                    "Carregue em Atualizar e tente outra vez.");
+                    PaletteHost.RefreshData();
+                    return;
+                }
                 PaletteHost.Log(nivel + " apagado.");
                 PaletteHost.RefreshData();
                 return;
@@ -4191,7 +4205,9 @@ namespace TSKTakeOff
                 MessageBoxDefaultButton.Button2);
             if (resp != DialogResult.Yes) return;
 
-            AlvRepo.RemoverParede(handle);
+            if (!AlvRepo.RemoverParede(handle))
+                PaletteHost.Log("Não consegui apagar a medição — pode já ter sido " +
+                                "apagada do desenho. Carregue em Atualizar e tente outra vez.");
             PaletteHost.RefreshData();
         }
 
