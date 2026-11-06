@@ -56,6 +56,9 @@ namespace TSKTakeOff
                 grelha.RowHeadersVisible = false;
                 grelha.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
                 grelha.BackgroundColor = Color.White;
+                grelha.AccessibleName = "Vãos detectados na parede";
+                grelha.AccessibleDescription = "Uma linha por interrupção encontrada: " +
+                    "largura, o que é (porta, janela ou pilar), altura, quantidade e nome.";
 
                 Coluna(grelha, "larg", "Largura (m)");
                 ColunaTipo(grelha);
@@ -90,9 +93,12 @@ namespace TSKTakeOff
                 ok.Text = "Aceitar";
                 ok.DialogResult = DialogResult.OK;
                 ok.SetBounds(310, 9, 90, 28);
+                ok.AccessibleDescription = "Grava os vãos da tabela, com o que cada " +
+                    "um foi marcado.";
                 nenhum.Text = "Sem vãos";
                 nenhum.DialogResult = DialogResult.Cancel;
                 nenhum.SetBounds(408, 9, 90, 28);
+                nenhum.AccessibleDescription = "A medição fica sem vãos nenhuns.";
                 baixo.Controls.Add(ok);
                 baixo.Controls.Add(nenhum);
 

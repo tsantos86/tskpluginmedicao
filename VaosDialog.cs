@@ -47,7 +47,11 @@ namespace TSKTakeOff
                 RowHeadersVisible = true,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 BackgroundColor = Color.White,
-                EditMode = DataGridViewEditMode.EditOnEnter
+                EditMode = DataGridViewEditMode.EditOnEnter,
+                AccessibleName = "Tabela de vãos",
+                AccessibleDescription = "Uma linha por vão: descontar, designação, " +
+                    "largura, altura, quantidade, tipo, pré-aro e espessura do aro. " +
+                    "A última linha, em branco, acrescenta um vão novo."
             };
 
             _dgv.Columns.Add(new DataGridViewCheckBoxColumn
