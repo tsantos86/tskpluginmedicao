@@ -488,6 +488,52 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > falta ainda confirmar com um leitor de ecrã real (NVDA/Narrador) no
   > AutoCAD (Fase 8) que o anúncio por mosaico funciona como esperado.
 
+  > **Nota 2026-10-12.** Uma sessão anterior (PR #14, `agent/paleta-
+  > resultados-2026-10-11`, ainda aberto) tinha deixado em aberto, sem
+  > confiança para decidir, se a ordem de Tab entre os PAINÉIS DE NÍVEL
+  > SUPERIOR do próprio `Form` (não os pares de botões OK/Cancelar, já
+  > corrigidos nesse PR) sofria do mesmo bug — citando `VaosDialog.cs` e
+  > `ArtigoDialog.cs` como exemplos por confirmar. Investigado por leitura
+  > cuidadosa da regra real do WinForms: para `Dock=Top/Bottom`, o
+  > `Controls.Add` empilha em ordem INVERSA (o último filho acrescentado
+  > fica encostado à borda), mas o `TabIndex` implícito segue a ordem
+  > DIRECTA de `Controls.Add` — a mesma mecânica já usada em todas as
+  > correcções anteriores desta fase, só que agora aplicada ao nível do
+  > `Form` em vez de um painel filho.
+  >
+  > Em `VaosDialog.cs` (`info`=Top, `_dgv`=Fill, `buttons`=Bottom,
+  > acrescentados `_dgv, buttons, info`) e em `ArtigoDialog.cs` (`topo`,
+  > `rotProcura`, `_procura`, `_conta`, `_lista`, `baixo`, acrescentados
+  > `_lista, _conta, baixo, _procura, rotProcura, topo`): confirmado que a
+  > ordem de Tab resultante, apesar de parecer "ao contrário" da ordem
+  > visual à primeira vista, não produz nenhum problema real — os únicos
+  > controlos que ficam fora de posição são `Label`s sem `TabStop`
+  > (`info`, `topo`, `rotProcura`), que nunca recebem foco de qualquer
+  > forma, e o `ArtigoDialog` já força o foco inicial para `_procura` por
+  > código (`Shown += ... _procura.Focus()`), o que também disfarça a
+  > ordem implícita. Nenhuma alteração feita a estes dois ficheiros — é a
+  > mesma conclusão "confirmado por leitura, sem necessidade de código
+  > novo" já usada noutros critérios desta fase.
+  >
+  > Continuando a mesma auditoria a TODOS os diálogos com `Dock=Top/Bottom`
+  > ao nível do `Form` (não só os dois citados pelo PR #14), encontrado um
+  > bug real e novo em `ImportarMQT.EscolherFolhas` (o diálogo "que folhas
+  > do mapa importar"): `Controls.Add` na ordem `previa, rot2, lista, rot,
+  > baixo` — a pré-visualização (`previa`, só de leitura) ficava com o
+  > `TabIndex` implícito mais baixo (0), por ser a PRIMEIRA a entrar, e por
+  > isso recebia o FOCO INICIAL ao abrir o diálogo, antes da lista de
+  > folhas a marcar (`lista`), que é o controlo que há de facto para usar
+  > primeiro. Ao contrário dos dois diálogos acima, aqui não havia nenhum
+  > `Shown += ... Focus()` a compensar, e a pré-visualização É focável
+  > (`ListBox` normal, sem `TabStop=false`) — por isso o efeito era real,
+  > não só teórico. Corrigido com `TabIndex` explícito (`rot`=0, `lista`=1,
+  > `rot2`=2, `previa`=3, `baixo`=4), repondo a leitura visual
+  > (instruções → lista de folhas → rótulo da pré-visualização →
+  > pré-visualização → botões) e pondo o foco inicial em `lista`. O par
+  > `cancelar`/`ok` dentro de `baixo` (mesmo padrão de bug, já identificado
+  > pelo PR #14 como item #5 da sua lista) não foi tocado aqui, para não
+  > duplicar esse PR — fica para quando #14 for mesclado.
+
 ### Dimensão e desempenho
 
 - [ ] Validar larguras de 480, 520, 560 e 760 px e DPI de 100%, 125%, 150% e 200%.
