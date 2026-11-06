@@ -368,6 +368,29 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > `alt/larg/esp`) — o painel novo, ao deixar Comprimento só de leitura,
   > corrige esse aparente-mas-falso campo editável. Título ganhou uma
   > capacidade a mais (editar a Descrição, não só o Código).
+
+  > **Nota 2026-11-03.** Continuação da família "campo editável que grava
+  > sem confirmar, e falha em silêncio" (PRs #21-26, ainda abertos). Editar
+  > o Código/Descrição de um título em `PROPRIEDADES`
+  > (`AplicarEdicaoDePropriedade`, caso `codigoTitulo`/`descricaoTitulo`)
+  > chamava `AlvRepo.DefinirTextoDeTitulo` descartando o `bool` — a mesma
+  > condição de falha (parede apagada do desenho entre a seleção e a
+  > confirmação) que o `Confirmar()` já trata para `designacao`/`larguraVao`/
+  > `alturaVao`/`quantidadeVao` do mesmo vão, mas sem o aviso. Corrigido com
+  > a mesma linha: `Confirmar(AlvRepo.DefinirTextoDeTitulo(...), p.Nome)`.
+  >
+  > **Achado relacionado, NÃO corrigido nesta sessão** (para não empilhar
+  > conflito sobre o PR #25, `agent/paleta-resultados-2026-11-01`, ainda
+  > aberto e que toca as mesmas funções): `AlternarSeparador()` e
+  > `MarcarTitulo()` (handlers do menu `Mais` → Linha branca/Artigo, em
+  > `Palette.cs`) continuam a descartar o `bool` de
+  > `AlvRepo.AcrescentarSeparadorDepois`/`AlternarTitulo`/
+  > `DefinirTextoDeTitulo` mesmo na versão já corrigida pelo PR #25 (que só
+  > tratou o falso-sucesso de tipo errado — pano/linear/contagem — não o
+  > de parede apagada do desenho, a mesma classe de bug do `designacao`).
+  > Próxima sessão: aplicar `Confirmar(...)` às três chamadas depois de o
+  > PR #25 ser mesclado (ou directamente no PR #25 antes de mesclar, se
+  > ainda estiver aberto), para não duplicar o conflito.
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
