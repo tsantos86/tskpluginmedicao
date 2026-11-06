@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-03
+Última atualização: 2026-10-09
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
