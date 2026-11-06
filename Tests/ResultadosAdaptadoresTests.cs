@@ -127,6 +127,27 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void A_linha_do_vao_de_um_pano_respeita_a_regra_de_desconto_em_vigor()
+        {
+            // Mesmo caso de "Os_vaos_de_um_pano_descontam_e_nao_contam_duas_vezes",
+            // mas sob SINAPI (vãos ≤ 2 m² não descontam nada). O TOTAL do pano já
+            // respeitava a regra (f.DescontoVaos(regra)); a LINHA do vão nas
+            // Deduções é que ignorava a regra e mostrava sempre a área bruta da
+            // janela como "desconto" — um número com ar de certo que contradizia
+            // o total ao lado.
+            var f = Pano("F1", "PISO 0", "ETICS", 10.0, 2.0);          // 20 m²
+            f.Vaos.Add(new Vao { Designacao = "J1", Largura = 2.0, Altura = 1.0, Quantidade = 1 }); // 2 m²
+
+            var raiz = ResultadosArvore.Construir(
+                ResultadosAdaptadores.DeMateriais(
+                    new List<MedFachada> { f }, RegraDesconto.Sinapi2m2, null, Pt), Pt);
+
+            Assert.Equal(20.0, raiz.Quantidades.De("m2"), 3);          // nada descontado
+            var vao = ResultadosArvoreTests.Procurar(raiz, "M:F1/V:0");
+            Assert.Equal(0.0, vao.Quantidades.De("m2"), 3);            // e a linha do vão concorda
+        }
+
+        [Fact]
         public void Um_pano_com_vaos_maiores_do_que_ele_e_alerta()
         {
             var f = Pano("F1", "PISO 0", "ETICS", 2.0, 2.0);           // 4 m²

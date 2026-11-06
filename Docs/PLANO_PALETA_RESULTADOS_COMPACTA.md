@@ -373,6 +373,21 @@ uma árvore global nem uma nova leitura do DWG.
   Fase 8 — o código está sob compilação e teste unitário, não sob teste de
   interface).
 
+> **Bug encontrado e corrigido em 2026-10-29.** `ResultadosAdaptadores.DeMateriais`
+> construía a linha de Dedução de cada vão com `f.Vaos[i].AreaTotal` — a área
+> bruta da janela/porta, sempre, qualquer que fosse `RegraDesconto` — em vez de
+> `f.Vaos[i].Desconto(regra)`, que é o que `ResultadosArvore.DeducaoDoVao` (lado
+> da Alvenaria) já usa para o mesmo cálculo. O TOTAL do pano (`m.Quantidade`,
+> via `f.AreaLiquida(regra)`/`f.DescontoVaos(regra)`) sempre respeitou a regra;
+> só a linha individual do vão, visível em PROPRIEDADES/árvore, ignorava-a. Com
+> `Sinapi2m2` (vãos ≤ 2 m² não descontam) ou `NaoDescontar`, a linha do vão
+> mostrava um desconto que contradizia o total do pano ao lado — um número com
+> ar de estar certo. Passou despercebido porque todos os testes existentes de
+> `DeMateriais` usavam `RegraDesconto.DescontarTudo`, onde `Desconto(regra) ==
+> AreaTotal` por definição, nunca expondo a divergência.
+
+
+
 ## Fase 7 — Teclado, acessibilidade, DPI e desempenho [~]
 
 Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md` e validar uso prolongado no AutoCAD.

@@ -101,7 +101,7 @@ namespace TSKTakeOff
 
                 for (int i = 0; i < f.Vaos.Count; i++)
                     m.Deducoes.Add(Deducao(f.Vaos[i], i, Unidades.M2,
-                        f.Vaos[i].AreaTotal, cultura));
+                        f.Vaos[i].Desconto(regra), cultura));
 
                 var marcas = f.Marcas;
                 for (int i = 0; i < marcas.Count; i++)
