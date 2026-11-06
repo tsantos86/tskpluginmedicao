@@ -263,7 +263,35 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 
 - [x] Parede: editar Serviço, Artigo, Piso, Altura, Largura e Espessura.
 - [x] Vão: editar Designação, Largura e Altura.
+
+  > **Nota 2026-10-31.** Vale só para o vão de uma PAREDE (Alvenaria/Camadas),
+  > que grava por `AlvRepo.AlterarVao`/`DefinirDesignacaoVao`. O vão de um
+  > PANO (Materiais), construído por `ResultadosAdaptadores.Deducao()` (único
+  > ponto de entrada, chamado por `DeMateriais`), marcava os mesmos cinco
+  > campos (`designacao`/`tipoVao`/`larguraVao`/`alturaVao`/`quantidadeVao`)
+  > como editáveis sem que o `FacRepo` tivesse QUALQUER método para alterar
+  > um vão já existente — só `AdicionarVaos`, em bloco, para vãos novos. Na
+  > prática, editar um destes campos num pano chamava sempre `AlvRepo` (a
+  > Fase 5 nunca distinguia a origem do nó), que procura a XData com o nome
+  > de aplicação errado (`CASQUILHO_ALV` em vez de `CASQUILHO_FAC`) para um
+  > pano — devolve `false`/`null` e o valor revertia em silêncio. Mesmo
+  > anti-padrão já encontrado e corrigido (PR aberto, ainda não mesclado) para
+  > Tipo/Pré-aro do vão da PAREDE, aqui alastrado aos cinco campos do vão do
+  > PANO. Corrigido o mínimo: os cinco campos de `Deducao()` passaram a
+  > `editavel: false` — "editável só onde há quem grave".
 - [x] Título: editar o código sem truncar/perder a descrição persistida.
+
+  > **Nota 2026-10-31.** Mesma auditoria do bullet acima, mas aqui o `FacRepo`
+  > TEM o método certo (`FacRepo.DefinirTextoDeTitulo`, usado pelo `TSKRET`/
+  > `TSKPOLF` para gravar marcas de capítulo/artigo num pano) — só que o
+  > `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) chamava sempre
+  > `AlvRepo.DefinirTextoDeTitulo`, nunca `FacRepo`, para os casos
+  > `codigoTitulo`/`descricaoTitulo`. Resultado: editar o título de um pano
+  > (Materiais) revertia sempre em silêncio (devolução descartada, sem
+  > `Confirmar()` a avisar), enquanto o de uma parede (Alvenaria/Camadas)
+  > sempre funcionou. Corrigido a dispatch: `no.Pai.TipoMedida == "Materiais"`
+  > escolhe `FacRepo`, o resto mantém `AlvRepo` — é a primeira vez que este
+  > switch distingue a origem do nó, porque é a primeira vez que precisa.
 - [x] Manter Comprimento como valor geométrico apenas de leitura.
 - [x] Manter Área bruta, desconto, Área líquida, Quantidade, Volume e Pré-aros como cálculos de leitura.
 
