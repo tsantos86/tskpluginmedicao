@@ -285,8 +285,8 @@ namespace TSKTakeOff
         public string Servico { get; set; }
         /// <summary>
         /// O tipo de medida: Alvenaria, Camadas, Materiais, Lineares,
-        /// Contagens. 00c9 o segundo n00edvel da 00e1rvore e o que determina a
-        /// unidade 2014 ver <see cref="TipoNo.Tipo"/>.
+        /// Contagens. É o segundo nível da árvore e o que determina a
+        /// unidade — ver <see cref="TipoNo.Tipo"/>.
         /// </summary>
         public string TipoMedida { get; set; }
         /// <summary>Chave do artigo, "código\x1fdescrição".</summary>
@@ -372,8 +372,8 @@ namespace TSKTakeOff
         public string Servico { get; set; }
         /// <summary>
         /// O tipo de medida: Alvenaria, Camadas, Materiais, Lineares,
-        /// Contagens. 00c9 o segundo n00edvel da 00e1rvore e o que determina a
-        /// unidade 2014 ver <see cref="TipoNo.Tipo"/>.
+        /// Contagens. É o segundo nível da árvore e o que determina a
+        /// unidade — ver <see cref="TipoNo.Tipo"/>.
         /// </summary>
         public string TipoMedida { get; set; }
         public string Artigo { get; set; }
