@@ -266,6 +266,27 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 - [x] Título: editar o código sem truncar/perder a descrição persistida.
 - [x] Manter Comprimento como valor geométrico apenas de leitura.
 - [x] Manter Área bruta, desconto, Área líquida, Quantidade, Volume e Pré-aros como cálculos de leitura.
+
+  > **Bug encontrado e corrigido em 2026-10-30.** Investigação dedicada à
+  > Fase 5 (reaudição do critério "paridade de campos/comandos", à procura
+  > de um gap ainda não documentado) encontrou `ResultadosArvore.DeducaoDoVao`
+  > a marcar `"tipoVao"` (Tipo: Porta/Janela) e `"preAro"` (Pré-aro: Sim/Não)
+  > como `editavel: true`, sem nenhum caminho de gravação: o `switch
+  > (p.Campo)` que grava a edição em `Palette.cs` só trata
+  > `servico/artigo/piso/altura/largura/espessura/designacao/larguraVao/
+  > alturaVao/quantidadeVao/codigoTitulo/descricaoTitulo` — `tipoVao`/
+  > `preAro` caíam no `default: return;`, sem avisar o utilizador. Confirmado
+  > também que `AlvRepo.cs` não tem nenhum método para alterar `Vao.Tipo` nem
+  > `Vao.PreAro` (só `AlterarVao` para `larg/alt/qt` e
+  > `DefinirDesignacaoVao`) — não era só a falta de um `case`, é falta total
+  > de persistência. Na prática: o utilizador editava Tipo/Pré-aro no
+  > mosaico (que aparecia com cursor de edição, por `Editavel=true`),
+  > confirmava, e o valor revertia em silêncio ao antigo — exactamente o
+  > anti-padrão que a Fase 0 já proíbe ("Editável só onde há quem grave. Um
+  > campo com realce que deixa escrever e não grava é pior do que um
+  > bloqueado."). Corrigido marcando os dois `editavel: false` — a correcção
+  > mínima, sem exigir uma API de escrita nova para um campo que ninguém
+  > tinha pedido para editar.
 - [x] Preservar multisseleção e operações em lote para Artigo, Piso e dimensões já suportadas.
 - [x] Validar valores antes de chamar os métodos existentes de `AlvRepo.cs`.
 
