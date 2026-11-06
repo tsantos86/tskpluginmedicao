@@ -322,6 +322,32 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 
 - [x] Barra principal: Excel ao Vivo, Exportar XLSX e Atualizar.
 - [x] Menu `Mais`: Remover, Linha branca, Artigo, Reclassificar e Limpar tudo.
+
+  > **Bug encontrado e corrigido em 2026-11-01.** `AlternarSeparador()` e
+  > `MarcarTitulo()` (os handlers de "Linha branca" e "Artigo") resolvem o
+  > alvo por `PaletteHost.HandleAlvo` — célula do Excel, linha da árvore
+  > unificada, ou última medição — e a árvore unificada mostra Materiais,
+  > Lineares e Contagens, não só Alvenaria. Os dois handlers chamavam sempre
+  > `AlvRepo`, sem verificar o tipo: com um pano/linear/contagem como alvo,
+  > `AlvRepo.AcrescentarSeparadorDepois`/`AlternarTitulo`/
+  > `DefinirTextoDeTitulo` procuravam o handle em `_paredes`, não encontravam
+  > nada, devolviam `false` sem gravar — e o botão, que nunca verificava o
+  > retorno, dizia "linha acrescentada"/"título acrescentado" na mesma. Falso
+  > sucesso, não só reversão silenciosa: o mesmo anti-padrão já corrigido
+  > para Tipo/Pré-aro do vão e para o vão de um pano, mas numa família de
+  > comandos diferente (menu `Mais`, não `PROPRIEDADES`).
+  >
+  > Corrigido com o mínimo necessário: `MarcarTitulo` passou a despachar para
+  > `FacRepo.AlternarTitulo`/`DefinirTextoDeTitulo` quando o alvo é um pano
+  > (`MedFachada` tem o mesmo `MarcaDepois`/`Marcas` da `Parede`, e o `FacRepo`
+  > já tinha os dois métodos — só nunca eram chamados a partir daqui).
+  > Lineares e Contagens não têm nenhum campo de título no modelo: em vez de
+  > inventar um, o botão agora recusa com uma mensagem clara. `Linha branca`
+  > (`AcrescentarSeparadorDepois`) não tem equivalente no `FacRepo` — só
+  > existe `AlternarSeparador`, que é o separador "antes" (um bool, semântica
+  > diferente do contador "depois" da Alvenaria) — por isso também recusa com
+  > mensagem para Materiais/Lineares/Contagens, em vez de inventar um campo
+  > novo persistido fora do âmbito desta correção.
 - [x] `Limpar tudo` opera sobre handles distintos da fonte completa, nunca sobre as linhas visíveis/filtradas.
 - [x] Preservar a prioridade atual do alvo contextual: última interação entre seleção da paleta e célula do Excel; sem ambas, última medição.
 - [x] Selecionar um resultado altera apenas Propriedades e o alvo de ações contextuais; não altera a próxima medição.
