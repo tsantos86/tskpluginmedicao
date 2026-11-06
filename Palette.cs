@@ -650,11 +650,15 @@ namespace TSKTakeOff
             // recolhida, de propósito. É a única coisa da paleta que muda o
             // que acontece a seguir sem ninguém estar a olhar para ela, e
             // medir dez paredes para o artigo errado descobre-se tarde demais.
+            // TabIndex explícito: ver o comentário junto dos Controls.Add finais
+            // desta função, mais abaixo, sobre a ordem de Tab das seis secções
+            // directas do painel (cabeçalho, CONFIGURAÇÃO, MEDIR, resultados).
             var cabecalho = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaCabecalho,
-                BackColor = PaletteTheme.AzulTopo
+                BackColor = PaletteTheme.AzulTopo,
+                TabIndex = 0
             };
             _lblProximaMedicao = new Label
             {
@@ -716,14 +720,16 @@ namespace TSKTakeOff
                 AutoSize = true,
                 Visible = false,
                 ColumnCount = 2,
-                Padding = new Padding(8)
+                Padding = new Padding(8),
+                TabIndex = 2
             };
 
             var configHost = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = PaletteTheme.AlturaTituloSeccao,
-                BackColor = PaletteTheme.FundoSeccao
+                BackColor = PaletteTheme.FundoSeccao,
+                TabIndex = 1
             };
             _btnConfigToggle = new Button {
                 Dock = DockStyle.Fill,
@@ -1471,8 +1477,24 @@ namespace TSKTakeOff
                 BackColor = PaletteTheme.AzulTopo,
                 Padding = new Padding(PaletteTheme.Margem, 0, PaletteTheme.Margem, 0),
                 AutoEllipsis = true,
-                AccessibleName = "Totais"
+                AccessibleName = "Totais",
+                TabIndex = 5
             };
+
+            // TabIndex explícito nas seis secções directas do painel, na ordem
+            // em que se LEEM (cabeçalho, CONFIGURAÇÃO recolhida, CONFIGURAÇÃO
+            // expandida, MEDIR, árvore de resultados, totais). O MESMO problema
+            // já corrigido dentro de CriarResultadosCompactos (e, mais acima,
+            // dentro de `barra`/`cabecalhoProps`) repete-se aqui um nível mais
+            // alto: todas estas secções têm Dock=Top/Bottom/Fill e, sem
+            // TabIndex próprio, a ordem seguia Controls.Add — que para Dock=Top
+            // é o INVERSO da ordem visual (o último a entrar fica mais acima).
+            // Sem esta correcção, Tab a partir do topo do painel entrava pela
+            // árvore de resultados (o 1.º Controls.Add), depois MEDIR, depois
+            // CONFIGURAÇÃO expandida e só por fim o botão «▶ CONFIGURAÇÃO» —
+            // exactamente ao contrário da leitura visual.
+            var cartaoMedir = PalettePanelShell.CartaoArredondado(medirTitulo, tools);
+            cartaoMedir.TabIndex = 3;
 
             Controls.Add(_resultadosCompactos);
             // A grelha larga já não entra no painel: a árvore compacta é a
@@ -1480,7 +1502,7 @@ namespace TSKTakeOff
             // levar os ajudantes que só ela usava.
             // Controls.Add(_dgv);
             Controls.Add(_lblTotais);
-            Controls.Add(PalettePanelShell.CartaoArredondado(medirTitulo, tools));
+            Controls.Add(cartaoMedir);
             Controls.Add(config);
             Controls.Add(configHost);
             Controls.Add(cabecalho);
@@ -1523,7 +1545,7 @@ namespace TSKTakeOff
             // Fill, e não Bottom: com a grelha larga fora do painel, é a árvore
             // que ocupa o espaço que sobra. Em Bottom ficava uma faixa vazia
             // do tamanho da grelha que já lá não está.
-            _resultadosCompactos = new Panel { Dock = DockStyle.Fill, BackColor = PaletteTheme.Fundo };
+            _resultadosCompactos = new Panel { Dock = DockStyle.Fill, BackColor = PaletteTheme.Fundo, TabIndex = 4 };
             // TabIndex explícito nos quatro filhos directos, na ordem em que se
             // LEEM (pesquisa/filtros, depois as acções, depois a árvore, depois
             // propriedades). Sem isto, o Tab seguia a ordem de Controls.Add, que
@@ -1543,6 +1565,7 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat, Font = PaletteTheme.Pequeno,
                 Visible = false,
                 BackColor = PaletteTheme.FundoSeccao, ForeColor = PaletteTheme.Apagado,
+                TabIndex = 2,
                 AccessibleName = "Limpar pesquisa e filtros"
             };
             _btnLimparFiltros.FlatAppearance.BorderSize = 0;
@@ -1560,12 +1583,20 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat, Font = PaletteTheme.Pequeno,
                 BackColor = PaletteTheme.Fundo, ForeColor = PaletteTheme.Tinta,
                 UseVisualStyleBackColor = false,
+                TabIndex = 1,
                 AccessibleName = "Filtros"
             };
             _btnFiltros.Click += (s, e) => AbrirFiltros();
 
             _txtPesquisa = new TextBox {
                 Dock = DockStyle.Right, Width = 130, TabStop = true,
+                // TabIndex explícito pela mesma razão dos quatro painéis
+                // directos de _resultadosCompactos (ver CriarResultadosCompactos):
+                // em Dock=Right, o primeiro controlo acrescentado fica mais à
+                // direita, e sem TabIndex o Tab seguia a ordem de Controls.Add
+                // (Limpar, Filtros, Pesquisa) — o INVERSO da ordem visual
+                // (Pesquisa, Filtros, Limpar). Aqui vai pela ordem em que se lêem.
+                TabIndex = 0,
                 AccessibleName = "Pesquisar resultados",
                 // Explícito, e não herdado: uma TextBox nasce branca, e num
                 // painel grafite isso é um buraco de luz.
@@ -1867,6 +1898,12 @@ namespace TSKTakeOff
                 Font = PaletteTheme.Pequeno,
                 BackColor = PaletteTheme.Palido,
                 ForeColor = PaletteTheme.Acento,
+                // TabIndex explícito pela mesma razão de _txtPesquisa/_btnFiltros/
+                // _btnLimparFiltros (CriarResultadosCompactos): em Dock=Right, o
+                // primeiro acrescentado fica mais à direita. Sem isto, o Tab
+                // seguia a ordem de Controls.Add (título, Medir aqui, Essenciais)
+                // — o INVERSO da ordem visual (título, Essenciais, Medir aqui).
+                TabIndex = 1,
                 AccessibleName = "Detalhe das propriedades"
             };
             _btnPropriedadesModo.FlatAppearance.BorderSize = 0;
@@ -1894,6 +1931,7 @@ namespace TSKTakeOff
                 ForeColor = PaletteTheme.Acento,
                 BackColor = PaletteTheme.FundoSeccao,
                 Visible = false,
+                TabIndex = 2,
                 AccessibleName = "Medir aqui",
                 AccessibleDescription =
                     "Copia o piso, o serviço e o artigo deste nó para a próxima medição."
@@ -1915,6 +1953,7 @@ namespace TSKTakeOff
                 ForeColor = PaletteTheme.Tinta,
                 BackColor = PaletteTheme.FundoSeccao,
                 AutoEllipsis = true,
+                TabIndex = 0,
                 AccessibleName = "Propriedades"
             };
             _lblPropriedadeTitulo.FlatAppearance.BorderSize = 0;
@@ -2557,7 +2596,7 @@ namespace TSKTakeOff
                 // ---- vão ----------------------------------------------------
                 case "designacao":
                     if (no.Indice < 0) return;
-                    AlvRepo.DefinirDesignacaoVao(handle, no.Indice, bruto);
+                    Confirmar(AlvRepo.DefinirDesignacaoVao(handle, no.Indice, bruto), p.Nome);
                     break;
 
                 case "larguraVao":
@@ -2592,8 +2631,19 @@ namespace TSKTakeOff
                     string descricao = ValorPropriedade(no.Propriedades, "descricaoTitulo");
                     if (p.Campo == "codigoTitulo") codigo = bruto; else descricao = bruto;
 
-                    AlvRepo.DefinirTextoDeTitulo(handle, no.Indice,
-                        codigo + ChaveArtigo.Sep + descricao);
+                    string textoTitulo = codigo + ChaveArtigo.Sep + descricao;
+
+                    // O título de um pano (Materiais) vive na XData do
+                    // FacRepo ("CASQUILHO_FAC"), não na do AlvRepo
+                    // ("CASQUILHO_ALV") — chamar sempre AlvRepo fazia o
+                    // GetXDataForApplication devolver null e a edição
+                    // revertia em silêncio ao texto antigo, só nos títulos de
+                    // Materiais (os de Alvenaria/Camadas, que são Parede,
+                    // continuavam a gravar bem).
+                    if (no.Pai != null && no.Pai.TipoMedida == "Materiais")
+                        FacRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);
+                    else
+                        AlvRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);
                     break;
                 }
 
@@ -4071,7 +4121,14 @@ namespace TSKTakeOff
             using (var dlg = new VaoDialog())
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                AlvRepo.AdicionarVao(handle, dlg.Resultado);
+                if (!AlvRepo.AdicionarVao(handle, dlg.Resultado))
+                {
+                    PaletteHost.Log("Não consegui acrescentar o vão — a medição pode ter " +
+                                    "sido apagada do desenho. Carregue em Atualizar e tente " +
+                                    "outra vez.");
+                    PaletteHost.RefreshData();
+                    return;
+                }
             }
             PaletteHost.RefreshData();
         }
@@ -4167,7 +4224,14 @@ namespace TSKTakeOff
                 // AlternarTitulo com a marca presente leva o texto com ela —
                 // senão reaparecia sozinho da próxima vez que se pusesse um
                 // título.
-                AlvRepo.AlternarTitulo(h, marcaT);
+                if (!AlvRepo.AlternarTitulo(h, marcaT))
+                {
+                    PaletteHost.Log("Não consegui apagar o " + nivel.ToLowerInvariant() +
+                                    " — a medição pode ter sido apagada do desenho. " +
+                                    "Carregue em Atualizar e tente outra vez.");
+                    PaletteHost.RefreshData();
+                    return;
+                }
                 PaletteHost.Log(nivel + " apagado.");
                 PaletteHost.RefreshData();
                 return;
@@ -4191,7 +4255,9 @@ namespace TSKTakeOff
                 MessageBoxDefaultButton.Button2);
             if (resp != DialogResult.Yes) return;
 
-            AlvRepo.RemoverParede(handle);
+            if (!AlvRepo.RemoverParede(handle))
+                PaletteHost.Log("Não consegui apagar a medição — pode já ter sido " +
+                                "apagada do desenho. Carregue em Atualizar e tente outra vez.");
             PaletteHost.RefreshData();
         }
 
@@ -4214,6 +4280,21 @@ namespace TSKTakeOff
                 return;
             }
 
+            // Este botão usa SEMPRE o AlvRepo, mas o alvo pode vir da célula do
+            // Excel ou da árvore unificada — e essas também mostram Materiais,
+            // Lineares e Contagens. Só a Parede tem o contador "linhas em
+            // branco DEPOIS" no modelo (MedFachada só tem o separador "antes",
+            // semântica diferente; Lineares/Contagens não têm nenhum). Sem esta
+            // verificação, carregar no botão com um pano/linear/contagem como
+            // alvo dizia "linha acrescentada" e não gravava nada — o mesmo
+            // anti-padrão já corrigido para Tipo/Pré-aro do vão e para o vão de
+            // um pano (ver Fase 5 do plano).
+            if (!_paredes.Exists(p => p.Handle == handle))
+            {
+                PaletteHost.Log("Linha em branco só está disponível para medições de Alvenaria.");
+                return;
+            }
+
             string onde = DescreverAlvo(handle), quem = OrigemDoAlvo(handle);
 
             // Quantas ficam depois de somar. Lido da lista que já temos em
@@ -4224,7 +4305,17 @@ namespace TSKTakeOff
             int agora = antes + 1;
             if (agora > Parede.MaxLinhasEmBranco) agora = 0;
 
-            AlvRepo.AcrescentarSeparadorDepois(handle);
+            // A parede pode ter sido apagada do desenho entre a selecção e
+            // este clique (mesma condição de falha já tratada em PROPRIEDADES
+            // para designacao/larguraVao/alturaVao/quantidadeVao do vão) —
+            // sem verificar o retorno, dizia-se "linha acrescentada" sem ter
+            // gravado nada: falso sucesso, pior do que a reversão silenciosa.
+            if (!AlvRepo.AcrescentarSeparadorDepois(handle))
+            {
+                Confirmar(false, "separador");
+                PaletteHost.RefreshData();
+                return;
+            }
 
             PaletteHost.Log(agora == 0
                 ? "Linhas em branco removidas por baixo da medição " + onde +
@@ -4254,10 +4345,29 @@ namespace TSKTakeOff
                 return;
             }
 
+            // O alvo pode vir da célula do Excel ou da árvore unificada, que
+            // também mostram Materiais, Lineares e Contagens — não só
+            // Alvenaria. O FacRepo sabe gravar título num pano (o mesmo
+            // AlternarTitulo/DefinirTextoDeTitulo que TSKRET/TSKPOLF já usam),
+            // mas Lineares e Contagens não têm nenhum campo de título no
+            // modelo. Sem esta verificação, o botão dizia "título
+            // acrescentado" sem gravar nada nesses dois casos — mesmo
+            // anti-padrão já corrigido noutros pontos da Fase 5.
+            bool ehParede = _paredes.Exists(p => p.Handle == handle);
+            bool ehFachada = !ehParede && _fachadas.Exists(f => f.Handle == handle);
+            if (!ehParede && !ehFachada)
+            {
+                PaletteHost.Log(nome + " não está disponível para esta medição " +
+                                "(só Alvenaria e Materiais têm título).");
+                return;
+            }
+
             // Acrescenta o nível, ou tira-o se já lá estiver. Os outros níveis
             // ficam: um sub-artigo por baixo de um artigo não apaga o artigo.
-            bool tinha = MarcaDe(handle).Contains(marca);
-            AlvRepo.AlternarTitulo(handle, marca);
+            string marcaActual = ehFachada ? MarcaDeFachada(handle) : MarcaDe(handle);
+            bool tinha = marcaActual.Contains(marca);
+            if (ehFachada) FacRepo.AlternarTitulo(handle, marca);
+            else AlvRepo.AlternarTitulo(handle, marca);
 
             if (tinha)
             {
@@ -4287,12 +4397,13 @@ namespace TSKTakeOff
                 // capítulo, artigo, sub-artigo, independentemente da ordem por
                 // que se carregou nos botões.
                 int i = 0;
-                foreach (string mm in MarcaDe(handle).Split(';'))
+                foreach (string mm in marcaActual.Split(';'))
                 {
                     if (mm == marca) break;
                     if (mm.Length > 0) i++;
                 }
-                AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                if (ehFachada) FacRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                else AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
             }
 
             PaletteHost.Log("Linha de " + nome.ToLowerInvariant() +
@@ -4336,6 +4447,14 @@ namespace TSKTakeOff
         {
             foreach (var p in _paredes)
                 if (p.Handle == handle) return p.MarcaDepois ?? "";
+            return "";
+        }
+
+        /// <summary>Como <see cref="MarcaDe"/>, mas para um pano (Materiais).</summary>
+        private string MarcaDeFachada(string handle)
+        {
+            foreach (var f in _fachadas)
+                if (f.Handle == handle) return f.MarcaDepois ?? "";
             return "";
         }
 
@@ -4465,11 +4584,13 @@ namespace TSKTakeOff
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            _txtDesignacao = new TextBox { Text = "", Dock = DockStyle.Fill };
+            _txtDesignacao = new TextBox { Text = "", Dock = DockStyle.Fill, AccessibleName = "Designação do vão" };
             _numLargura = Num(0.80M);
+            _numLargura.AccessibleName = "Largura do vão, em metros";
             _numAltura = Num(2.10M);
-            _numQtd = new NumericUpDown { Minimum = 1, Maximum = 500, Value = 1, Dock = DockStyle.Fill };
-            _cmbTipo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
+            _numAltura.AccessibleName = "Altura do vão, em metros";
+            _numQtd = new NumericUpDown { Minimum = 1, Maximum = 500, Value = 1, Dock = DockStyle.Fill, AccessibleName = "Quantidade de vãos iguais" };
+            _cmbTipo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "Tipo de vão" };
             _cmbTipo.Items.Add("Porta");
             _cmbTipo.Items.Add("Janela");
             _cmbTipo.SelectedIndex = 0;
@@ -4489,8 +4610,23 @@ namespace TSKTakeOff
                 Height = 40,
                 Padding = new Padding(6)
             };
-            var btnOk = new Button { Text = "OK", DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel };
+            var btnOk = new Button
+            {
+                Text = "OK",
+                DialogResult = DialogResult.OK,
+                // `Controls.Add(btnCancel)` entra primeiro, logo fica mais à
+                // direita (mesma regra do FlowLayoutPanel RightToLeft já
+                // documentada em `Rodape()`/`PaletteFiltros.cs`); OK fica à
+                // esquerda. TabIndex explícito para o Tab seguir a leitura
+                // esquerda→direita em vez da ordem de `Controls.Add`.
+                TabIndex = 0
+            };
+            var btnCancel = new Button
+            {
+                Text = "Cancelar",
+                DialogResult = DialogResult.Cancel,
+                TabIndex = 1
+            };
             btnOk.Click += (s, e) =>
             {
                 Resultado = new Vao

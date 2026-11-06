@@ -218,7 +218,9 @@ namespace TSKTakeOff
             };
 
             d.Propriedades.Add(new Propriedade("designacao", "Designação", designacao, true, true));
-            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, true));
+            // Sem AlvRepo.AlterarVao/Palette.cs a saber gravar Tipo, marcar
+            // isto como editável deixava escrever e descartar em silêncio.
+            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, false));
             d.Propriedades.Add(new Propriedade("larguraVao", "Largura",
                 Unidades.Texto(Unidades.Metro, v.Largura, cultura), true, true));
             d.Propriedades.Add(new Propriedade("alturaVao", "Altura",
@@ -229,8 +231,10 @@ namespace TSKTakeOff
                 Unidades.Texto(Unidades.M2, v.AreaTotal, cultura), false, false));
             d.Propriedades.Add(new Propriedade("descontoVao", "Desconto",
                 "−" + Unidades.Texto(p.Unidade, d.Desconto, cultura), true, false));
+            // Mesma razão do "tipoVao" acima — sem gravação própria, fica
+            // só de leitura (o Pré-aro define-se ao criar/importar o vão).
             d.Propriedades.Add(new Propriedade("preAro", "Pré-aro",
-                v.PreAro ? "Sim" : "Não", false, true));
+                v.PreAro ? "Sim" : "Não", false, false));
             if (v.PreAro)
                 d.Propriedades.Add(new Propriedade("preAroVaoMl", "Pré-aro (desenvolvimento)",
                     Unidades.Texto(Unidades.Metro, v.PreAroMetros, cultura), false, false));
@@ -323,7 +327,18 @@ namespace TSKTakeOff
                 var noArtigo = Grupo(grupos, noTipo, TipoNo.Artigo, idArtigo,
                     semArtigo ? PorClassificar : TextoDoArtigo(m.Artigo),
                     piso, servico, m.Artigo);
-                if (semArtigo) noArtigo.Alertas |= AlertaNo.PorClassificar;
+                // O alerta do GRUPO segue o da própria medição (`m.Alertas`),
+                // não um recálculo próprio de `semArtigo` — bug encontrado
+                // 2026-10-28: antes disto, o grupo "Por classificar" ficava
+                // com o alerta mesmo sem mapa importado (quando `m.Alertas`
+                // correctamente não o tem, por `DeParedes`/`DeMateriais` só o
+                // ligarem com `artigoConhecido != null`) e mesmo em Lineares/
+                // Contagens, que nunca têm Artigo e por isso nunca deviam
+                // acender o alerta. `m.Alertas` já respeita as duas regras —
+                // só faltava o grupo lê-lo em vez de recalcular por conta
+                // própria.
+                if ((m.Alertas & AlertaNo.PorClassificar) != 0)
+                    noArtigo.Alertas |= AlertaNo.PorClassificar;
 
                 var noMed = new NoResultado
                 {

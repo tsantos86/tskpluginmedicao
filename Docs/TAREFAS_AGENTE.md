@@ -543,7 +543,7 @@ utilizador move para a secção `## Fila` as que aprovar.
 
 ### Da Auditoria de arquitetura (`Docs/ANALISE_ARQUITETURA.md`, 2026-09-26) — Fase 1 do roadmap, executáveis sem AutoCAD
 
-- [ ] Corrigir `ExcelLiveSync.EscreverFolhaItem` (modo item do Excel ao
+- [x] Corrigir `ExcelLiveSync.EscreverFolhaItem` (modo item do Excel ao
       vivo, `ExcelLiveSync.cs:1190-1215`) para escrever a coluna Item
       (numeração `A001…`) também nas linhas de Medição/Dedução/Capítulo/
       Alçado/Piso, não só nas de Título (`if
@@ -553,6 +553,25 @@ utilizador move para a secção `## Fila` as que aprovar.
       `Autodesk.*` nem `System.Windows.Forms` (confirmado) — considerar
       acrescentá-lo ao projecto de testes e cobrir esta função com um teste
       novo que monte o array `dados[,]` sem precisar de Excel real.
+      **Feito 2026-10-16**: `Por(dados, i, c1, m.ColItem, l.Item)` passou a
+      correr para toda a linha não vazia, não só dentro do `if
+      (!string.IsNullOrEmpty(l.HandleOrigem))` (que continua a existir só
+      para o mapa `titulos`/o texto do artigo escrito à mão). `Por()` já
+      ignora `valor == null`, por isso é seguro para `Capítulo` (que a
+      `Numerar` deixa sem número, de propósito). Não acrescentado ao
+      projecto de testes como a nota sugeria: `ExcelLiveSync.cs` não usa
+      `Autodesk.*` directamente, mas chama `PaletteHost.Log` (definido em
+      `Palette.cs`, WinForms/Autodesk) — trazê-lo para `Tests/` arrastaria
+      essa dependência e quebraria a fronteira que o próprio `.csproj` dos
+      testes documenta. Ficaria para uma sessão à parte, com uma
+      abstracção de log, se se quiser mesmo testar esta função
+      isoladamente. Verificado por leitura cuidadosa contra
+      `ExcelExporter.cs:71/76` e `ExcelLiveSync.cs:1847`/`2128`
+      (`EscreverSimples`), que já escrevem `l.Item` sem condição — e por
+      `dotnet test` 356/356 (sem regressão nos ficheiros já cobertos,
+      `ExcelLiveSync.cs` continua fora do projecto de testes).
+      **Implementado, aguarda build manual** (sem AutoCAD/Excel real neste
+      sandbox).
 - [ ] Isolar a leitura por entidade em `Leitura.Tudo` (`Leitura.cs:36-97`):
       hoje uma excepção em `AlvRepo.LadosDoRetangulo` (sem try/catch) para
       uma única polyline problemática aborta a leitura de TODAS as
