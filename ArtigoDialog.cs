@@ -101,14 +101,21 @@ namespace TSKTakeOff
             {
                 Text = "Classificar",
                 DialogResult = DialogResult.OK,
-                Size = new Size(130, 34)
+                Size = new Size(130, 34),
+                // `cancelar` entra primeiro no FlowLayoutPanel RightToLeft
+                // (ver `baixo` abaixo), logo fica mais à direita; Classificar
+                // fica à esquerda. TabIndex explícito para o Tab seguir a
+                // leitura esquerda→direita em vez da ordem de Controls.Add
+                // (mesmo bug já corrigido em Rodape()/PaletteFiltros.cs).
+                TabIndex = 0
             };
             var cancelar = new Button
             {
                 Text = "Cancelar",
                 DialogResult = DialogResult.Cancel,
                 Size = new Size(120, 34),
-                Margin = new Padding(8, 0, 0, 0)
+                Margin = new Padding(8, 0, 0, 0),
+                TabIndex = 1
             };
 
             // Duplo clique na lista vale por Classificar: é o gesto que toda a
