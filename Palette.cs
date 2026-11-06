@@ -4289,7 +4289,17 @@ namespace TSKTakeOff
             int agora = antes + 1;
             if (agora > Parede.MaxLinhasEmBranco) agora = 0;
 
-            AlvRepo.AcrescentarSeparadorDepois(handle);
+            // A parede pode ter sido apagada do desenho entre a selecção e
+            // este clique (mesma condição de falha já tratada em PROPRIEDADES
+            // para designacao/larguraVao/alturaVao/quantidadeVao do vão) —
+            // sem verificar o retorno, dizia-se "linha acrescentada" sem ter
+            // gravado nada: falso sucesso, pior do que a reversão silenciosa.
+            if (!AlvRepo.AcrescentarSeparadorDepois(handle))
+            {
+                Confirmar(false, "separador");
+                PaletteHost.RefreshData();
+                return;
+            }
 
             PaletteHost.Log(agora == 0
                 ? "Linhas em branco removidas por baixo da medição " + onde +
