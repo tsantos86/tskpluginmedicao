@@ -100,6 +100,7 @@ namespace TSKTakeOff
                 frm.Controls.Add(baixo);
                 frm.Controls.Add(rot);
                 frm.AcceptButton = ok;
+                frm.CancelButton = nenhum;
 
                 if (AcadApp.ShowModalDialog(frm) != DialogResult.OK)
                     return new List<Vao>();
