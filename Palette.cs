@@ -2520,8 +2520,24 @@ namespace TSKTakeOff
                 case "artigo":
                 {
                     string chave = ChaveEscrita(handle, bruto);
+
+                    // O artigo de um PANO (Materiais) vive na XData do FacRepo
+                    // ("CASQUILHO_FAC"), não na do AlvRepo ("CASQUILHO_ALV") —
+                    // é o único campo editável dessa aba
+                    // (ResultadosAdaptadores.DeMateriais já o documenta assim),
+                    // mas este switch chamava sempre AlvRepo. O
+                    // GetXDataForApplication devolvia null para um pano e a
+                    // escrita revertia em silêncio — o utilizador via o
+                    // mosaico aceitar a edição e o valor voltava ao antigo
+                    // sem aviso nenhum.
                     if (emBloco)
-                        Relatar(AlvRepo.DefinirArtigoEmVarias(alvos, chave), alvos.Count, "artigo");
+                    {
+                        int semSuporte;
+                        Relatar(DefinirArtigoEmVariasPorTipo(alvos, chave, out semSuporte),
+                            alvos.Count, "artigo");
+                    }
+                    else if (no.TipoMedida == "Materiais")
+                        Confirmar(FacRepo.DefinirArtigo(handle, chave), "artigo");
                     else
                         Confirmar(AlvRepo.DefinirArtigo(handle, chave), "artigo");
                     break;
@@ -3121,6 +3137,35 @@ namespace TSKTakeOff
         }
 
         /// <summary>
+        /// Define o mesmo artigo em vários handles, despachando cada um para o
+        /// repositório que sabe gravá-lo: <see cref="AlvRepo"/> para
+        /// Alvenaria/Camadas (que são <see cref="Parede"/>), <see cref="FacRepo"/>
+        /// para Materiais (<see cref="MedFachada"/>) — os únicos dois tipos com
+        /// artigo gravável (Lineares e Contagens não têm nenhum método para
+        /// isto, ver Fase 5 do plano). <paramref name="semSuporte"/> devolve
+        /// quantos handles não pertenciam a nenhum dos dois, para poder avisar
+        /// em vez de os deixar desaparecer caladamente da contagem.
+        /// </summary>
+        private int DefinirArtigoEmVariasPorTipo(IEnumerable<string> handles, string chave,
+            out int semSuporte)
+        {
+            var paredeHandles = new List<string>();
+            var fachadaHandles = new List<string>();
+            semSuporte = 0;
+            foreach (string h in handles)
+            {
+                if (_paredes.Exists(p => p.Handle == h)) paredeHandles.Add(h);
+                else if (_fachadas.Exists(f => f.Handle == h)) fachadaHandles.Add(h);
+                else semSuporte++;
+            }
+
+            int feitas = AlvRepo.DefinirArtigoEmVarias(paredeHandles, chave);
+            foreach (string h in fachadaHandles)
+                if (FacRepo.DefinirArtigo(h, chave)) feitas++;
+            return feitas;
+        }
+
+        /// <summary>
         /// Passa as medições seleccionadas para o artigo escolhido no painel.
         ///
         /// É a resposta ao caso normal de uma obra a sério: mede-se antes de o
@@ -3175,11 +3220,25 @@ namespace TSKTakeOff
             }
             if (no == null) return;
 
-            int feitas = AlvRepo.DefinirArtigoEmVarias(handles, no.Chave);
-            PaletteHost.Log(string.Format("{0} medição(ões) classificadas em {1} — {2}",
+            // A árvore unificada mistura Alvenaria, Materiais, Lineares e
+            // Contagens, e a selecção que chega aqui pode trazer handles de
+            // mais do que um tipo. Chamar sempre AlvRepo deixava de fora,
+            // SEM AVISO, qualquer handle de pano (XData sob "CASQUILHO_FAC",
+            // não "CASQUILHO_ALV") — a contagem "feitas" descia sem dizer
+            // porquê, o mesmo anti-padrão já corrigido para Linha branca e
+            // Artigo do menu Mais (Fase 5 do plano). Lineares e Contagens não
+            // têm nenhum método para gravar artigo — continuam de fora.
+            int semSuporte;
+            int feitas = DefinirArtigoEmVariasPorTipo(handles, no.Chave, out semSuporte);
+            string aviso = semSuporte > 0
+                ? string.Format(" ({0} ignorada(s) — Lineares/Contagens não têm artigo gravável.)",
+                                 semSuporte)
+                : "";
+            PaletteHost.Log(string.Format("{0} medição(ões) classificadas em {1} — {2}{3}",
                 feitas, no.Codigo,
                 (no.Designacao ?? "").Length > 60
-                    ? no.Designacao.Substring(0, 60) + "…" : no.Designacao));
+                    ? no.Designacao.Substring(0, 60) + "…" : no.Designacao,
+                aviso));
 
             PaletteHost.RefreshData();
             PaletteHost.EscreverExcelAgora();

@@ -267,12 +267,41 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 - [x] Manter Comprimento como valor geométrico apenas de leitura.
 - [x] Manter Área bruta, desconto, Área líquida, Quantidade, Volume e Pré-aros como cálculos de leitura.
 - [x] Preservar multisseleção e operações em lote para Artigo, Piso e dimensões já suportadas.
+
+  > **Bug encontrado e corrigido em 2026-11-08.** O artigo de um PANO
+  > (Materiais) é o único campo editável dessa aba —
+  > `ResultadosAdaptadores.DeMateriais` já documentava isto no próprio
+  > comentário ("o FacRepo sabe gravar o artigo de um pano, mas não o
+  > material nem o piso") — mas o `switch` de `AplicarEdicaoDePropriedade`
+  > (`Palette.cs`) chamava sempre `AlvRepo.DefinirArtigo`/
+  > `DefinirArtigoEmVarias`, nunca `FacRepo`. A XData de um pano vive sob
+  > `CASQUILHO_FAC`, não `CASQUILHO_ALV` (mesma causa já corrigida para o
+  > vão e o título de um pano, PR aberto #24, ainda não mesclado) — por isso
+  > o ÚNICO campo editável de Materiais nunca gravou nada: em edição única,
+  > `Confirmar()` avisava com uma mensagem enganadora ("pode ter sido
+  > apagada do desenho"); em lote, o valor desaparecia caladamente da
+  > contagem. Corrigido: dispatch por `no.TipoMedida == "Materiais"` →
+  > `FacRepo` (edição única); um novo `DefinirArtigoEmVariasPorTipo` separa
+  > os handles por tipo antes de chamar o repositório certo (edição em
+  > lote) — ver nota igual no menu `Mais ▸ Reclassificar`, abaixo.
 - [x] Validar valores antes de chamar os métodos existentes de `AlvRepo.cs`.
 
 ### Ações
 
 - [x] Barra principal: Excel ao Vivo, Exportar XLSX e Atualizar.
 - [x] Menu `Mais`: Remover, Linha branca, Artigo, Reclassificar e Limpar tudo.
+
+  > **Mesmo bug, caminho diferente (2026-11-08).** `Reclassificar`/
+  > `ClassificarMedicoes` (botão `Mais ▸ Reclassificar…`) opera sobre
+  > `HandlesSeleccionados()`, que também inclui Materiais/Lineares/Contagens
+  > — a multisselecção da árvore unificada não distingue tipos — mas
+  > chamava sempre `AlvRepo.DefinirArtigoEmVarias`, pelo mesmo motivo da
+  > nota acima. Com um pano na selecção, a contagem "X medição(ões)
+  > classificadas" descia sem dizer porquê, e Lineares/Contagens
+  > desapareciam da contagem sem aviso nenhum (não têm nenhum método de
+  > gravação de artigo). Corrigido com o mesmo `DefinirArtigoEmVariasPorTipo`
+  > — panos passam a classificar-se de verdade, e Lineares/Contagens
+  > aparecem agora explicitamente na mensagem como ignorados.
 - [x] `Limpar tudo` opera sobre handles distintos da fonte completa, nunca sobre as linhas visíveis/filtradas.
 - [x] Preservar a prioridade atual do alvo contextual: última interação entre seleção da paleta e célula do Excel; sem ambas, última medição.
 - [x] Selecionar um resultado altera apenas Propriedades e o alvo de ações contextuais; não altera a próxima medição.
@@ -665,6 +694,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-11-08 | 5 | Passo 0: confirmados **19 PRs abertos desta rotina sem nenhum merge** (#11-#29, `agent/paleta-resultados-2026-10-08` a `-2026-11-05` — PR #29 já tinha agravado o aviso urgente para 19), todos completos pelas próprias descrições, nenhum a retomar; esta sessão abre o 20.º. Ver aviso urgente ao utilizador. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5 ("paridade de campos/comandos"): auditoria dedicada ao mesmo anti-padrão já corrigido 9 vezes nesta rotina (editável sem gravação real / falso sucesso), mas no ÚNICO campo editável de Materiais que nenhum dos PRs abertos tocava — o `artigo`. `ResultadosAdaptadores.DeMateriais` já documentava no próprio comentário que "o FacRepo sabe gravar o artigo de um pano", mas o `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) e o `ClassificarMedicoes` (botão `Mais ▸ Reclassificar…`) chamavam sempre `AlvRepo.DefinirArtigo`/`DefinirArtigoEmVarias` — nunca `FacRepo`. Como a XData de um pano vive sob `CASQUILHO_FAC`, não `CASQUILHO_ALV`, a escrita nunca gravava nada: em edição única, `Confirmar()` avisava com uma mensagem enganadora ("pode ter sido apagada do desenho"); em lote (PROPRIEDADES ou Reclassificar), o pano desaparecia caladamente da contagem de "medições classificadas", sem dizer porquê. Corrigido: dispatch por `no.TipoMedida == "Materiais"` → `FacRepo` na edição única; novo `DefinirArtigoEmVariasPorTipo` (separa handles por tipo antes de chamar o repositório certo) usado pelos dois caminhos em lote — Lineares/Contagens, que não têm nenhum método de gravação de artigo, passam a aparecer explicitamente na mensagem como ignorados em vez de desaparecerem sem aviso | `dotnet test` 356/356 (sem alterações ao projecto de testes — o modelo já documentava `artigo` como editável para Materiais, `Tests/ResultadosAdaptadoresTests.cs:286`; o bug vivia só na dispatch de `Palette.cs`, que os testes não alcançam). `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses/parênteses-rectos do ficheiro inteiro (414/414, 1562/1562, 65/65 — equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; precisa de build manual em Visual Studio antes de merge |
 
 ### Decisões desta passagem
 
