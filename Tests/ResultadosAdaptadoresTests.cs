@@ -289,6 +289,26 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void O_vao_de_um_pano_e_todo_de_leitura()
+        {
+            // O FacRepo só sabe ACRESCENTAR vãos a um pano (AdicionarVaos) —
+            // não tem nenhum método para editar ou remover um já existente.
+            // As chamadas que gravariam a edição (AlvRepo.DefinirDesignacaoVao/
+            // AlterarVao) leem XData CASQUILHO_ALV, que um pano nunca tem (a
+            // dele é CASQUILHO_FAC) — por isso nenhum campo do vão pode
+            // prometer gravar. Mesma classe de bug já corrigida para
+            // "tipo"/"pré-aro" do vão de alvenaria.
+            var f = Pano("F1", "PISO 0", "ETICS", 10.0, 2.0);
+            f.Vaos.Add(new Vao { Designacao = "J1", Largura = 2.0, Altura = 1.0, Quantidade = 1 });
+
+            var m = ResultadosAdaptadores.DeMateriais(
+                new List<MedFachada> { f }, RegraDesconto.DescontarTudo, null, Pt);
+
+            foreach (var p in m[0].Deducoes[0].Propriedades)
+                Assert.False(p.Editavel, "não devia ser editável: " + p.Campo);
+        }
+
+        [Fact]
         public void Numa_contagem_nao_se_edita_nada()
         {
             // O ContRepo cria e apaga contagens, mas não altera uma já feita.

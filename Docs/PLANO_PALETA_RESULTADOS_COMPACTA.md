@@ -293,6 +293,37 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > `alt/larg/esp`) — o painel novo, ao deixar Comprimento só de leitura,
   > corrige esse aparente-mas-falso campo editável. Título ganhou uma
   > capacidade a mais (editar a Descrição, não só o Código).
+
+  > **Nota 2026-11-10.** Gap real encontrado (não coberto por nenhum dos 21
+  > PRs abertos desta rotina até à data — confirmado lendo os ficheiros que
+  > cada um toca antes de começar, ver "Registo de progresso"): o vão de um
+  > **pano de Materiais** (`ResultadosAdaptadores.cs`, `Deducao()`, usada só
+  > por `DeMateriais`) marcava Designação/Tipo/Largura/Altura/Quantidade
+  > como editáveis, mas `FacRepo` (`Fachada.cs`) só sabe ACRESCENTAR vãos a
+  > um pano (`AdicionarVaos`) — não tem nenhum método para editar ou remover
+  > um já existente. Pior: as chamadas que `Palette.cs` usa para gravar
+  > edição de vão (`AlvRepo.DefinirDesignacaoVao`/`AlterarVao`/`RemoverVao`)
+  > leem XData sob `CASQUILHO_ALV`, que um pano nunca tem (a dele é
+  > `CASQUILHO_FAC`) — por isso editar qualquer um destes campos num vão de
+  > Materiais falhava sempre em silêncio (ou com uma mensagem genérica, no
+  > caso de "Remover"). Mesma classe de bug já corrigida pelo PR #23 para
+  > "Tipo"/"Pré-aro" do vão de alvenaria (`ResultadosArvore.cs`), só que
+  > nesse ficheiro-irmão, para o adaptador de Materiais, que o PR #23 não
+  > tinha investigado (só olhou para `ResultadosArvore.cs`). Corrigido na
+  > camada de modelo (100% testável, sem `Autodesk.*`/WinForms): os cinco
+  > campos passaram a `editavel: false`, com o `desconto` do vão (já de
+  > leitura) a servir de precedente. Não foi acrescentado nenhum método novo
+  > a `FacRepo`/`AlvRepo` — inventar persistência para uma capacidade que
+  > ninguém tinha pedido estaria fora do âmbito desta correção; se um dia se
+  > quiser mesmo editar/remover vãos de um pano, isso é tarefa própria, com
+  > `FacRepo.AlterarVao`/`RemoverVao` novos. A remoção de um vão de pano
+  > (botão «Remover», `RemoverVaoSeleccionado()` em `Palette.cs`) continua
+  > com o mesmo problema — chama sempre `AlvRepo.RemoverVao`, que falha
+  > sempre para um pano — mas já avisa com uma mensagem (`"Não foi possível
+  > apagar o vão..."`, não é falso-sucesso); não foi tocada aqui por exigir
+  > um método novo em `Fachada.cs` (ficheiro Autodesk, não verificável no
+  > sandbox) — registado como achado para uma sessão futura decidir se vale
+  > a pena implementar `FacRepo.RemoverVao`.
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
@@ -665,6 +696,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-11-10 | 5 | **Passo 0:** confirmados 21 PRs abertos desta rotina sem merge (#11-#29, #31, mais o PR de integração #30 que já junta #11-#29 e mescla limpo, `dotnet test` 361/361 nessa árvore) — nenhum indicava trabalho cortado a meio; lidos os ficheiros tocados por cada um para não duplicar. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5: continuação da família "campo editável sem gravação real" (PRs #21-29/#31), mas num ponto que nenhum desses PRs tinha investigado — o vão de um **pano de Materiais**, não o de alvenaria. `ResultadosAdaptadores.Deducao()` (só usada por `DeMateriais`) marcava Designação/Tipo/Largura/Altura/Quantidade do vão como editáveis; `FacRepo` só sabe acrescentar vãos (`AdicionarVaos`), não editar nem remover um já existente, e as chamadas que `Palette.cs` usaria para gravar (`AlvRepo.DefinirDesignacaoVao`/`AlterarVao`) leem XData `CASQUILHO_ALV`, que um pano nunca tem — por isso qualquer edição destes campos falhava sempre em silêncio. Mesma classe de bug do PR #23 (Tipo/Pré-aro do vão de alvenaria), só que no ficheiro-irmão do adaptador de Materiais. Corrigido só na camada de modelo: os cinco campos passaram a `editavel: false`. Não implementada persistência nova (`FacRepo.AlterarVao`/`RemoverVao`) — ficaria fora do âmbito de uma correcção de paridade; a remoção de vão de pano continua com o mesmo problema de fundo (sempre falha, mas já avisa, não é falso-sucesso), registado como achado para decisão futura. Ver nota na Fase 5, critério "paridade de campos/comandos" | `dotnet test` 357/357 (1 teste novo, `O_vao_de_um_pano_e_todo_de_leitura`); confirmado que falha sem a correcção e passa com ela (revertido `ResultadosAdaptadores.cs` temporariamente). **Correcção 100% verificada** — `ResultadosAdaptadores.cs` não usa `Autodesk.*`/WinForms, sem necessidade de build manual |
 
 ### Decisões desta passagem
 

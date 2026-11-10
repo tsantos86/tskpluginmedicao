@@ -269,14 +269,25 @@ namespace TSKTakeOff
                 TextoPesquisa = ResultadosArvore.Normalizar(designacao + " " + tipo + " vao")
             };
 
-            d.Propriedades.Add(new Propriedade("designacao", "Designação", designacao, true, true));
-            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, true));
+            // DE LEITURA, e é a verdade e não uma limitação da vista: o
+            // FacRepo só sabe ACRESCENTAR vãos a um pano (`AdicionarVaos`) —
+            // não tem nenhum método para editar ou remover um vão já
+            // existente. Pior ainda, as chamadas que `Palette.cs` usa para
+            // gravar edições de vão (`AlvRepo.DefinirDesignacaoVao`,
+            // `AlvRepo.AlterarVao`) leem XData sob `CASQUILHO_ALV`
+            // (`AlvRepo.AppName`), que um pano nunca tem — a XData dele vive
+            // sob `CASQUILHO_FAC` (`FacRepo.AppName`). Marcar estes campos
+            // como editáveis dava-lhes o realce amarelo, deixava escrever, e
+            // a escrita nunca ia a lado nenhum: a mesma classe de bug já
+            // corrigida para "tipo"/"pré-aro" do vão de alvenaria.
+            d.Propriedades.Add(new Propriedade("designacao", "Designação", designacao, true, false));
+            d.Propriedades.Add(new Propriedade("tipoVao", "Tipo", tipo, true, false));
             d.Propriedades.Add(new Propriedade("larguraVao", "Largura",
-                Unidades.Texto(Unidades.Metro, v.Largura, cultura), true, true));
+                Unidades.Texto(Unidades.Metro, v.Largura, cultura), true, false));
             d.Propriedades.Add(new Propriedade("alturaVao", "Altura",
-                Unidades.Texto(Unidades.Metro, v.Altura, cultura), true, true));
+                Unidades.Texto(Unidades.Metro, v.Altura, cultura), true, false));
             d.Propriedades.Add(new Propriedade("quantidadeVao", "Quantidade",
-                Unidades.Texto(Unidades.Unidade, v.Quantidade, cultura), true, true));
+                Unidades.Texto(Unidades.Unidade, v.Quantidade, cultura), true, false));
             d.Propriedades.Add(new Propriedade("descontoVao", "Desconto",
                 "−" + Unidades.Texto(unidade, desconto, cultura), true, false));
             return d;
