@@ -316,6 +316,23 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void Sem_mapa_o_grupo_por_classificar_tambem_nao_fica_com_alerta()
+        {
+            // Bug encontrado 2026-10-28: a medição já não tinha o alerta (ver
+            // teste acima), mas o GRUPO "Por classificar" acendia-o sempre,
+            // mesmo sem mapa importado — Construir recalculava `semArtigo`
+            // por conta própria em vez de ler `m.Alertas`, que já respeita a
+            // regra "sem mapa, não ter artigo não é alerta".
+            var raiz = ResultadosArvore.DeAlvenaria(
+                new List<Parede> { Parede("A", "PISO 0", "ALV", "", 2.0, 2.0) },
+                RegraDesconto.DescontarTudo, null, Pt);
+
+            var grupo = PorRotulo(raiz, TipoNo.Artigo, ResultadosArvore.PorClassificar);
+            Assert.True((grupo.Alertas & AlertaNo.PorClassificar) == 0);
+            Assert.True((raiz.Alertas & AlertaNo.PorClassificar) == 0);
+        }
+
+        [Fact]
         public void Com_mapa_o_que_nao_tem_artigo_fica_por_classificar()
         {
             var raiz = ResultadosArvore.DeAlvenaria(
@@ -395,6 +412,28 @@ namespace TSKTakeOff.Tests
             Assert.False(med.Propriedades.Find(x => x.Campo == "comprimento").Editavel);
             Assert.True(med.Propriedades.Find(x => x.Campo == "artigo").Editavel);
             Assert.False(med.Propriedades.Find(x => x.Campo == "quantidade").Editavel);
+        }
+
+        [Fact]
+        public void O_tipo_e_o_pre_aro_do_vao_sao_de_leitura_sem_metodo_para_os_gravar()
+        {
+            // AlvRepo.AlterarVao só sabe gravar "larg"/"alt"/"qt" (confirmado
+            // por leitura de AlvRepo.cs) e Palette.cs não tem case "tipoVao"
+            // nem "preAro" no switch de PROPRIEDADES — editável aqui deixava
+            // o utilizador escrever um valor que revertia em silêncio.
+            var medicao = PorRotulo(Arvore(DoisPisos()), TipoNo.Medicao, "Parede 2A0");
+            var vao = medicao.Filhos.Find(f => f.Tipo == TipoNo.Vao);
+
+            Assert.NotNull(vao);
+            Assert.False(vao.Propriedades.Find(x => x.Campo == "tipoVao").Editavel);
+            Assert.False(vao.Propriedades.Find(x => x.Campo == "preAro").Editavel);
+
+            // Designação, largura, altura e quantidade continuam editáveis —
+            // estas é que AlvRepo sabe gravar.
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "designacao").Editavel);
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "larguraVao").Editavel);
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "alturaVao").Editavel);
+            Assert.True(vao.Propriedades.Find(x => x.Campo == "quantidadeVao").Editavel);
         }
 
         [Fact]

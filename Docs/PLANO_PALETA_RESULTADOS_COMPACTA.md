@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-03
+Última atualização: 2026-10-09
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -263,16 +263,120 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
 
 - [x] Parede: editar Serviço, Artigo, Piso, Altura, Largura e Espessura.
 - [x] Vão: editar Designação, Largura e Altura.
+
+  > **Nota 2026-10-31.** Vale só para o vão de uma PAREDE (Alvenaria/Camadas),
+  > que grava por `AlvRepo.AlterarVao`/`DefinirDesignacaoVao`. O vão de um
+  > PANO (Materiais), construído por `ResultadosAdaptadores.Deducao()` (único
+  > ponto de entrada, chamado por `DeMateriais`), marcava os mesmos cinco
+  > campos (`designacao`/`tipoVao`/`larguraVao`/`alturaVao`/`quantidadeVao`)
+  > como editáveis sem que o `FacRepo` tivesse QUALQUER método para alterar
+  > um vão já existente — só `AdicionarVaos`, em bloco, para vãos novos. Na
+  > prática, editar um destes campos num pano chamava sempre `AlvRepo` (a
+  > Fase 5 nunca distinguia a origem do nó), que procura a XData com o nome
+  > de aplicação errado (`CASQUILHO_ALV` em vez de `CASQUILHO_FAC`) para um
+  > pano — devolve `false`/`null` e o valor revertia em silêncio. Mesmo
+  > anti-padrão já encontrado e corrigido (PR aberto, ainda não mesclado) para
+  > Tipo/Pré-aro do vão da PAREDE, aqui alastrado aos cinco campos do vão do
+  > PANO. Corrigido o mínimo: os cinco campos de `Deducao()` passaram a
+  > `editavel: false` — "editável só onde há quem grave".
 - [x] Título: editar o código sem truncar/perder a descrição persistida.
+
+  > **Nota 2026-10-31.** Mesma auditoria do bullet acima, mas aqui o `FacRepo`
+  > TEM o método certo (`FacRepo.DefinirTextoDeTitulo`, usado pelo `TSKRET`/
+  > `TSKPOLF` para gravar marcas de capítulo/artigo num pano) — só que o
+  > `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) chamava sempre
+  > `AlvRepo.DefinirTextoDeTitulo`, nunca `FacRepo`, para os casos
+  > `codigoTitulo`/`descricaoTitulo`. Resultado: editar o título de um pano
+  > (Materiais) revertia sempre em silêncio (devolução descartada, sem
+  > `Confirmar()` a avisar), enquanto o de uma parede (Alvenaria/Camadas)
+  > sempre funcionou. Corrigido a dispatch: `no.Pai.TipoMedida == "Materiais"`
+  > escolhe `FacRepo`, o resto mantém `AlvRepo` — é a primeira vez que este
+  > switch distingue a origem do nó, porque é a primeira vez que precisa.
 - [x] Manter Comprimento como valor geométrico apenas de leitura.
 - [x] Manter Área bruta, desconto, Área líquida, Quantidade, Volume e Pré-aros como cálculos de leitura.
+
+  > **Bug encontrado e corrigido em 2026-10-30.** Investigação dedicada à
+  > Fase 5 (reaudição do critério "paridade de campos/comandos", à procura
+  > de um gap ainda não documentado) encontrou `ResultadosArvore.DeducaoDoVao`
+  > a marcar `"tipoVao"` (Tipo: Porta/Janela) e `"preAro"` (Pré-aro: Sim/Não)
+  > como `editavel: true`, sem nenhum caminho de gravação: o `switch
+  > (p.Campo)` que grava a edição em `Palette.cs` só trata
+  > `servico/artigo/piso/altura/largura/espessura/designacao/larguraVao/
+  > alturaVao/quantidadeVao/codigoTitulo/descricaoTitulo` — `tipoVao`/
+  > `preAro` caíam no `default: return;`, sem avisar o utilizador. Confirmado
+  > também que `AlvRepo.cs` não tem nenhum método para alterar `Vao.Tipo` nem
+  > `Vao.PreAro` (só `AlterarVao` para `larg/alt/qt` e
+  > `DefinirDesignacaoVao`) — não era só a falta de um `case`, é falta total
+  > de persistência. Na prática: o utilizador editava Tipo/Pré-aro no
+  > mosaico (que aparecia com cursor de edição, por `Editavel=true`),
+  > confirmava, e o valor revertia em silêncio ao antigo — exactamente o
+  > anti-padrão que a Fase 0 já proíbe ("Editável só onde há quem grave. Um
+  > campo com realce que deixa escrever e não grava é pior do que um
+  > bloqueado."). Corrigido marcando os dois `editavel: false` — a correcção
+  > mínima, sem exigir uma API de escrita nova para um campo que ninguém
+  > tinha pedido para editar.
 - [x] Preservar multisseleção e operações em lote para Artigo, Piso e dimensões já suportadas.
+
+  > **Bug encontrado e corrigido em 2026-11-08.** O artigo de um PANO
+  > (Materiais) é o único campo editável dessa aba —
+  > `ResultadosAdaptadores.DeMateriais` já documentava isto no próprio
+  > comentário ("o FacRepo sabe gravar o artigo de um pano, mas não o
+  > material nem o piso") — mas o `switch` de `AplicarEdicaoDePropriedade`
+  > (`Palette.cs`) chamava sempre `AlvRepo.DefinirArtigo`/
+  > `DefinirArtigoEmVarias`, nunca `FacRepo`. A XData de um pano vive sob
+  > `CASQUILHO_FAC`, não `CASQUILHO_ALV` (mesma causa já corrigida para o
+  > vão e o título de um pano, PR aberto #24, ainda não mesclado) — por isso
+  > o ÚNICO campo editável de Materiais nunca gravou nada: em edição única,
+  > `Confirmar()` avisava com uma mensagem enganadora ("pode ter sido
+  > apagada do desenho"); em lote, o valor desaparecia caladamente da
+  > contagem. Corrigido: dispatch por `no.TipoMedida == "Materiais"` →
+  > `FacRepo` (edição única); um novo `DefinirArtigoEmVariasPorTipo` separa
+  > os handles por tipo antes de chamar o repositório certo (edição em
+  > lote) — ver nota igual no menu `Mais ▸ Reclassificar`, abaixo.
 - [x] Validar valores antes de chamar os métodos existentes de `AlvRepo.cs`.
 
 ### Ações
 
 - [x] Barra principal: Excel ao Vivo, Exportar XLSX e Atualizar.
 - [x] Menu `Mais`: Remover, Linha branca, Artigo, Reclassificar e Limpar tudo.
+
+  > **Bug encontrado e corrigido em 2026-11-01.** `AlternarSeparador()` e
+  > `MarcarTitulo()` (os handlers de "Linha branca" e "Artigo") resolvem o
+  > alvo por `PaletteHost.HandleAlvo` — célula do Excel, linha da árvore
+  > unificada, ou última medição — e a árvore unificada mostra Materiais,
+  > Lineares e Contagens, não só Alvenaria. Os dois handlers chamavam sempre
+  > `AlvRepo`, sem verificar o tipo: com um pano/linear/contagem como alvo,
+  > `AlvRepo.AcrescentarSeparadorDepois`/`AlternarTitulo`/
+  > `DefinirTextoDeTitulo` procuravam o handle em `_paredes`, não encontravam
+  > nada, devolviam `false` sem gravar — e o botão, que nunca verificava o
+  > retorno, dizia "linha acrescentada"/"título acrescentado" na mesma. Falso
+  > sucesso, não só reversão silenciosa: o mesmo anti-padrão já corrigido
+  > para Tipo/Pré-aro do vão e para o vão de um pano, mas numa família de
+  > comandos diferente (menu `Mais`, não `PROPRIEDADES`).
+  >
+  > Corrigido com o mínimo necessário: `MarcarTitulo` passou a despachar para
+  > `FacRepo.AlternarTitulo`/`DefinirTextoDeTitulo` quando o alvo é um pano
+  > (`MedFachada` tem o mesmo `MarcaDepois`/`Marcas` da `Parede`, e o `FacRepo`
+  > já tinha os dois métodos — só nunca eram chamados a partir daqui).
+  > Lineares e Contagens não têm nenhum campo de título no modelo: em vez de
+  > inventar um, o botão agora recusa com uma mensagem clara. `Linha branca`
+  > (`AcrescentarSeparadorDepois`) não tem equivalente no `FacRepo` — só
+  > existe `AlternarSeparador`, que é o separador "antes" (um bool, semântica
+  > diferente do contador "depois" da Alvenaria) — por isso também recusa com
+  > mensagem para Materiais/Lineares/Contagens, em vez de inventar um campo
+  > novo persistido fora do âmbito desta correção.
+  >
+  > **Mesmo bug, caminho diferente (2026-11-08).** `Reclassificar`/
+  > `ClassificarMedicoes` (botão `Mais ▸ Reclassificar…`) opera sobre
+  > `HandlesSeleccionados()`, que também inclui Materiais/Lineares/Contagens
+  > — a multisselecção da árvore unificada não distingue tipos — mas
+  > chamava sempre `AlvRepo.DefinirArtigoEmVarias`, pelo mesmo motivo da
+  > nota acima. Com um pano na selecção, a contagem "X medição(ões)
+  > classificadas" descia sem dizer porquê, e Lineares/Contagens
+  > desapareciam da contagem sem aviso nenhum (não têm nenhum método de
+  > gravação de artigo). Corrigido com o mesmo `DefinirArtigoEmVariasPorTipo`
+  > — panos passam a classificar-se de verdade, e Lineares/Contagens
+  > aparecem agora explicitamente na mensagem como ignorados.
 - [x] `Limpar tudo` opera sobre handles distintos da fonte completa, nunca sobre as linhas visíveis/filtradas.
 - [x] Preservar a prioridade atual do alvo contextual: última interação entre seleção da paleta e célula do Excel; sem ambas, última medição.
 - [x] Selecionar um resultado altera apenas Propriedades e o alvo de ações contextuais; não altera a próxima medição.
@@ -293,6 +397,43 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > `alt/larg/esp`) — o painel novo, ao deixar Comprimento só de leitura,
   > corrige esse aparente-mas-falso campo editável. Título ganhou uma
   > capacidade a mais (editar a Descrição, não só o Código).
+
+  > **Nota 2026-11-03.** Continuação da família "campo editável que grava
+  > sem confirmar, e falha em silêncio" (PRs #21-26, ainda abertos). Editar
+  > o Código/Descrição de um título em `PROPRIEDADES`
+  > (`AplicarEdicaoDePropriedade`, caso `codigoTitulo`/`descricaoTitulo`)
+  > chamava `AlvRepo.DefinirTextoDeTitulo` descartando o `bool` — a mesma
+  > condição de falha (parede apagada do desenho entre a seleção e a
+  > confirmação) que o `Confirmar()` já trata para `designacao`/`larguraVao`/
+  > `alturaVao`/`quantidadeVao` do mesmo vão, mas sem o aviso. Corrigido com
+  > a mesma linha: `Confirmar(AlvRepo.DefinirTextoDeTitulo(...), p.Nome)`.
+  >
+  > **Achado relacionado, NÃO corrigido nesta sessão** (para não empilhar
+  > conflito sobre o PR #25, `agent/paleta-resultados-2026-11-01`, ainda
+  > aberto e que toca as mesmas funções): `AlternarSeparador()` e
+  > `MarcarTitulo()` (handlers do menu `Mais` → Linha branca/Artigo, em
+  > `Palette.cs`) continuam a descartar o `bool` de
+  > `AlvRepo.AcrescentarSeparadorDepois`/`AlternarTitulo`/
+  > `DefinirTextoDeTitulo` mesmo na versão já corrigida pelo PR #25 (que só
+  > tratou o falso-sucesso de tipo errado — pano/linear/contagem — não o
+  > de parede apagada do desenho, a mesma classe de bug do `designacao`).
+  > Próxima sessão: aplicar `Confirmar(...)` às três chamadas depois de o
+  > PR #25 ser mesclado (ou directamente no PR #25 antes de mesclar, se
+  > ainda estiver aberto), para não duplicar o conflito.
+  >
+  > **Nota de integração 2026-11-11.** O PR #32 (`agent/paleta-resultados-
+  > 2026-11-10`) reportou este mesmo "vão de um pano" como gap novo, não
+  > coberto por nenhum PR aberto — mas comparou só contra `main`, não contra
+  > o trabalho já feito pelo PR #24 (`agent/paleta-resultados-2026-10-31`,
+  > nota de 2026-10-31 acima), que já tinha aplicado exactamente a mesma
+  > correção (os mesmos cinco campos, `editavel: false`) e já estava
+  > integrado neste branch. Ao mesclar os dois, o conflito em
+  > `ResultadosAdaptadores.cs` resolveu-se a favor do código do PR #24 (já
+  > integrado); o teste novo do PR #32
+  > (`O_vao_de_um_pano_e_todo_de_leitura`) ficou, por reforçar a mesma
+  > asserção sem conflito. O achado "Remover vão de pano continua sem
+  > `FacRepo.RemoverVao`" do PR #32 é novo e continua pendente — ver Fase 5,
+  > achados em aberto.
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
@@ -306,6 +447,21 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > título sai), vão delega em `RemoverVaoSeleccionado()`, resto apaga a
   > medição. Opera sobre um nó só, nunca sobre multisselecção, por isso não
   > há "seleção mista" para confundir.
+  >
+  > **Nota 2026-11-05.** A verificação acima confirmou o DESPACHO (qual
+  > ramo corre), mas não que cada ramo avisa quando a escrita falha —
+  > exactamente o mesmo defeito já corrigido noutros pontos da Fase 5 (ver
+  > "Achado" abaixo). `AlvRepo.AlternarTitulo(h, marcaT)` (ramo de título) e
+  > `AlvRepo.RemoverParede(handle)` (ramo de medição) ignoravam o `bool`
+  > devolvido: se a medição já tinha sido apagada do desenho entre a
+  > selecção e o clique em "Remover", a paleta dizia "Capítulo apagado."/
+  > "Artigo apagado." (ou nada, no caso da medição) sem ter gravado nada —
+  > falso sucesso. Corrigido com o mesmo padrão já usado em
+  > `RemoverVaoSeleccionado()` (linhas acima, que já fazia isto bem): avisa
+  > quando `false`, sem o texto de sucesso específico. De caminho, a mesma
+  > auditoria encontrou `AdicionarVao()` (comando "Adicionar vão" da barra
+  > MEDIR) com o mesmo problema — `AlvRepo.AdicionarVao` também ignorado —
+  > e corrigida da mesma forma.
 - [x] Atualizar continua a forçar a escrita imediata no Excel quando este está ligado.
 - [~] Apenas `Medir aqui` altera a próxima medição.
 
@@ -373,6 +529,21 @@ uma árvore global nem uma nova leitura do DWG.
   Fase 8 — o código está sob compilação e teste unitário, não sob teste de
   interface).
 
+> **Bug encontrado e corrigido em 2026-10-29.** `ResultadosAdaptadores.DeMateriais`
+> construía a linha de Dedução de cada vão com `f.Vaos[i].AreaTotal` — a área
+> bruta da janela/porta, sempre, qualquer que fosse `RegraDesconto` — em vez de
+> `f.Vaos[i].Desconto(regra)`, que é o que `ResultadosArvore.DeducaoDoVao` (lado
+> da Alvenaria) já usa para o mesmo cálculo. O TOTAL do pano (`m.Quantidade`,
+> via `f.AreaLiquida(regra)`/`f.DescontoVaos(regra)`) sempre respeitou a regra;
+> só a linha individual do vão, visível em PROPRIEDADES/árvore, ignorava-a. Com
+> `Sinapi2m2` (vãos ≤ 2 m² não descontam) ou `NaoDescontar`, a linha do vão
+> mostrava um desconto que contradizia o total do pano ao lado — um número com
+> ar de estar certo. Passou despercebido porque todos os testes existentes de
+> `DeMateriais` usavam `RegraDesconto.DescontarTudo`, onde `Desconto(regra) ==
+> AreaTotal` por definição, nunca expondo a divergência.
+
+
+
 ## Fase 7 — Teclado, acessibilidade, DPI e desempenho [~]
 
 Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md` e validar uso prolongado no AutoCAD.
@@ -402,6 +573,46 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > build manual. Falta ainda ordenar os controlos DENTRO de cada um destes
   > quatro grupos (por exemplo, os botões da barra de pesquisa) se a matriz
   > manual da Fase 8 revelar que a ordem interna também confunde.
+  >
+  > **Nota 2026-10-08.** Não foi preciso esperar pela matriz manual — o
+  > mesmo padrão já descrito acima (Dock=Right: o primeiro controlo
+  > acrescentado fica mais à direita; sem `TabIndex`, o Tab segue a ordem de
+  > `Controls.Add`, que para Dock=Right/Top costuma ser o inverso da ordem
+  > visual) reproduz-se dentro de DOIS dos quatro grupos, confirmado por
+  > leitura directa da ordem de `Controls.Add` em `Palette.cs`:
+  > - `barra` (pesquisa/filtros, `CriarResultadosCompactos`): acrescentados
+  >   `_lblChips`, `_btnLimparFiltros`, `_btnFiltros`, `_txtPesquisa` — por
+  >   omissão o Tab ia `Limpar → Filtros → Pesquisa`, ao contrário da leitura
+  >   visual esquerda-direita (`Pesquisa → Filtros → Limpar`, com "Limpar"
+  >   escondido na maior parte do tempo, `Visible = false` até haver
+  >   filtro/pesquisa activos).
+  > - `cabecalhoProps` (cabeçalho de `PROPRIEDADES`): acrescentados
+  >   `_lblPropriedadeTitulo`, `_btnMedirAqui`, `_btnPropriedadesModo` — por
+  >   omissão o Tab ia `título → Medir aqui → Essenciais/Tudo`, ao contrário
+  >   da leitura visual (`título → Essenciais/Tudo → Medir aqui`, este mais
+  >   perto da borda direita).
+  >
+  > Corrigido com `TabIndex` explícito nos três/quatro controlos de cada
+  > grupo, pela ordem em que se lêem (mesma técnica já usada para os quatro
+  > grupos exteriores): `_txtPesquisa=0`, `_btnFiltros=1`,
+  > `_btnLimparFiltros=2`; `_lblPropriedadeTitulo=0`,
+  > `_btnPropriedadesModo=1`, `_btnMedirAqui=2`. Revistos também os outros
+  > cabeçalhos com botão único (`CONFIGURAÇÃO`, `Mais opções` — um só botão
+  > cada, sem ordem interna para confundir) e a barra de acções
+  > `_barraResultados` (um `ToolStrip`, cuja ordem de Tab segue o índice em
+  > `Items`, não a stacking de `Dock`; o único item com
+  > `Alignment = ToolStripItemAlignment.Right` — "Mais" — já era também o
+  > último do `Items`, por isso já coincidia). Nenhum outro grupo com mais de
+  > um controlo focável em Dock=Right/Left foi encontrado nestes quatro
+  > grupos. `[~]`: sem lógica nova, só `TabIndex` — revisto por leitura
+  > cuidadosa e por um verificador de chavetas/parênteses próprio
+  > (equilibradas, 409/409 e 1539/1539 no ficheiro inteiro) — **implementado,
+  > aguarda build manual** (sem AutoCAD/WinForms neste sandbox); falta ainda
+  > confirmar visualmente no AutoCAD (Fase 8) que a ordem agora bate certo
+  > com a leitura e que não há mais nenhum grupo com o mesmo problema fora
+  > destes quatro (por exemplo, dentro de `CONFIGURAÇÃO`/`Mais opções`, que
+  > usam `TableLayoutPanel` por células, um mecanismo diferente, não
+  > auditado nesta passagem).
 - [x] `PRÓXIMA`, alertas e `Por classificar` têm texto/ícone e não dependem apenas de cor.
 - [~] Foco visual uniforme em abas, filtros, árvore, propriedades e ações.
 
@@ -427,6 +638,67 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > `AccessibleObject` por mosaico se a Fase 8 revelar que o leitor de ecrã
   > não anuncia qual medida está em foco (fora do âmbito desta passagem).
 
+  > **Nota 2026-10-24.** Todas as notas anteriores deste critério só cobriam
+  > os CINCO controlos principais do painel único (árvore, pesquisa, filtros,
+  > propriedades, barra de ações) e os diálogos auditados para `TabIndex`/
+  > `AcceptButton`/`CancelButton` nas sessões de 2026-10-08 a 2026-10-16
+  > (PRs #11-#18, ainda não mesclados). Nenhuma dessas sessões tocou em
+  > `AccessibleName`/`AccessibleDescription` DENTRO dos diálogos secundários —
+  > confirmado por `grep -c "AccessibleName\|AccessibleDescription"`, que deu
+  > zero em `VaosDialog.cs`, `ArtigoDialog.cs`, `VaosDetectados.cs` e no
+  > `VaoDialog` embutido em `Palette.cs` (`DefinicoesTipoDialog.cs` já estava
+  > completo, com `AccessibleName` nos seis campos). Sem isso, um leitor de
+  > ecrã anuncia só o tipo do controlo ("caixa de texto", "grelha") sem
+  > contexto, porque um `Label` adjacente numa `TableLayoutPanel`/
+  > `FlowLayoutPanel` não é um `label for=` do HTML — o WinForms não associa
+  > os dois automaticamente.
+  >
+  > Acrescentado `AccessibleName` aos campos sem rótulo formal:
+  > `VaoDialog` (Designação, Largura, Altura, Quantidade, Tipo); e
+  > `AccessibleName`/`AccessibleDescription` às grelhas sem nenhuma descrição
+  > (`VaosDialog._dgv`, `VaosDetectados.grelha`) e aos botões "Gravar vãos"/
+  > "Sem vãos"/"Aceitar" (`AccessibleDescription` a explicar a consequência,
+  > já que o texto do botão por si só não diz o que acontece aos vãos não
+  > marcados). Em `ArtigoDialog.cs`, acrescentado `AccessibleName` à procura
+  > (`_procura`) e à lista (`_lista`), e feito `_lista.AccessibleDescription`
+  > seguir `_conta.Text` a cada `Encher()` — sem isto, um leitor de ecrã nunca
+  > saberia quantos artigos a procura deixou, porque o `Label` `_conta` que
+  > mostra essa contagem não está associado à lista.
+  >
+  > **Não tocados nesta passagem, por serem ficheiros grandes (783 e 2054
+  > linhas) que precisam de uma leitura própria antes de editar com
+  > confiança**: `ImportarMQT.cs` (diálogo de escolha de folhas a importar) e
+  > `MedirSeleccao.cs` (diálogos de "Medir seleção"). Ficam como trabalho
+  > pendente para a próxima sessão desta linha — ver nota em
+  > `Docs/TAREFAS_AGENTE.md`.
+  >
+  > **Implementado, aguarda build manual** — `Palette.cs`, `VaosDialog.cs`,
+  > `ArtigoDialog.cs` e `VaosDetectados.cs` não compilam neste sandbox (sem
+  > AutoCAD/WinForms); revistos por leitura cuidadosa contra o resto de cada
+  > ficheiro e por um verificador de chavetas/parênteses próprio (equilibrados
+  > nos quatro). `dotnet test` 356/356 (sem alterações ao projecto de testes —
+  > nenhum dos ficheiros tocados pertence a ele).
+  >
+  > **Nota 2026-10-25.** Continuação do PR aberto (Passo 0): os dois ficheiros
+  > que a passagem anterior tinha deixado pendentes por serem grandes
+  > (`ImportarMQT.cs`, 783 linhas; `MedirSeleccao.cs`, 2054 linhas) ficaram
+  > auditados. `ImportarMQT.EscolherFolhas`: `AccessibleName`/
+  > `AccessibleDescription` na `CheckedListBox` de folhas (`lista`) e na
+  > `ListBox` de pré-visualização (`previa`, sem rótulo associado — herda o
+  > texto do `Label` `rot2` ao lado), e `AccessibleDescription` em
+  > `ok`("Importar")/`cancelar` a explicar a consequência (substitui o mapa
+  > existente vs. não altera nada). `MedirSeleccao.cs` tem DOIS diálogos:
+  > `EscolherLayersDoXref` (mesmo padrão em `lista`/`ok`/`cancelar`) e
+  > `EscolherServicos` — este ganhou também `AccessibleName` em `numEsp`
+  > (herda o texto do `Label` `rotEsp`, "Espessura (m):", que não está
+  > associado ao `NumericUpDown` por nenhum mecanismo do WinForms) e em `novo`
+  > (o campo de texto do serviço novo, mesma razão). `cbJuntar`, `rbPlanta`/
+  > `rbAlcado` e `caixaHachura` não precisaram de nada — `CheckBox`/
+  > `RadioButton` já anunciam o próprio `Text`, e `GroupBox.Text` já serve de
+  > `AccessibleName` por omissão. Com isto, a auditoria de
+  > `AccessibleName`/`AccessibleDescription` nos diálogos secundários da
+  > paleta de resultados fica completa.
+
   > **Nota 2026-10-02.** Feito o que a nota anterior deixava "fora do
   > âmbito": `MosaicoMetricas` ganhou `CreateAccessibilityInstance()`
   > (`MosaicoAccessibleObject : ControlAccessibleObject`) com um
@@ -447,6 +719,52 @@ Objetivo: concluir os refinamentos identificados em `eval-resultados-compacto.md
   > (equilibradas), mas não compilado neste sandbox — aguarda build manual;
   > falta ainda confirmar com um leitor de ecrã real (NVDA/Narrador) no
   > AutoCAD (Fase 8) que o anúncio por mosaico funciona como esperado.
+
+  > **Nota 2026-10-12.** Uma sessão anterior (PR #14, `agent/paleta-
+  > resultados-2026-10-11`, ainda aberto) tinha deixado em aberto, sem
+  > confiança para decidir, se a ordem de Tab entre os PAINÉIS DE NÍVEL
+  > SUPERIOR do próprio `Form` (não os pares de botões OK/Cancelar, já
+  > corrigidos nesse PR) sofria do mesmo bug — citando `VaosDialog.cs` e
+  > `ArtigoDialog.cs` como exemplos por confirmar. Investigado por leitura
+  > cuidadosa da regra real do WinForms: para `Dock=Top/Bottom`, o
+  > `Controls.Add` empilha em ordem INVERSA (o último filho acrescentado
+  > fica encostado à borda), mas o `TabIndex` implícito segue a ordem
+  > DIRECTA de `Controls.Add` — a mesma mecânica já usada em todas as
+  > correcções anteriores desta fase, só que agora aplicada ao nível do
+  > `Form` em vez de um painel filho.
+  >
+  > Em `VaosDialog.cs` (`info`=Top, `_dgv`=Fill, `buttons`=Bottom,
+  > acrescentados `_dgv, buttons, info`) e em `ArtigoDialog.cs` (`topo`,
+  > `rotProcura`, `_procura`, `_conta`, `_lista`, `baixo`, acrescentados
+  > `_lista, _conta, baixo, _procura, rotProcura, topo`): confirmado que a
+  > ordem de Tab resultante, apesar de parecer "ao contrário" da ordem
+  > visual à primeira vista, não produz nenhum problema real — os únicos
+  > controlos que ficam fora de posição são `Label`s sem `TabStop`
+  > (`info`, `topo`, `rotProcura`), que nunca recebem foco de qualquer
+  > forma, e o `ArtigoDialog` já força o foco inicial para `_procura` por
+  > código (`Shown += ... _procura.Focus()`), o que também disfarça a
+  > ordem implícita. Nenhuma alteração feita a estes dois ficheiros — é a
+  > mesma conclusão "confirmado por leitura, sem necessidade de código
+  > novo" já usada noutros critérios desta fase.
+  >
+  > Continuando a mesma auditoria a TODOS os diálogos com `Dock=Top/Bottom`
+  > ao nível do `Form` (não só os dois citados pelo PR #14), encontrado um
+  > bug real e novo em `ImportarMQT.EscolherFolhas` (o diálogo "que folhas
+  > do mapa importar"): `Controls.Add` na ordem `previa, rot2, lista, rot,
+  > baixo` — a pré-visualização (`previa`, só de leitura) ficava com o
+  > `TabIndex` implícito mais baixo (0), por ser a PRIMEIRA a entrar, e por
+  > isso recebia o FOCO INICIAL ao abrir o diálogo, antes da lista de
+  > folhas a marcar (`lista`), que é o controlo que há de facto para usar
+  > primeiro. Ao contrário dos dois diálogos acima, aqui não havia nenhum
+  > `Shown += ... Focus()` a compensar, e a pré-visualização É focável
+  > (`ListBox` normal, sem `TabStop=false`) — por isso o efeito era real,
+  > não só teórico. Corrigido com `TabIndex` explícito (`rot`=0, `lista`=1,
+  > `rot2`=2, `previa`=3, `baixo`=4), repondo a leitura visual
+  > (instruções → lista de folhas → rótulo da pré-visualização →
+  > pré-visualização → botões) e pondo o foco inicial em `lista`. O par
+  > `cancelar`/`ok` dentro de `baixo` (mesmo padrão de bug, já identificado
+  > pelo PR #14 como item #5 da sua lista) não foi tocado aqui, para não
+  > duplicar esse PR — fica para quando #14 for mesclado.
 
 ### Dimensão e desempenho
 
@@ -661,10 +979,18 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-26 | — | Fila do agente noturno: auditoria de arquitetura e prontidão comercial (só relatório, `Docs/ANALISE_ARQUITETURA.md`, fora do âmbito da paleta de resultados — cobre o projecto inteiro). Veredito 6/10 "comercial em preparação". Achados de maior impacto: bug confirmado no Excel ao vivo (coluna Item vazia no modo item), leitura do desenho sem isolamento por entidade (uma polyline problemática pode abortar a leitura de todas as medições), estado estático (`Config`/`FachadaConfig`/`ContagemConfig`) partilhado por todo o processo AutoCAD nunca validado com dois documentos abertos, e risco de a versão `net8.0-windows` ficar dessincronizada do `net48` no build multi-target. Sem relação directa com as fases da paleta compacta — não altera o estado geral nem a tabela de fases deste documento | `dotnet test` 341/341; nenhum código de produção alterado (tarefa só de documentação, como pedido) |
 | 2026-09-27 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-26`, Passo 0 — a auditoria de arquitetura já lá estava completa e mesclável). Fila do agente noturno, item seguinte: análise de desempenho (`Docs/ANALISE_DESEMPENHO.md`), delegada em 3 agentes de investigação em paralelo. `Leitura.Tudo` percorre TODO o Model Space (Polyline/Hatch/Circle), não só as medições — o próprio código já documenta a preocupação (`Commands.cs:2695-2700`); o debounce de `Palette.cs` (Idle + janela adaptativa) é temporal, sem filtro semântico. `ExcelLiveSync` tem dois caminhos: o principal (com modelo) já escreve em bloco, com ganho de 16× documentado em comentário no próprio código; o de recurso sem modelo (`EscreverSimples`) é célula-a-célula. Nenhum padrão O(n²) real encontrado em `FolhaMedicao`/`MapaQuantidades`/`FiebdcExporter`/`ExcelExporter` — o que parecia quadrático em `AgruparParedes`/`Numerar` é, por leitura cuidadosa, O(n log n)/O(n). Testes de desempenho novos (`Tests/DesempenhoTests.cs`, Fase 7 — "Medir construção do modelo, binding e scroll... com um cenário de milhares de nós"): `ResultadosArvore`/`FolhaMedicao`/`FiebdcExporter` medidos com 100/1.000/5.000 medições sintéticas, todos abaixo de ~110 ms mesmo no maior caso — sem preocupação de desempenho do lado da lógica pura. Achado concreto de código evitável (não corrigido nesta tarefa, é só relatório): `ResultadosArvore.Handles(raiz).Contains(nova)` em `Palette.cs:1989` percorre a árvore inteira só para testar um handle já conhecido. Propostas de otimização acrescentadas em `## Propostas (aguardam aprovação)` de `Docs/TAREFAS_AGENTE.md`, não movidas para a Fila | `dotnet test` 356/356 (341 + 15 testes novos de desempenho); nenhum código de produção alterado — tarefa só de documentação/testes, como pedido |
 | 2026-10-03 | 7 | Fila sem itens `[ ]` novos accionáveis (os dois únicos continuam cobertos pelo PR #7, ainda não mesclado) e PRs #7/#8/#9 abertos já cobrem o resto da Fase 3/5/7 pendente — seguido o plano para o critério de conclusão da Fase 7 ainda por tocar, "Alto contraste mantém texto, seleção e alertas legíveis". Auditoria por `grep` a cores fixas (`Color.FromArgb`/`Color.DarkRed`/`Color.Gray`) fora de `PaletteTheme.cs` encontrou código VIVO que contradizia o próprio princípio documentado em `PaletteTheme.cs` ("todas as cores passam por aqui"): `_lblLayer`/`_lblArtigoMqt` e o fundo do alerta `VaosExcessivos` na árvore, em `Palette.cs`, com cores fixas; `_lblTotais` (rodapé de totais) com `Color.DarkRed`/`Color.FromArgb(150, 90, 0)` fixos, incluindo `PaletteTheme.Perigo`, que já existia mas nunca tinha sido usado; e `ArtigoDialog.cs` com o mesmo cinzento fixo na legenda de contagem. Todos corrigidos para passar por `PaletteTheme` (um token novo, `FundoPerigo`, para o fundo de alerta grave) ou por `SystemColors.GrayText` no caso do diálogo que não usa o tema da paleta | `dotnet test` 341/341 (sem alterações ao projeto de testes). `Palette.cs`/`PaletteTheme.cs`/`ArtigoDialog.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibrados nos três). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação visual com Windows em alto contraste real (Fase 8) |
+| 2026-10-24 | 7 | Passo 0: oito PRs abertos desta rotina (#11-#18, `agent/paleta-resultados-2026-10-08` a `-2026-10-16`), todos completos pelas próprias descrições (só falta build manual + confirmação visual no AutoCAD) — nenhum retomado; ver aviso ao utilizador sobre este acumular sem nenhum merge. Fila sem itens `[ ]` novos. Os PRs #11-#18 já tinham esgotado a auditoria de `TabIndex`/`AcceptButton`/`CancelButton` em todos os diálogos deste âmbito (o próprio PR #17 recomendava "procurar outra classe de problema" em vez de repetir essa varredura) — confirmado por `grep` que todas as classes `: Form` e `new Form()` do projecto (fora de `SobreDialog`/`LicencaDialog`/`PrivacidadeDialog`, fora do âmbito) já tinham sido revistas. Encontrada uma classe de problema distinta e ainda não tocada: `AccessibleName`/`AccessibleDescription` dentro dos diálogos secundários — as notas anteriores deste critério só cobriam os cinco controlos principais do painel único. `grep -c` confirmou zero ocorrências em `VaosDialog.cs`, `ArtigoDialog.cs`, `VaosDetectados.cs` e no `VaoDialog` embutido em `Palette.cs` (`DefinicoesTipoDialog.cs` já estava completo). Acrescentado `AccessibleName` aos campos sem rótulo formal do `VaoDialog`; `AccessibleName`/`AccessibleDescription` às grelhas de vãos (`VaosDialog._dgv`, `VaosDetectados.grelha`) e aos respectivos botões; e `AccessibleName` + `AccessibleDescription` dinâmica (segue `_conta.Text`) na procura/lista do `ArtigoDialog.cs`. `ImportarMQT.cs` (783 linhas) e `MedirSeleccao.cs` (2054 linhas) ficam pendentes — grandes demais para auditar com confiança nesta sessão | `dotnet test` 356/356 (sem alterações ao projecto de testes). `Palette.cs`/`VaosDialog.cs`/`ArtigoDialog.cs`/`VaosDetectados.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibrados nos quatro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
+| 2026-10-25 | 7 | Continuação do PR #19 aberto (`agent/paleta-resultados-2026-10-24`, Passo 0 — a própria descrição do PR apontava `ImportarMQT.cs`/`MedirSeleccao.cs` como pendentes, "fica para uma próxima sessão"). **Aviso ao utilizador, agora com mais urgência**: a fila de PRs desta rotina chegou a NOVE entradas abertas (#11-#19, 2026-10-08 a 2026-10-24) sem um único merge — mais de duas semanas de trabalho revisto por leitura cuidadosa e testado por `dotnet test`, mas nunca integrado em `main`. Continuado nesta mesma branch em vez de abrir um PR #20, para não alongar ainda mais a fila. `ImportarMQT.EscolherFolhas`: `AccessibleName`/`AccessibleDescription` na `CheckedListBox` de folhas e na `ListBox` de pré-visualização (sem rótulo nativo — herda o texto do `Label` ao lado), e `AccessibleDescription` em "Importar"/"Cancelar" a explicar a consequência. `MedirSeleccao.cs`: os dois diálogos (`EscolherLayersDoXref`, `EscolherServicos`) ganharam o mesmo padrão na lista de camadas e nos botões, mais `AccessibleName` no campo "Espessura (m)" (`NumericUpDown` sem rótulo nativo) e no campo de texto do serviço novo. Com isto, a auditoria de `AccessibleName`/`AccessibleDescription` nos diálogos secundários da paleta de resultados fica completa — nenhum diálogo deste âmbito continua sem eles | `dotnet test` 356/356 (SDK `dotnet-sdk-8.0` instalado de novo neste sandbox novo, via `apt-get update && apt-get install`). `ImportarMQT.cs`/`MedirSeleccao.cs` revistos por leitura cuidadosa contra o resto de cada ficheiro e por contagem de chavetas/parênteses (equilibradas; o desequilíbrio de parênteses pré-existente em `MedirSeleccao.cs`, 774/782, vem de comentários/strings e foi confirmado por `diff` como já existente antes desta sessão). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-09-21 | 8 | Fila do agente noturno (único item `[ ]`): removido o código morto herdado das quatro abas antigas — `ResultadosPainel.cs`, `PaletteFachada.cs`, `PaletteLinear.cs`, `PaletteContagem.cs` (`FachadaControl`, `LinearControl`, `ContagemControl`) e as três instâncias mortas em `PaletteHost.Show`. Confirmado por `grep` em todo o projecto (`Tests/`, `Commands.cs`, `TSKTakeOff.csproj`) que nada mais referenciava estas classes. `ResultadosPainel.cs` também definia `PropriedadeEditadaEventArgs`, usada pelo painel real (`MosaicoMetricas.Editado`/`AoEditarMetrica`) — movida para `PalettePanelShell.cs` antes de apagar o ficheiro. Limpa também a lista de excepções WinForms de `verificar.py` (`ContagemControl`/`FachadaControl`, tipos que deixaram de existir) | `dotnet test` 304/304 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install dotnet-sdk-8.0` — o cache apt estava desatualizado e dava 404, `update` resolveu); `Palette.cs`/`PalettePanelShell.cs` revistos por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
+| 2026-11-05 | 5 | Continuação da auditoria de falsos-sucessos da Fase 5 (mesma família já corrigida nos PRs #21-28, ainda não mesclados): `RemoverParede()` (menu `Mais` → Remover) ignorava o retorno de `AlvRepo.AlternarTitulo` (ramo de título) e `AlvRepo.RemoverParede` (ramo de medição) — dizia "apagado" mesmo quando a medição já tinha sido removida do desenho entretanto. `AdicionarVao()` (barra MEDIR) tinha o mesmo problema com `AlvRepo.AdicionarVao`. Nenhum destes três pontos estava coberto por nenhum dos 18 PRs abertos (confirmado por leitura de todas as descrições no Passo 0) | `dotnet test` 356/356 (sem alterações ao projeto de testes — lógica alterada só em `Palette.cs`); `Palette.cs` revisto por leitura cuidadosa contra o padrão já usado em `RemoverVaoSeleccionado()` e por verificador de chavetas/parênteses do ficheiro inteiro (411/411, 1542/1542, 65/65, equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-10-08 | 7 | Fila sem itens `[ ]`; PR aberto da rotina já estava mesclado, sem trabalho por retomar (Passo 0). Seguido o plano: a nota de 2026-09-18 sobre `TabIndex`/`TabStop` deixava registado "falta ainda ordenar os controlos DENTRO de cada um destes quatro grupos... se a matriz manual da Fase 8 revelar que a ordem interna também confunde" — em vez de esperar pela matriz manual, confirmado por leitura directa da ordem de `Controls.Add` que o MESMO padrão (Dock=Right: o primeiro acrescentado fica mais à direita; sem `TabIndex`, o Tab segue a ordem de adição, inversa à leitura visual) já reproduzia dentro de dois dos quatro grupos: `barra` (pesquisa/filtros — Tab ia `Limpar → Filtros → Pesquisa`, ao contrário da leitura `Pesquisa → Filtros → Limpar`) e `cabecalhoProps` (cabeçalho de `PROPRIEDADES` — Tab ia `título → Medir aqui → Essenciais/Tudo`, ao contrário de `título → Essenciais/Tudo → Medir aqui`). Corrigido com `TabIndex` explícito nos seis controlos envolvidos, pela ordem em que se lêem. Revistos também `CONFIGURAÇÃO`/`Mais opções` (um único botão cada, sem ordem interna para confundir) e `_barraResultados` (`ToolStrip`, cuja ordem de Tab já segue o índice em `Items`, não a stacking de `Dock` — já estava certa) — ver nota na Fase 7 acima | `dotnet test` 356/356 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install`); `Palette.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (409/409, 1539/1539, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
+| 2026-11-06 | — | Passo 0 confirmou 19 PRs abertos desta rotina sem nenhum merge (#11-#29, `agent/paleta-resultados-2026-10-08` a `-2026-11-05`), nenhum indicando trabalho cortado a meio. Fila sem itens `[ ]` novos; revisto o plano por completo e confirmado que todos os itens de Fase 3/5/7 realizáveis no sandbox já tinham sido tentados por algum dos 19 PRs (tab order, `AccessibleName`/`Description`, alto contraste, auditoria de falsos-sucessos em `Palette.cs`) — não haveria tarefa nova e segura a avançar sem duplicar trabalho já feito, mas ainda por integrar. Em vez de abrir um 20.º PR isolado, testada directamente a afirmação de "conflitos reais" entre os 19 PRs (repetida em várias das suas descrições): merge local sequencial dos 19 branches sobre `main`, por ordem de data. Resultado: **zero conflitos em ficheiros `.cs`** — só em `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`/`Docs/TAREFAS_AGENTE.md` (texto de registo sobreposto, esperado), resolvidos a favor da versão mais recente em cada ponto (a tabela de "Registo de progresso" deixou de ficar em ordem cronológica perfeita como efeito colateral — conteúdo de cada linha intacto, só a ordenação ficou por rever). PR #30 aberto com esta integração, para o utilizador rever/mesclar de uma vez em vez de 19 vezes | `dotnet test` 361/361 na árvore combinada (356 da baseline + 5 testes novos de `ResultadosArvore`/`ResultadosAdaptadores` trazidos pelos PRs #21/#22/#23/#24). Nenhum código novo escrito nesta sessão — só integração; os ficheiros WinForms/Autodesk continuam por compilar manualmente, como em cada PR original |
+| 2026-11-08 | 5 | Passo 0: confirmados **19 PRs abertos desta rotina sem nenhum merge** (#11-#29, `agent/paleta-resultados-2026-10-08` a `-2026-11-05` — PR #29 já tinha agravado o aviso urgente para 19), todos completos pelas próprias descrições, nenhum a retomar; esta sessão abre o 20.º. Ver aviso urgente ao utilizador. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5 ("paridade de campos/comandos"): auditoria dedicada ao mesmo anti-padrão já corrigido 9 vezes nesta rotina (editável sem gravação real / falso sucesso), mas no ÚNICO campo editável de Materiais que nenhum dos PRs abertos tocava — o `artigo`. `ResultadosAdaptadores.DeMateriais` já documentava no próprio comentário que "o FacRepo sabe gravar o artigo de um pano", mas o `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) e o `ClassificarMedicoes` (botão `Mais ▸ Reclassificar…`) chamavam sempre `AlvRepo.DefinirArtigo`/`DefinirArtigoEmVarias` — nunca `FacRepo`. Como a XData de um pano vive sob `CASQUILHO_FAC`, não `CASQUILHO_ALV`, a escrita nunca gravava nada: em edição única, `Confirmar()` avisava com uma mensagem enganadora ("pode ter sido apagada do desenho"); em lote (PROPRIEDADES ou Reclassificar), o pano desaparecia caladamente da contagem de "medições classificadas", sem dizer porquê. Corrigido: dispatch por `no.TipoMedida == "Materiais"` → `FacRepo` na edição única; novo `DefinirArtigoEmVariasPorTipo` (separa handles por tipo antes de chamar o repositório certo) usado pelos dois caminhos em lote — Lineares/Contagens, que não têm nenhum método de gravação de artigo, passam a aparecer explicitamente na mensagem como ignorados em vez de desaparecerem sem aviso | `dotnet test` 356/356 (sem alterações ao projecto de testes — o modelo já documentava `artigo` como editável para Materiais, `Tests/ResultadosAdaptadoresTests.cs:286`; o bug vivia só na dispatch de `Palette.cs`, que os testes não alcançam). `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses/parênteses-rectos do ficheiro inteiro (414/414, 1562/1562, 65/65 — equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; precisa de build manual em Visual Studio antes de merge |
+| 2026-11-10 | 5 | **Passo 0:** confirmados 21 PRs abertos desta rotina sem merge (#11-#29, #31, mais o PR de integração #30 que já junta #11-#29 e mescla limpo, `dotnet test` 361/361 nessa árvore) — nenhum indicava trabalho cortado a meio; lidos os ficheiros tocados por cada um para não duplicar. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5: continuação da família "campo editável sem gravação real" (PRs #21-29/#31), mas num ponto que nenhum desses PRs tinha investigado — o vão de um **pano de Materiais**, não o de alvenaria. `ResultadosAdaptadores.Deducao()` (só usada por `DeMateriais`) marcava Designação/Tipo/Largura/Altura/Quantidade do vão como editáveis; `FacRepo` só sabe acrescentar vãos (`AdicionarVaos`), não editar nem remover um já existente, e as chamadas que `Palette.cs` usaria para gravar (`AlvRepo.DefinirDesignacaoVao`/`AlterarVao`) leem XData `CASQUILHO_ALV`, que um pano nunca tem — por isso qualquer edição destes campos falhava sempre em silêncio. Mesma classe de bug do PR #23 (Tipo/Pré-aro do vão de alvenaria), só que no ficheiro-irmão do adaptador de Materiais. Corrigido só na camada de modelo: os cinco campos passaram a `editavel: false`. Não implementada persistência nova (`FacRepo.AlterarVao`/`RemoverVao`) — ficaria fora do âmbito de uma correcção de paridade; a remoção de vão de pano continua com o mesmo problema de fundo (sempre falha, mas já avisa, não é falso-sucesso), registado como achado para decisão futura. Ver nota na Fase 5, critério "paridade de campos/comandos" | `dotnet test` 357/357 (1 teste novo, `O_vao_de_um_pano_e_todo_de_leitura`); confirmado que falha sem a correcção e passa com ela (revertido `ResultadosAdaptadores.cs` temporariamente). **Correcção 100% verificada** — `ResultadosAdaptadores.cs` não usa `Autodesk.*`/WinForms, sem necessidade de build manual |
+| 2026-11-11 | — | Sessão de integração: actualizado o branch `integrar/agente-2026-11-06` (PR #30) com os PRs #31 (2026-11-08) e #32 (2026-11-10), que tinham ficado de fora na integração original dos 19 primeiros. Único conflito de código real encontrado em todo o processo (ao contrário da integração anterior, que não teve nenhum): `ResultadosAdaptadores.cs`, `Deducao()` — o PR #32 reportou o vão de um pano de Materiais como gap "não coberto por nenhum PR aberto", mas comparou só contra `main`; o PR #24 (2026-10-31), já integrado, tinha aplicado exactamente a mesma correcção (os mesmos cinco campos a `editavel: false`) catorze dias antes. Resolvido a favor do código já integrado (PR #24); o teste novo do PR #32 ficou, por não conflituar e reforçar a mesma asserção. Ver nota de integração na Fase 5 acima. Também resolvidos conflitos de texto (sem código) em `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md` entre #31/#32, mantendo todas as notas de ambos | `dotnet test Tests/TSKTakeOff.Tests.csproj` 362/362 na árvore combinada (361 de #11-29+#31 + 1 novo de #32, sem duplicação). Nenhum código novo escrito nesta sessão — só integração e resolução de conflitos; os ficheiros WinForms/Autodesk continuam por compilar manualmente |
 
 ### Decisões desta passagem
 

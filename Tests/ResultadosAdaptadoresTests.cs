@@ -127,6 +127,27 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void A_linha_do_vao_de_um_pano_respeita_a_regra_de_desconto_em_vigor()
+        {
+            // Mesmo caso de "Os_vaos_de_um_pano_descontam_e_nao_contam_duas_vezes",
+            // mas sob SINAPI (vãos ≤ 2 m² não descontam nada). O TOTAL do pano já
+            // respeitava a regra (f.DescontoVaos(regra)); a LINHA do vão nas
+            // Deduções é que ignorava a regra e mostrava sempre a área bruta da
+            // janela como "desconto" — um número com ar de certo que contradizia
+            // o total ao lado.
+            var f = Pano("F1", "PISO 0", "ETICS", 10.0, 2.0);          // 20 m²
+            f.Vaos.Add(new Vao { Designacao = "J1", Largura = 2.0, Altura = 1.0, Quantidade = 1 }); // 2 m²
+
+            var raiz = ResultadosArvore.Construir(
+                ResultadosAdaptadores.DeMateriais(
+                    new List<MedFachada> { f }, RegraDesconto.Sinapi2m2, null, Pt), Pt);
+
+            Assert.Equal(20.0, raiz.Quantidades.De("m2"), 3);          // nada descontado
+            var vao = ResultadosArvoreTests.Procurar(raiz, "M:F1/V:0");
+            Assert.Equal(0.0, vao.Quantidades.De("m2"), 3);            // e a linha do vão concorda
+        }
+
+        [Fact]
         public void Um_pano_com_vaos_maiores_do_que_ele_e_alerta()
         {
             var f = Pano("F1", "PISO 0", "ETICS", 2.0, 2.0);           // 4 m²
@@ -184,6 +205,18 @@ namespace TSKTakeOff.Tests
             Assert.Equal(ResultadosArvore.SemPiso, raiz.Filhos[0].Rotulo);
         }
 
+        [Fact]
+        public void Lineares_nunca_ficam_marcados_como_por_classificar()
+        {
+            // Mesmo bug do teste equivalente em Contagens: Lineares também
+            // não tem Artigo, e o grupo "Por classificar" não pode acender
+            // o alerta só porque o campo está vazio por não se aplicar.
+            var raiz = ResultadosArvore.Construir(ResultadosAdaptadores.DeLineares(
+                new List<MedItem> { new MedItem { Handle = "L1", Comprimento = 5.0 } }, Pt), Pt);
+
+            Assert.True((raiz.Alertas & AlertaNo.PorClassificar) == 0);
+        }
+
         // -----------------------------------------------------------------
         // Contagens
         // -----------------------------------------------------------------
@@ -200,6 +233,23 @@ namespace TSKTakeOff.Tests
 
             Assert.Equal(2.0, raiz.Quantidades.De("un"), 3);
             Assert.Equal("2 un.", raiz.Quantidades.Texto(Pt));
+        }
+
+        [Fact]
+        public void Contagens_nunca_ficam_marcadas_como_por_classificar()
+        {
+            // Bug encontrado 2026-10-28: Contagens não tem campo Artigo (o
+            // ContRepo nunca o leu nem gravou), por isso `Construir` sempre
+            // as metia no grupo "Por classificar" — e, antes da correcção,
+            // acendia ali o alerta mesmo não havendo nada para classificar,
+            // poluindo o indicador do Piso/raiz para todo o projecto.
+            var raiz = ResultadosArvore.Construir(ResultadosAdaptadores.DeContagens(
+                new List<MedContagem>
+                {
+                    new MedContagem { Handle = "C1", Nome = "P.01", Piso = "PISO 0" },
+                }, Pt), Pt);
+
+            Assert.True((raiz.Alertas & AlertaNo.PorClassificar) == 0);
         }
 
         [Fact]
@@ -286,6 +336,26 @@ namespace TSKTakeOff.Tests
             Assert.True(m[0].Propriedades.Find(p => p.Campo == "artigo").Editavel);
             Assert.False(m[0].Propriedades.Find(p => p.Campo == "servico").Editavel);
             Assert.False(m[0].Propriedades.Find(p => p.Campo == "piso").Editavel);
+        }
+
+        [Fact]
+        public void O_vao_de_um_pano_e_todo_de_leitura()
+        {
+            // O FacRepo só sabe ACRESCENTAR vãos a um pano (AdicionarVaos) —
+            // não tem nenhum método para editar ou remover um já existente.
+            // As chamadas que gravariam a edição (AlvRepo.DefinirDesignacaoVao/
+            // AlterarVao) leem XData CASQUILHO_ALV, que um pano nunca tem (a
+            // dele é CASQUILHO_FAC) — por isso nenhum campo do vão pode
+            // prometer gravar. Mesma classe de bug já corrigida para
+            // "tipo"/"pré-aro" do vão de alvenaria.
+            var f = Pano("F1", "PISO 0", "ETICS", 10.0, 2.0);
+            f.Vaos.Add(new Vao { Designacao = "J1", Largura = 2.0, Altura = 1.0, Quantidade = 1 });
+
+            var m = ResultadosAdaptadores.DeMateriais(
+                new List<MedFachada> { f }, RegraDesconto.DescontarTudo, null, Pt);
+
+            foreach (var p in m[0].Deducoes[0].Propriedades)
+                Assert.False(p.Editavel, "não devia ser editável: " + p.Campo);
         }
 
         [Fact]
