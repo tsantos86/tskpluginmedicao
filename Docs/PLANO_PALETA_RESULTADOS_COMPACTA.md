@@ -316,6 +316,23 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > mínima, sem exigir uma API de escrita nova para um campo que ninguém
   > tinha pedido para editar.
 - [x] Preservar multisseleção e operações em lote para Artigo, Piso e dimensões já suportadas.
+
+  > **Bug encontrado e corrigido em 2026-11-08.** O artigo de um PANO
+  > (Materiais) é o único campo editável dessa aba —
+  > `ResultadosAdaptadores.DeMateriais` já documentava isto no próprio
+  > comentário ("o FacRepo sabe gravar o artigo de um pano, mas não o
+  > material nem o piso") — mas o `switch` de `AplicarEdicaoDePropriedade`
+  > (`Palette.cs`) chamava sempre `AlvRepo.DefinirArtigo`/
+  > `DefinirArtigoEmVarias`, nunca `FacRepo`. A XData de um pano vive sob
+  > `CASQUILHO_FAC`, não `CASQUILHO_ALV` (mesma causa já corrigida para o
+  > vão e o título de um pano, PR aberto #24, ainda não mesclado) — por isso
+  > o ÚNICO campo editável de Materiais nunca gravou nada: em edição única,
+  > `Confirmar()` avisava com uma mensagem enganadora ("pode ter sido
+  > apagada do desenho"); em lote, o valor desaparecia caladamente da
+  > contagem. Corrigido: dispatch por `no.TipoMedida == "Materiais"` →
+  > `FacRepo` (edição única); um novo `DefinirArtigoEmVariasPorTipo` separa
+  > os handles por tipo antes de chamar o repositório certo (edição em
+  > lote) — ver nota igual no menu `Mais ▸ Reclassificar`, abaixo.
 - [x] Validar valores antes de chamar os métodos existentes de `AlvRepo.cs`.
 
 ### Ações
@@ -348,6 +365,18 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > diferente do contador "depois" da Alvenaria) — por isso também recusa com
   > mensagem para Materiais/Lineares/Contagens, em vez de inventar um campo
   > novo persistido fora do âmbito desta correção.
+  >
+  > **Mesmo bug, caminho diferente (2026-11-08).** `Reclassificar`/
+  > `ClassificarMedicoes` (botão `Mais ▸ Reclassificar…`) opera sobre
+  > `HandlesSeleccionados()`, que também inclui Materiais/Lineares/Contagens
+  > — a multisselecção da árvore unificada não distingue tipos — mas
+  > chamava sempre `AlvRepo.DefinirArtigoEmVarias`, pelo mesmo motivo da
+  > nota acima. Com um pano na selecção, a contagem "X medição(ões)
+  > classificadas" descia sem dizer porquê, e Lineares/Contagens
+  > desapareciam da contagem sem aviso nenhum (não têm nenhum método de
+  > gravação de artigo). Corrigido com o mesmo `DefinirArtigoEmVariasPorTipo`
+  > — panos passam a classificar-se de verdade, e Lineares/Contagens
+  > aparecem agora explicitamente na mensagem como ignorados.
 - [x] `Limpar tudo` opera sobre handles distintos da fonte completa, nunca sobre as linhas visíveis/filtradas.
 - [x] Preservar a prioridade atual do alvo contextual: última interação entre seleção da paleta e célula do Excel; sem ambas, última medição.
 - [x] Selecionar um resultado altera apenas Propriedades e o alvo de ações contextuais; não altera a próxima medição.
@@ -945,6 +974,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
 | 2026-10-08 | 7 | Fila sem itens `[ ]`; PR aberto da rotina já estava mesclado, sem trabalho por retomar (Passo 0). Seguido o plano: a nota de 2026-09-18 sobre `TabIndex`/`TabStop` deixava registado "falta ainda ordenar os controlos DENTRO de cada um destes quatro grupos... se a matriz manual da Fase 8 revelar que a ordem interna também confunde" — em vez de esperar pela matriz manual, confirmado por leitura directa da ordem de `Controls.Add` que o MESMO padrão (Dock=Right: o primeiro acrescentado fica mais à direita; sem `TabIndex`, o Tab segue a ordem de adição, inversa à leitura visual) já reproduzia dentro de dois dos quatro grupos: `barra` (pesquisa/filtros — Tab ia `Limpar → Filtros → Pesquisa`, ao contrário da leitura `Pesquisa → Filtros → Limpar`) e `cabecalhoProps` (cabeçalho de `PROPRIEDADES` — Tab ia `título → Medir aqui → Essenciais/Tudo`, ao contrário de `título → Essenciais/Tudo → Medir aqui`). Corrigido com `TabIndex` explícito nos seis controlos envolvidos, pela ordem em que se lêem. Revistos também `CONFIGURAÇÃO`/`Mais opções` (um único botão cada, sem ordem interna para confundir) e `_barraResultados` (`ToolStrip`, cuja ordem de Tab já segue o índice em `Items`, não a stacking de `Dock` — já estava certa) — ver nota na Fase 7 acima | `dotnet test` 356/356 (instalado `dotnet-sdk-8.0` neste sandbox via `apt-get update && apt-get install`); `Palette.cs` revisto por leitura cuidadosa e por um verificador de chavetas/parênteses próprio (409/409, 1539/1539, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-11-06 | — | Passo 0 confirmou 19 PRs abertos desta rotina sem nenhum merge (#11-#29, `agent/paleta-resultados-2026-10-08` a `-2026-11-05`), nenhum indicando trabalho cortado a meio. Fila sem itens `[ ]` novos; revisto o plano por completo e confirmado que todos os itens de Fase 3/5/7 realizáveis no sandbox já tinham sido tentados por algum dos 19 PRs (tab order, `AccessibleName`/`Description`, alto contraste, auditoria de falsos-sucessos em `Palette.cs`) — não haveria tarefa nova e segura a avançar sem duplicar trabalho já feito, mas ainda por integrar. Em vez de abrir um 20.º PR isolado, testada directamente a afirmação de "conflitos reais" entre os 19 PRs (repetida em várias das suas descrições): merge local sequencial dos 19 branches sobre `main`, por ordem de data. Resultado: **zero conflitos em ficheiros `.cs`** — só em `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md`/`Docs/TAREFAS_AGENTE.md` (texto de registo sobreposto, esperado), resolvidos a favor da versão mais recente em cada ponto (a tabela de "Registo de progresso" deixou de ficar em ordem cronológica perfeita como efeito colateral — conteúdo de cada linha intacto, só a ordenação ficou por rever). PR #30 aberto com esta integração, para o utilizador rever/mesclar de uma vez em vez de 19 vezes | `dotnet test` 361/361 na árvore combinada (356 da baseline + 5 testes novos de `ResultadosArvore`/`ResultadosAdaptadores` trazidos pelos PRs #21/#22/#23/#24). Nenhum código novo escrito nesta sessão — só integração; os ficheiros WinForms/Autodesk continuam por compilar manualmente, como em cada PR original |
+| 2026-11-08 | 5 | Passo 0: confirmados **19 PRs abertos desta rotina sem nenhum merge** (#11-#29, `agent/paleta-resultados-2026-10-08` a `-2026-11-05` — PR #29 já tinha agravado o aviso urgente para 19), todos completos pelas próprias descrições, nenhum a retomar; esta sessão abre o 20.º. Ver aviso urgente ao utilizador. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5 ("paridade de campos/comandos"): auditoria dedicada ao mesmo anti-padrão já corrigido 9 vezes nesta rotina (editável sem gravação real / falso sucesso), mas no ÚNICO campo editável de Materiais que nenhum dos PRs abertos tocava — o `artigo`. `ResultadosAdaptadores.DeMateriais` já documentava no próprio comentário que "o FacRepo sabe gravar o artigo de um pano", mas o `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) e o `ClassificarMedicoes` (botão `Mais ▸ Reclassificar…`) chamavam sempre `AlvRepo.DefinirArtigo`/`DefinirArtigoEmVarias` — nunca `FacRepo`. Como a XData de um pano vive sob `CASQUILHO_FAC`, não `CASQUILHO_ALV`, a escrita nunca gravava nada: em edição única, `Confirmar()` avisava com uma mensagem enganadora ("pode ter sido apagada do desenho"); em lote (PROPRIEDADES ou Reclassificar), o pano desaparecia caladamente da contagem de "medições classificadas", sem dizer porquê. Corrigido: dispatch por `no.TipoMedida == "Materiais"` → `FacRepo` na edição única; novo `DefinirArtigoEmVariasPorTipo` (separa handles por tipo antes de chamar o repositório certo) usado pelos dois caminhos em lote — Lineares/Contagens, que não têm nenhum método de gravação de artigo, passam a aparecer explicitamente na mensagem como ignorados em vez de desaparecerem sem aviso | `dotnet test` 356/356 (sem alterações ao projecto de testes — o modelo já documentava `artigo` como editável para Materiais, `Tests/ResultadosAdaptadoresTests.cs:286`; o bug vivia só na dispatch de `Palette.cs`, que os testes não alcançam). `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses/parênteses-rectos do ficheiro inteiro (414/414, 1562/1562, 65/65 — equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; precisa de build manual em Visual Studio antes de merge |
 
 ### Decisões desta passagem
 
