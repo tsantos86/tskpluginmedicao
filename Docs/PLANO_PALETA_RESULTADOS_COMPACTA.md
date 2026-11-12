@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-03
+Última atualização: 2026-11-12
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -293,6 +293,26 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > `alt/larg/esp`) — o painel novo, ao deixar Comprimento só de leitura,
   > corrige esse aparente-mas-falso campo editável. Título ganhou uma
   > capacidade a mais (editar a Descrição, não só o Código).
+  >
+  > **Nota 2026-11-12.** Bug real encontrado nesta família ("campo editável
+  > que não grava de verdade"), ainda não coberto por nenhum dos PRs abertos
+  > (#21-#29, #31, #32): editar o Código/Descrição do título de um PANO de
+  > Materiais em `PROPRIEDADES` (`AplicarEdicaoDePropriedade`, casos
+  > `codigoTitulo`/`descricaoTitulo`) chamava sempre `AlvRepo.DefinirTextoDeTitulo`,
+  > nunca `FacRepo.DefinirTextoDeTitulo` — a mesma classe de bug que o PR #31
+  > já corrigiu para o campo `artigo` (XData `CASQUILHO_ALV` vs
+  > `CASQUILHO_FAC`). A causa raiz era mais profunda do que só a dispatch de
+  > `Palette.cs`: `ResultadosArvore.Construir` nunca propagava `TipoMedida`
+  > para os nós de vão/título (`noVao`/`noTitulo`), só para o nó de medição
+  > (`noMed`) — um dispatch por `no.TipoMedida` não tinha sequer como
+  > funcionar nesse nível. Corrigido em dois passos: (1) `ResultadosArvore.cs`
+  > passou a copiar `TipoMedida = tipo` também para `noVao`/`noTitulo` (lógica
+  > pura, testada); (2) `Palette.cs` passou a despachar
+  > `codigoTitulo`/`descricaoTitulo` para `FacRepo.DefinirTextoDeTitulo`
+  > quando `no.TipoMedida == "Materiais"`. Os campos do próprio vão (PR #32)
+  > continuam de leitura — esta correção só toca no título. Risco de conflito
+  > textual ao integrar com os PRs #25/#27/#31, que tocam a mesma zona de
+  > `Palette.cs` — esperado, mesma razão já registada nesses PRs.
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
@@ -665,6 +685,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-11-12 | 5 | Fila sem itens `[ ]` novos; PR #32 (mais recente, `agent/paleta-resultados-2026-11-10`) já cobre o achado mais recente sem indicar trabalho cortado a meio — não repetido (Passo 0). Seguido o plano, Fase 5 ("paridade de campos/comandos"): depois de confirmar por `grep`/leitura que `AplicarEdicaoDePropriedade` não usa `FacRepo` em nenhum outro ponto além do já coberto pelos PRs #25/#31 (menu Mais e campo "artigo"), encontrado um gap novo, da mesma família ("campo editável que não grava de verdade para um pano de Materiais") — ver nota na Fase 5 acima. Raiz do bug mais profunda do que a dispatch de `Palette.cs`: `ResultadosArvore.Construir` nunca copiava `TipoMedida` para os nós de vão/título, só para o de medição — corrigido isso primeiro (lógica pura) antes de poder despachar por tipo em `Palette.cs` | `dotnet test` 357/357 (356 + 1 teste novo, `O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais`, em `Tests/ResultadosAdaptadoresTests.cs`); confirmado que falha sem a correção de `ResultadosArvore.cs` (revertida temporariamente) e passa com ela. `Palette.cs` revisto por leitura cuidadosa contra o padrão já usado no caso `"artigo"` e por um verificador de chavetas/parênteses do ficheiro inteiro (409/409, 1537/1537 — equilibradas). **`Palette.cs` não compilado** — sem AutoCAD/WinForms neste sandbox; aguarda build manual. Aviso de backlog mantido: 22 PRs abertos sem merge desde 2026-10-08, já avisado em sessões anteriores — não repetido aqui para não ser ruído, ver PR #32 para o detalhe mais recente |
 
 ### Decisões desta passagem
 
