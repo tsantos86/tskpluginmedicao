@@ -2592,8 +2592,18 @@ namespace TSKTakeOff
                     string descricao = ValorPropriedade(no.Propriedades, "descricaoTitulo");
                     if (p.Campo == "codigoTitulo") codigo = bruto; else descricao = bruto;
 
-                    AlvRepo.DefinirTextoDeTitulo(handle, no.Indice,
-                        codigo + ChaveArtigo.Sep + descricao);
+                    string textoTitulo = codigo + ChaveArtigo.Sep + descricao;
+
+                    // Um título de um pano de Materiais vive sob a XData do
+                    // FacRepo (CASQUILHO_FAC), não a do AlvRepo
+                    // (CASQUILHO_ALV) — o mesmo motivo que já obrigou a
+                    // despachar "artigo" por tipo de medida. Sem isto, editar
+                    // o Código/Descrição do título de um pano procurava o
+                    // handle no sítio errado e nunca gravava nada.
+                    if (no.TipoMedida == "Materiais")
+                        FacRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);
+                    else
+                        AlvRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);
                     break;
                 }
 
