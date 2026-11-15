@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-03
+Última atualização: 2026-11-15
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -306,6 +306,29 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > título sai), vão delega em `RemoverVaoSeleccionado()`, resto apaga a
   > medição. Opera sobre um nó só, nunca sobre multisselecção, por isso não
   > há "seleção mista" para confundir.
+
+  > **Continuação 2026-11-15.** A nota de 2026-09-18 confirmou QUE
+  > `RemoverParede()` despacha por tipo de nó (medição/vão/título), mas não
+  > verificou se o despacho chega ao REPOSITÓRIO certo para cada tipo de
+  > MEDIDA. Não chegava: `RemoverVaoSeleccionado()` e o ramo de título de
+  > `RemoverParede()` chamavam sempre `AlvRepo.RemoverVao`/
+  > `AlvRepo.AlternarTitulo`, mesmo quando o nó pertencia a um pano de
+  > Materiais — cuja XData vive sob `CASQUILHO_FAC` (`FacRepo.AppName`), não
+  > `CASQUILHO_ALV`. Mesma raiz de bug já corrigida para o campo "artigo" e
+  > para o título em `PROPRIEDADES` (ver Registo de progresso). Apagar um
+  > vão ou um título de um pano de Materiais pelo botão «Remover» falhava
+  > sempre, com aviso genérico (não é falso-sucesso).
+  >
+  > Corrigido: `ResultadosArvore.Construir` passou a propagar `TipoMedida`
+  > para `noVao`/`noTitulo` também (só `noMed`/`noTipo` traziam), para o
+  > despacho em `Palette.cs` ter como saber o tipo. `FacRepo.RemoverVao`
+  > criado (não existia — só `AdicionarVaos`), espelhando
+  > `AlvRepo.RemoverVao`. `RemoverVaoSeleccionado()` e o ramo de título de
+  > `RemoverParede()` despacham agora por `no.TipoMedida == "Materiais"` →
+  > `FacRepo`, resto → `AlvRepo` (mesmo padrão já usado para "artigo"). De
+  > caminho, o ramo de título (que nunca verificava o valor de retorno de
+  > `AlternarTitulo`) passou a avisar quando falha, em vez de dizer sempre
+  > "apagado".
 - [x] Atualizar continua a forçar a escrita imediata no Excel quando este está ligado.
 - [~] Apenas `Medir aqui` altera a próxima medição.
 
@@ -665,6 +688,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-09-30 | 7 | `Docs/TAREFAS_AGENTE.md` já não tinha item `[ ]` que não estivesse coberto pelo PR #7 aberto (auditoria de arquitetura + desempenho, mesclável, `356/356` testes, ainda por rever/mesclar — não repetido para não duplicar). Seguido o plano: Fase 7, critérios "funciona sem rato"/"sem foco preso". Auditados todos os pontos de recolher/expandir (`CONFIGURAÇÃO`, `Mais opções`, `PROPRIEDADES`) — todos usam `Visible`, nenhum prende o Tab; `FiltrosPopup` já apanhava `Escape` de dentro da `CheckedListBox`. Gap real encontrado e corrigido: `ArtigoDialog.cs` (Reclassificar) não deixava mover a selecção da lista com `↓/↑/PageDown/PageUp` a partir da caixa de procura — só Tab chegava à lista. Acrescentado `ProcuraKeyDown` a reencaminhar essas teclas para a `ListBox` sem largar o foco da procura | `dotnet test` 341/341 (instalado `dotnet-sdk-8.0` de novo neste sandbox novo — `apt-get update && apt-get install`, mesmo procedimento das sessões anteriores); `ArtigoDialog.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses (equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
 | 2026-10-01 | 7 | Continuação do PR aberto (`agent/paleta-resultados-2026-09-30`, Passo 0 — o próprio PR #8 apontava "DefinicoesTipoDialog.cs nem VaoDialog não foram revistas" como pendente). Fila sem itens `[ ]` novos (os dois únicos continuavam cobertos pelo PR #7, ainda não mesclado — não repetidos). Concluída a auditoria de foco/teclado: `DefinicoesTipoDialog.cs`, `VaoDialog` (`Palette.cs`) e `VaosDialog.cs` revistos — só controlos nativos, `AcceptButton`/`CancelButton` definidos, sem `KeyDown` próprio que bloqueie Tab/Enter/Escape; nenhum gap. Gap real novo encontrado e corrigido, mais relevante do que o do `ArtigoDialog` por estar na pesquisa PRINCIPAL da árvore (`_txtPesquisa`, `Palette.cs`): o `KeyDown` só tratava `Enter`/`Escape`, não `↓/↑/PageDown/PageUp` — escrever e logo navegar por teclado na árvore de resultados exigia sair da pesquisa com Tab primeiro. Acrescentado `MoverSeleccaoDaArvore`, reencaminhando essas quatro teclas para `_dgvCompacto` pelo mesmo mecanismo que `SeleccionarNo`/Home-End já usam | `dotnet test` 341/341 (sem alterações ao projecto de testes — a lógica alterada é só WinForms); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (409/409 chavetas, 1537/1537 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual em Visual Studio antes do merge |
 | 2026-10-02 | 7 | Fila do agente sem itens `[ ]` novos (os dois únicos continuam cobertos pelos PR #7/`agent/paleta-resultados-2026-09-26` e PR #8/`agent/paleta-resultados-2026-09-30`, ambos abertos e completos, sem indicação de trabalho cortado a meio — não repetidos para não duplicar; ver Passo 0). Seguido o plano, Fase 7: acrescentado o `AccessibleObject` por mosaico em `MosaicoMetricas` que a nota de 2026-09-19 tinha deixado "fora do âmbito" — ver nota na Fase 7 acima (critério "Foco visual uniforme"). Sem isto, um leitor de ecrã só anunciava "Propriedades" (o painel inteiro), nunca qual medida tinha o foco, porque mover o "mosaico com foco" por teclado nunca trocava de controlo real. `CreateAccessibilityInstance()` + `MosaicoAccessibleObject`/`TileAccessibleObject`, `AccessibilityNotifyClients(AccessibleEvents.Focus, _foco)` em `DefinirFoco`/`Definir`, e `_editor.AccessibleName` ao entrar em edição | `dotnet test` 341/341 (SDK `dotnet-sdk-8.0` reinstalado neste sandbox); `PalettePanelShell.cs` revisto por leitura cuidadosa e por um verificador de chavetas próprio (140/140 equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual e confirmação com um leitor de ecrã real (Fase 8) antes do merge |
+| 2026-11-15 | 5 | `Docs/TAREFAS_AGENTE.md` sem itens `[ ]` novos; seguido o plano, Fase 5 ("Remover" — item explícito da ordem de prioridade). Auditando o critério "Remover distingue corretamente medição, vão e título", confirmado por leitura que `RemoverVaoSeleccionado()` e o ramo de título de `RemoverParede()` (`Palette.cs`) despachavam SEMPRE para `AlvRepo.RemoverVao`/`AlvRepo.AlternarTitulo`, mesmo para um nó de um pano de Materiais — cuja XData vive sob `CASQUILHO_FAC` (`FacRepo.AppName`), não `CASQUILHO_ALV`. Mesma raiz de bug já corrigida nas sessões anteriores para "artigo" e para o título em `PROPRIEDADES`, mas nunca para o botão «Remover». Corrigido: `ResultadosArvore.Construir` passou a propagar `TipoMedida` também para `noVao`/`noTitulo` (só `noMed`/`noTipo` traziam); `FacRepo.RemoverVao` criado (não existia); os dois pontos de `Palette.cs` despacham agora por `TipoMedida == "Materiais"`. De caminho, o ramo de título passou a avisar quando `AlternarTitulo` falha, em vez de assumir sempre sucesso. Ver nota na Fase 5 acima | `dotnet test` 357/357 (356 da baseline + 1 teste novo, `O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais`, confirmado que falha sem a correção de `ResultadosArvore.cs` e passa com ela). `Palette.cs`/`Fachada.cs` revistos por leitura cuidadosa contra o padrão já usado para "artigo" e por um verificador de chavetas/parênteses do ficheiro inteiro (409/409 chavetas e 1540/1540 parênteses em `Palette.cs`; 59/59 e 265/265 em `Fachada.cs`) — **não compilados** em `net48`/AutoCAD neste sandbox; aguardam build manual. `ResultadosArvore.cs` **é** compilado e testado (sem `Autodesk.*`/`System.Windows.Forms`, confirmado por leitura) |
 
 ### Decisões desta passagem
 

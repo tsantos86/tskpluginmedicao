@@ -127,6 +127,29 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais()
+        {
+            // Sem isto, um dispatch por TipoMedida ao nível do vão/título
+            // (Palette.cs, "Remover" e a edição do código/descrição do
+            // título) não tem como saber que a XData deste pano vive sob
+            // CASQUILHO_FAC (FacRepo), não CASQUILHO_ALV (AlvRepo) — a mesma
+            // raiz de bug já corrigida para o campo "artigo".
+            var f = Pano("F1", "PISO 0", "ETICS", 10.0, 2.0);
+            f.Vaos.Add(new Vao { Designacao = "J1", Largura = 2.0, Altura = 1.0, Quantidade = 1 });
+            f.MarcaDepois = "ART";
+
+            var raiz = ResultadosArvore.Construir(
+                ResultadosAdaptadores.DeMateriais(
+                    new List<MedFachada> { f }, RegraDesconto.DescontarTudo, null, Pt), Pt);
+
+            var vao = ResultadosArvoreTests.Procurar(raiz, "M:F1/V:0");
+            Assert.Equal("Materiais", vao.TipoMedida);
+
+            var titulo = ResultadosArvoreTests.Procurar(raiz, "M:F1/T:0");
+            Assert.Equal("Materiais", titulo.TipoMedida);
+        }
+
+        [Fact]
         public void Um_pano_com_vaos_maiores_do_que_ele_e_alerta()
         {
             var f = Pano("F1", "PISO 0", "ETICS", 2.0, 2.0);           // 4 m²

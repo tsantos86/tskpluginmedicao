@@ -4126,7 +4126,14 @@ namespace TSKTakeOff
                 MessageBoxDefaultButton.Button2);
             if (resp != DialogResult.Yes) return;
 
-            if (AlvRepo.RemoverVao(handle, indice))
+            // A XData de um pano de Materiais vive sob CASQUILHO_FAC
+            // (FacRepo.AppName), não CASQUILHO_ALV — mesma razão que já
+            // obrigou a despachar "artigo" e o título por tipo de medida.
+            bool apagou = no.TipoMedida == "Materiais"
+                ? FacRepo.RemoverVao(handle, indice)
+                : AlvRepo.RemoverVao(handle, indice);
+
+            if (apagou)
                 PaletteHost.Log("Vão " + nome + " apagado.");
             else
                 PaletteHost.Log("Não foi possível apagar o vão " + nome + ".");
@@ -4166,9 +4173,19 @@ namespace TSKTakeOff
 
                 // AlternarTitulo com a marca presente leva o texto com ela —
                 // senão reaparecia sozinho da próxima vez que se pusesse um
-                // título.
-                AlvRepo.AlternarTitulo(h, marcaT);
-                PaletteHost.Log(nivel + " apagado.");
+                // título. A XData de um pano de Materiais vive sob
+                // CASQUILHO_FAC (FacRepo.AppName), não CASQUILHO_ALV — mesma
+                // razão que já obrigou a despachar "artigo", o vão e o texto
+                // do título por tipo de medida.
+                bool apagouTitulo = sel.TipoMedida == "Materiais"
+                    ? FacRepo.AlternarTitulo(h, marcaT)
+                    : AlvRepo.AlternarTitulo(h, marcaT);
+
+                if (apagouTitulo)
+                    PaletteHost.Log(nivel + " apagado.");
+                else
+                    PaletteHost.Log("Não foi possível apagar este " +
+                                     nivel.ToLowerInvariant() + ".");
                 PaletteHost.RefreshData();
                 return;
             }
