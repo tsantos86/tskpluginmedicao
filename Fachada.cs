@@ -416,6 +416,15 @@ namespace TSKTakeOff
             return true;
         }
 
+        /// <summary>Remove o vão que está na posição indicada. O par do AlvRepo.RemoverVao.</summary>
+        public static bool RemoverVao(string handle, int indice)
+        {
+            return Editar(handle, (pl, med) =>
+            {
+                if (indice >= 0 && indice < med.Vaos.Count) med.Vaos.RemoveAt(indice);
+            });
+        }
+
         private static MedFachada ParseXData(ResultBuffer rb)
         {
             var med = new MedFachada { Material = "ETICS", Piso = "PISO 0" };
