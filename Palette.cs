@@ -4071,7 +4071,26 @@ namespace TSKTakeOff
             using (var dlg = new VaoDialog())
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                AlvRepo.AdicionarVao(handle, dlg.Resultado);
+
+                // O vão de um pano de Materiais vive sob a XData do FacRepo
+                // (CASQUILHO_FAC), não a do AlvRepo (CASQUILHO_ALV) — mesma
+                // razão que já obrigou a despachar "artigo", o título e
+                // "Remover" por tipo de medida. Sem isto, acrescentar um vão
+                // a um pano procurava o handle no sítio errado e nunca
+                // gravava nada, falhando em silêncio.
+                bool ehFachada = _fachadas.Exists(f => f.Handle == handle);
+                bool gravou = ehFachada
+                    ? FacRepo.AdicionarVaos(handle, new List<Vao> { dlg.Resultado })
+                    : AlvRepo.AdicionarVao(handle, dlg.Resultado);
+
+                if (!gravou)
+                {
+                    PaletteHost.Log("Não consegui acrescentar o vão — a medição pode ter " +
+                                    "sido apagada do desenho. Carregue em Atualizar e tente " +
+                                    "outra vez.");
+                    PaletteHost.RefreshData();
+                    return;
+                }
             }
             PaletteHost.RefreshData();
         }
