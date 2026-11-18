@@ -4257,7 +4257,24 @@ namespace TSKTakeOff
             // Acrescenta o nível, ou tira-o se já lá estiver. Os outros níveis
             // ficam: um sub-artigo por baixo de um artigo não apaga o artigo.
             bool tinha = MarcaDe(handle).Contains(marca);
-            AlvRepo.AlternarTitulo(handle, marca);
+
+            // A XData de um pano de Materiais vive sob CASQUILHO_FAC
+            // (FacRepo.AppName), não CASQUILHO_ALV — mesma razão que já
+            // obrigou a despachar "artigo" (PROPRIEDADES/Reclassificar) e o
+            // vão/título de PROPRIEDADES por tipo de medida (Fase 5 do
+            // plano, PRs anteriores). Chamar sempre AlvRepo aqui deixava
+            // "Mais ▸ Capítulo/Artigo" sem efeito nenhum num pano, sem aviso.
+            bool ehMateriais = _fachadas.Exists(f => f.Handle == handle);
+            bool gravouMarca = ehMateriais
+                ? FacRepo.AlternarTitulo(handle, marca)
+                : AlvRepo.AlternarTitulo(handle, marca);
+
+            if (!gravouMarca)
+            {
+                Confirmar(false, nome.ToLowerInvariant());
+                PaletteHost.RefreshData();
+                return;
+            }
 
             if (tinha)
             {
@@ -4292,7 +4309,15 @@ namespace TSKTakeOff
                     if (mm == marca) break;
                     if (mm.Length > 0) i++;
                 }
-                AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                bool gravouTexto = ehMateriais
+                    ? FacRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto)
+                    : AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                if (!gravouTexto)
+                {
+                    Confirmar(false, nome.ToLowerInvariant());
+                    PaletteHost.RefreshData();
+                    return;
+                }
             }
 
             PaletteHost.Log("Linha de " + nome.ToLowerInvariant() +
@@ -4336,6 +4361,12 @@ namespace TSKTakeOff
         {
             foreach (var p in _paredes)
                 if (p.Handle == handle) return p.MarcaDepois ?? "";
+
+            // Um pano de Materiais também pode ter título marcado — sem isto,
+            // "Mais ▸ Artigo/Capítulo" nunca detectava a marca já existente
+            // num pano e tentava sempre ACRESCENTAR, nunca remover.
+            foreach (var f in _fachadas)
+                if (f.Handle == handle) return f.MarcaDepois ?? "";
             return "";
         }
 
