@@ -293,6 +293,40 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > `alt/larg/esp`) — o painel novo, ao deixar Comprimento só de leitura,
   > corrige esse aparente-mas-falso campo editável. Título ganhou uma
   > capacidade a mais (editar a Descrição, não só o Código).
+
+  > **Nota 2026-11-18.** A nota de 2026-09-18 só comparou a GRELHA ANTIGA
+  > (só Alvenaria) com o painel novo — não comparou Alvenaria com Materiais
+  > DENTRO do painel novo. Bug real encontrado e corrigido, mesma família já
+  > corrigida em sessões anteriores (branches `agent/paleta-resultados-
+  > 2026-11-08`/`-11-12`/`-11-15`/`-11-17`, ainda não mescladas — ver aviso
+  > de backlog no fim desta secção): `MarcarTitulo()` (botão `Mais ▸
+  > Capítulo`/`Artigo`, `Palette.cs`) chamava sempre `AlvRepo.AlternarTitulo`/
+  > `AlvRepo.DefinirTextoDeTitulo`, mesmo para um pano de Materiais — cuja
+  > XData vive sob `CASQUILHO_FAC`, não `CASQUILHO_ALV`. Pior ainda:
+  > `MarcaDe(handle)`, que decide se a marca já existe (para saber se é para
+  > ACRESCENTAR ou REMOVER), só percorria `_paredes` — para um pano devolvia
+  > sempre `""`, por isso nunca detectava uma marca já posta e nunca tentava
+  > removê-la, só (tentava) acrescentar. Corrigido: `MarcaDe` passa a
+  > procurar em `_fachadas` também; `MarcarTitulo` despacha por
+  > `_fachadas.Exists(f => f.Handle == handle)` para `FacRepo.AlternarTitulo`/
+  > `FacRepo.DefinirTextoDeTitulo` (já existem, usados pelas branches acima
+  > para PROPRIEDADES/remoção) e avisa (`Confirmar(false, …)`) em vez de
+  > falhar em silêncio, igual ao padrão já usado nesse resto do ficheiro.
+  >
+  > **Gap relacionado, NÃO corrigido nesta passagem — registar para a
+  > próxima:** `AlternarSeparador()` ("Linha branca" do menu `Mais`) tem o
+  > mesmo problema de despacho (`AlvRepo.AcrescentarSeparadorDepois` sempre,
+  > e o `antes`/contador só lê `_paredes`), mas o modelo não é só uma questão
+  > de despacho: `Parede.LinhasEmBrancoDepois` é um CONTADOR (0..
+  > `MaxLinhasEmBranco`, linha(s) DEPOIS), mas `MedFachada.Separador` é só um
+  > `bool` (linha ANTES) — são semânticas diferentes, e `FacRepo` só tem
+  > `AlternarSeparador` (liga/desliga), não um equivalente a
+  > `AcrescentarSeparadorDepois`. Dar paridade aqui exige decidir o
+  > comportamento para Materiais (tratar como on/off em vez de contador?),
+  > não só trocar `AlvRepo` por `FacRepo` — por isso ficou fora desta
+  > correcção, para não arriscar uma decisão de UX apressada num ficheiro que
+  > não compila neste sandbox.
+
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
@@ -644,6 +678,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 
 | Data | Fase | Alteração | Verificação |
 |---|---|---|---|
+| 2026-11-18 | 5 | Passo 0: 26 PRs abertos desta rotina sem nenhum merge (#11-#35), nenhum cortado a meio — mesmo aviso repetido já há várias sessões (ver secção de backlog abaixo). PR de integração #30 continua `mergeable_state: clean` (pode ser mesclado já, absorve #11-#29/#31/#32 — faltam #33/#34/#35). Fila sem itens `[ ]` novos. Seguido o plano, Fase 5 "paridade de campos/comandos": a comparação de 2026-09-18 só olhou para Alvenaria vs. a grelha antiga, nunca para Alvenaria vs. Materiais dentro do painel novo. Auditados os pontos de despacho `AlvRepo`/`FacRepo` em `Palette.cs` contra as branches já abertas para esta família (#31 artigo, #32 vão só leitura, #33 título em PROPRIEDADES, #34 remover vão/título, #35 adicionar vão) para não repetir correção já feita noutro lado. Gap real por cobrir, confirmado por leitura: `MarcarTitulo()` (botão `Mais ▸ Capítulo`/`Artigo`) despachava sempre para `AlvRepo.AlternarTitulo`/`DefinirTextoDeTitulo`, mesmo para um pano de Materiais (XData sob `CASQUILHO_FAC`, não `CASQUILHO_ALV`); e `MarcaDe(handle)`, que decide se já há marca posta, só procurava em `_paredes` — para um pano nunca detectava a marca existente. Corrigidos os dois: `MarcaDe` passa a procurar em `_fachadas`; `MarcarTitulo` despacha por `_fachadas.Exists(f => f.Handle == handle)` para `FacRepo.AlternarTitulo`/`FacRepo.DefinirTextoDeTitulo`, avisando (em vez de falhar em silêncio) quando a gravação falha. Gap relacionado mas NÃO corrigido — `AlternarSeparador()` ("Linha branca" do menu `Mais`) tem o mesmo problema de despacho, mas o modelo de Materiais (`MedFachada.Separador`, `bool`, linha ANTES) difere do de Alvenaria (`Parede.LinhasEmBrancoDepois`, contador, linhas DEPOIS) — precisa de uma decisão de comportamento, não só troca de repositório; registado no plano (Fase 5) para a próxima sessão | `dotnet test` 356/356 (sem alterações ao projeto de testes — a correção é só `Palette.cs`, WinForms/Autodesk). `Palette.cs` revisto por leitura cuidadosa contra o padrão já usado nas branches #31/#33/#34 (mesmas assinaturas `FacRepo.AlternarTitulo`/`DefinirTextoDeTitulo`) e por um verificador de chavetas/parênteses próprio (411/411 chavetas, 1549/1549 parênteses, ficheiro inteiro — equilibrado). **Precisa de build manual em Visual Studio (net48/AutoCAD) antes do merge.** Instalado `dotnet-sdk-8.0` de novo neste sandbox (`apt-get update && apt-get install`) |
 | 2026-08-28 | 0 | Variante compacta aprovada e roteiro criado | Revisão de mockup, avaliação e arquitetura atual |
 | 2026-08-29 | 1 | `ResultadosModelo.cs` e `ResultadosArvore.cs` criados; 84 testes novos em `ResultadosArvoreTests.cs`, `ResultadosFiltroTests.cs` e `ResultadosTotaisTests.cs` | `dotnet test` 267/267; compilação isolada em `net48`/C# 7.3 sem avisos; nenhum `Autodesk.*` nem `System.Windows.Forms` nos ficheiros novos |
 | 2026-08-29 | 2-3 | Build reparado (`CS0841` no lambda da CONFIGURAÇÃO; `PlaceholderText` não existe em net48). Abas reordenadas. Árvore posta em duas colunas com indentação, guias, ícone por tipo, `▸/▾` e seleção/scroll por ID estável; segue a medição nova pelo handle. `PROPRIEDADES` com `Essenciais`/`Tudo` e `Medir aqui` só em nós de artigo. Cores e medidas centralizadas em `PaletteTheme.cs` | Compilação isolada `net48`/AutoCAD 2021 sem erros nem avisos, sem incrementar `Version.build`; `dotnet test` 267/267 |
