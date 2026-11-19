@@ -4216,6 +4216,22 @@ namespace TSKTakeOff
 
             string onde = DescreverAlvo(handle), quem = OrigemDoAlvo(handle);
 
+            // Um pano de Materiais não tem a contagem (0-3) que a Parede tem
+            // — a XData do FacRepo só guarda um bool (uma linha, liga/desliga,
+            // já lido/escrito por FacRepo.AlternarSeparador). Por isso o
+            // despacho por tipo de nó troca também a mensagem, não só o
+            // repositório — mesmo padrão de despacho de MarcarTitulo, mais
+            // abaixo, para outro comando do menu Mais.
+            if (_fachadas.Exists(f => f.Handle == handle))
+            {
+                bool tinha = _fachadas.Exists(f => f.Handle == handle && f.Separador);
+                FacRepo.AlternarSeparador(handle);
+                PaletteHost.Log((tinha ? "Linha em branco removida" : "Linha em branco acrescentada") +
+                                " por baixo da medição " + onde + "  [alvo: " + quem + "]");
+                PaletteHost.RefreshData();
+                return;
+            }
+
             // Quantas ficam depois de somar. Lido da lista que já temos em
             // memória, para não ir ao desenho outra vez só por causa disto.
             int antes = 0;
