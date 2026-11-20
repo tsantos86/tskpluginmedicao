@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-11-18
+Última atualização: 2026-11-20
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -517,6 +517,41 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > funções quase iguais) ficou simplificada numa só `MarcaDe`, já que o
   > `foreach (_fachadas)` que o PR #25 já tinha dentro dela cobre o mesmo
   > caso que `MarcaDeFachada` resolvia.
+  >
+  > **Nota 2026-11-19.** A auditoria de 2026-09-18 comparou a grelha ANTIGA
+  > (só Alvenaria) com `PROPRIEDADES`; nunca comparou Alvenaria com Materiais
+  > *dentro* do painel único — a árvore combina as duas (Fase 6), mas vários
+  > comandos de `Palette.cs` continuam a despachar sempre para `_paredes`/
+  > `AlvRepo`, mesmo quando o handle seleccionado é um pano de Materiais
+  > (`_fachadas`/`FacRepo`). Confirmado neste sandbox que, em `main`, nenhum
+  > comando de `Palette.cs` chamava `FacRepo` antes desta sessão — toda a
+  > paridade de Materiais descrita acima é só sobre os CAMPOS editáveis em
+  > `PROPRIEDADES`, não sobre os COMANDOS do menu `Mais`. Corrigido nesta
+  > sessão: `AlternarSeparador()` ("Linha branca") despachava sempre para
+  > `AlvRepo.AcrescentarSeparadorDepois` (a contagem 0-3 da `Parede`); um
+  > pano não tem essa contagem — a XData do `FacRepo` só guarda um bool
+  > (`MedFachada.Separador`), já lido/escrito por
+  > `FacRepo.AlternarSeparador(handle)` (existia, nunca era chamado desde a
+  > paleta). `AlternarSeparador()` passa a despachar por
+  > `_fachadas.Exists(f => f.Handle == handle)`, com mensagem adaptada ao
+  > bool (liga/desliga) em vez da contagem. **Gap idêntico, ainda não
+  > verificado no sandbox**: `Reclassificar`/`Remover`/`Vão`/"Definir artigo
+  > ou piso em várias" a partir da árvore também podem estar a operar só
+  > sobre `_paredes` quando a seleção inclui panos; precisa de auditoria
+  > dedicada, uma de cada vez, antes de marcar este critério `[x]`.
+  >
+  > **Integração 2026-11-20.** O auto-merge do diff acima sobre o estado já
+  > integrado (PR #25) produziu código morto: o PR #25 já tinha acrescentado
+  > uma recusa antecipada ("só está disponível para medições de Alvenaria")
+  > para qualquer handle fora de `_paredes` — incluindo panos — e essa
+  > recusa corria SEMPRE antes do despacho novo deste PR para `FacRepo`,
+  > tornando o `if (_fachadas.Exists(...))` deste PR inalcançável (nunca
+  > lançava excepção nem falhava nos testes — só nunca executava). Detectado
+  > por leitura ao reler a função inteira depois do merge, não pelo
+  > `git merge` (que não assinalou conflito aqui). Corrigido: a recusa
+  > antecipada passa a aceitar `_paredes` OU `_fachadas`, só recusando
+  > Lineares/Contagens — mesmo padrão de `ehParede`/`ehFachada` já usado em
+  > `MarcarTitulo()`.
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
@@ -1101,6 +1136,8 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-11-12 | 5 | Fila sem itens `[ ]` novos; PR #32 (mais recente, `agent/paleta-resultados-2026-11-10`) já cobre o achado mais recente sem indicar trabalho cortado a meio — não repetido (Passo 0). Seguido o plano, Fase 5 ("paridade de campos/comandos"): depois de confirmar por `grep`/leitura que `AplicarEdicaoDePropriedade` não usa `FacRepo` em nenhum outro ponto além do já coberto pelos PRs #25/#31 (menu Mais e campo "artigo"), encontrado um gap novo, da mesma família ("campo editável que não grava de verdade para um pano de Materiais") — ver nota na Fase 5 acima. Raiz do bug mais profunda do que a dispatch de `Palette.cs`: `ResultadosArvore.Construir` nunca copiava `TipoMedida` para os nós de vão/título, só para o de medição — corrigido isso primeiro (lógica pura) antes de poder despachar por tipo em `Palette.cs` | `dotnet test` 357/357 (356 + 1 teste novo, `O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais`, em `Tests/ResultadosAdaptadoresTests.cs`); confirmado que falha sem a correção de `ResultadosArvore.cs` (revertida temporariamente) e passa com ela. `Palette.cs` revisto por leitura cuidadosa contra o padrão já usado no caso `"artigo"` e por um verificador de chavetas/parênteses do ficheiro inteiro (409/409, 1537/1537 — equilibradas). **`Palette.cs` não compilado** — sem AutoCAD/WinForms neste sandbox; aguarda build manual. Aviso de backlog mantido: 22 PRs abertos sem merge desde 2026-10-08, já avisado em sessões anteriores — não repetido aqui para não ser ruído, ver PR #32 para o detalhe mais recente |
 | 2026-11-15 | 5 | `Docs/TAREFAS_AGENTE.md` sem itens `[ ]` novos; seguido o plano, Fase 5 ("Remover" — item explícito da ordem de prioridade). Auditando o critério "Remover distingue corretamente medição, vão e título", confirmado por leitura que `RemoverVaoSeleccionado()` e o ramo de título de `RemoverParede()` (`Palette.cs`) despachavam SEMPRE para `AlvRepo.RemoverVao`/`AlvRepo.AlternarTitulo`, mesmo para um nó de um pano de Materiais — cuja XData vive sob `CASQUILHO_FAC` (`FacRepo.AppName`), não `CASQUILHO_ALV`. Mesma raiz de bug já corrigida nas sessões anteriores para "artigo" e para o título em `PROPRIEDADES`, mas nunca para o botão «Remover». Corrigido: `ResultadosArvore.Construir` passou a propagar `TipoMedida` também para `noVao`/`noTitulo` (só `noMed`/`noTipo` traziam); `FacRepo.RemoverVao` criado (não existia); os dois pontos de `Palette.cs` despacham agora por `TipoMedida == "Materiais"`. De caminho, o ramo de título passou a avisar quando `AlternarTitulo` falha, em vez de assumir sempre sucesso. Ver nota na Fase 5 acima | `dotnet test` 357/357 (356 da baseline + 1 teste novo, `O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais`, confirmado que falha sem a correção de `ResultadosArvore.cs` e passa com ela). `Palette.cs`/`Fachada.cs` revistos por leitura cuidadosa contra o padrão já usado para "artigo" e por um verificador de chavetas/parênteses do ficheiro inteiro (409/409 chavetas e 1540/1540 parênteses em `Palette.cs`; 59/59 e 265/265 em `Fachada.cs`) — **não compilados** em `net48`/AutoCAD neste sandbox; aguardam build manual. `ResultadosArvore.cs` **é** compilado e testado (sem `Autodesk.*`/`System.Windows.Forms`, confirmado por leitura) |
 | 2026-11-16 | 5 | Fila sem itens `[ ]` novos; 24 PRs abertos sem merge desta rotina (#11-#34), nenhum com trabalho cortado a meio (Passo 0). Seguido o plano, Fase 5 ("paridade de campos/comandos"): auditados todos os pontos de dispatch `AlvRepo`/`FacRepo` em `Palette.cs` contra os já corrigidos nas branches abertas #31 (artigo), #32 (modelo — vão de pano passa a só leitura), #33 (título) e #34 (remover vão/título), para não repetir trabalho já feito noutra branch. Gap real ainda não coberto por nenhuma: o botão «Vão» da barra `MEDIR` (`AdicionarVao()`) chamava sempre `AlvRepo.AdicionarVao`, mesmo para um pano de Materiais — mesma classe de bug, só que para ACRESCENTAR em vez de remover/editar. Corrigido com despacho para `FacRepo.AdicionarVaos` (já existia) quando o handle pertence a `_fachadas`, e aviso em vez de falha silenciosa (padrão do PR #29) | `dotnet test` 356/356 (sem alterações ao projecto de testes — só `Palette.cs`, WinForms/Autodesk). `Palette.cs` revisto por leitura cuidadosa contra o padrão já usado nas branches #31/#34 e por um verificador de chavetas/parênteses próprio (411/411 chavetas, 1540/1540 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge |
+
+| 2026-11-19 | 5 | Fila do agente noturno sem itens `[ ]` novos. Seguido o plano, Fase 5 (paridade de comandos): confirmado que `main` (este checkout) ainda não tem nenhum dos ~26 PRs abertos desde 2026-10-08 (`#11`-`#36`, nenhum mesclado); entre eles, uma família de correcções de despacho Materiais/Alvenaria em `Palette.cs` (o painel único mostra os dois tipos na mesma árvore desde a Fase 6, mas vários comandos só despachavam para `_paredes`/`AlvRepo`). O PR mais recente (`#36`, "título de um pano no menu Mais") apontava um gap relacionado ainda por corrigir: `AlternarSeparador()` ("Linha branca") tinha o mesmo problema, mas a paridade não era só trocar `AlvRepo` por `FacRepo` — a `Parede` guarda uma CONTAGEM (0-3, `LinhasEmBrancoDepois`), o pano só guarda um BOOL (`MedFachada.Separador`). Corrigido: despacho por `_fachadas.Exists(f => f.Handle == handle)` para `FacRepo.AlternarSeparador(handle)` (já existia, nunca era chamado desde a paleta), com mensagem adaptada ao bool em vez da contagem. Ver nota em "Critérios de conclusão" da Fase 5 para os gaps irmãos ainda não auditados (`Reclassificar`/`Remover`/`Vão`/edição em lote sobre panos) | `dotnet test` 356/356 (sem alterações ao projecto de testes — é lógica WinForms/Autodesk); `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses próprio (410/410 chavetas, 1542/1542 parênteses, ficheiro inteiro). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; aguarda build manual antes do merge. **Achado separado, fora do âmbito desta correcção**: há 26 PRs abertos desta rotina desde 2026-10-08 sem nenhum mesclado — ver aviso ao utilizador |
 
 ### Decisões desta passagem
 

@@ -4363,22 +4363,40 @@ namespace TSKTakeOff
                 return;
             }
 
-            // Este botão usa SEMPRE o AlvRepo, mas o alvo pode vir da célula do
-            // Excel ou da árvore unificada — e essas também mostram Materiais,
-            // Lineares e Contagens. Só a Parede tem o contador "linhas em
-            // branco DEPOIS" no modelo (MedFachada só tem o separador "antes",
-            // semântica diferente; Lineares/Contagens não têm nenhum). Sem esta
-            // verificação, carregar no botão com um pano/linear/contagem como
-            // alvo dizia "linha acrescentada" e não gravava nada — o mesmo
-            // anti-padrão já corrigido para Tipo/Pré-aro do vão e para o vão de
-            // um pano (ver Fase 5 do plano).
-            if (!_paredes.Exists(p => p.Handle == handle))
+            // O alvo pode vir da célula do Excel ou da árvore unificada — e
+            // essas também mostram Materiais, Lineares e Contagens. Parede e
+            // pano de Materiais têm os dois onde gravar "linha em branco"
+            // (despacho mais abaixo); Lineares/Contagens não têm nenhum campo
+            // de separador no modelo. Sem esta verificação, carregar no botão
+            // com um linear/contagem como alvo dizia "linha acrescentada" e
+            // não gravava nada — o mesmo anti-padrão já corrigido para
+            // Tipo/Pré-aro do vão e para o vão de um pano (ver Fase 5 do
+            // plano).
+            bool ehFachadaAlvo = _fachadas.Exists(f => f.Handle == handle);
+            if (!ehFachadaAlvo && !_paredes.Exists(p => p.Handle == handle))
             {
-                PaletteHost.Log("Linha em branco só está disponível para medições de Alvenaria.");
+                PaletteHost.Log("Linha em branco só está disponível para medições de " +
+                                "Alvenaria e Materiais.");
                 return;
             }
 
             string onde = DescreverAlvo(handle), quem = OrigemDoAlvo(handle);
+
+            // Um pano de Materiais não tem a contagem (0-3) que a Parede tem
+            // — a XData do FacRepo só guarda um bool (uma linha, liga/desliga,
+            // já lido/escrito por FacRepo.AlternarSeparador). Por isso o
+            // despacho por tipo de nó troca também a mensagem, não só o
+            // repositório — mesmo padrão de despacho de MarcarTitulo, mais
+            // abaixo, para outro comando do menu Mais.
+            if (ehFachadaAlvo)
+            {
+                bool tinha = _fachadas.Exists(f => f.Handle == handle && f.Separador);
+                FacRepo.AlternarSeparador(handle);
+                PaletteHost.Log((tinha ? "Linha em branco removida" : "Linha em branco acrescentada") +
+                                " por baixo da medição " + onde + "  [alvo: " + quem + "]");
+                PaletteHost.RefreshData();
+                return;
+            }
 
             // Quantas ficam depois de somar. Lido da lista que já temos em
             // memória, para não ir ao desenho outra vez só por causa disto.
