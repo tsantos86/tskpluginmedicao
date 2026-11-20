@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-11-12
+Última atualização: 2026-11-15
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -488,6 +488,29 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > auditoria encontrou `AdicionarVao()` (comando "Adicionar vão" da barra
   > MEDIR) com o mesmo problema — `AlvRepo.AdicionarVao` também ignorado —
   > e corrigida da mesma forma.
+  >
+  > **Continuação 2026-11-15.** A nota de 2026-09-18 confirmou QUE
+  > `RemoverParede()` despacha por tipo de nó (medição/vão/título), mas não
+  > verificou se o despacho chega ao REPOSITÓRIO certo para cada tipo de
+  > MEDIDA. Não chegava: `RemoverVaoSeleccionado()` e o ramo de título de
+  > `RemoverParede()` chamavam sempre `AlvRepo.RemoverVao`/
+  > `AlvRepo.AlternarTitulo`, mesmo quando o nó pertencia a um pano de
+  > Materiais — cuja XData vive sob `CASQUILHO_FAC` (`FacRepo.AppName`), não
+  > `CASQUILHO_ALV`. Mesma raiz de bug já corrigida para o campo "artigo" e
+  > para o título em `PROPRIEDADES` (ver Registo de progresso). Apagar um
+  > vão ou um título de um pano de Materiais pelo botão «Remover» falhava
+  > sempre, com aviso genérico (não é falso-sucesso).
+  >
+  > Corrigido: `ResultadosArvore.Construir` passou a propagar `TipoMedida`
+  > para `noVao`/`noTitulo` também (só `noMed`/`noTipo` traziam), para o
+  > despacho em `Palette.cs` ter como saber o tipo. `FacRepo.RemoverVao`
+  > criado (não existia — só `AdicionarVaos`), espelhando
+  > `AlvRepo.RemoverVao`. `RemoverVaoSeleccionado()` e o ramo de título de
+  > `RemoverParede()` despacham agora por `no.TipoMedida == "Materiais"` →
+  > `FacRepo`, resto → `AlvRepo` (mesmo padrão já usado para "artigo"). De
+  > caminho, o ramo de título (que nunca verificava o valor de retorno de
+  > `AlternarTitulo`) passou a avisar quando falha, em vez de dizer sempre
+  > "apagado".
 - [x] Atualizar continua a forçar a escrita imediata no Excel quando este está ligado.
 - [~] Apenas `Medir aqui` altera a próxima medição.
 
@@ -1018,6 +1041,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-11-10 | 5 | **Passo 0:** confirmados 21 PRs abertos desta rotina sem merge (#11-#29, #31, mais o PR de integração #30 que já junta #11-#29 e mescla limpo, `dotnet test` 361/361 nessa árvore) — nenhum indicava trabalho cortado a meio; lidos os ficheiros tocados por cada um para não duplicar. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5: continuação da família "campo editável sem gravação real" (PRs #21-29/#31), mas num ponto que nenhum desses PRs tinha investigado — o vão de um **pano de Materiais**, não o de alvenaria. `ResultadosAdaptadores.Deducao()` (só usada por `DeMateriais`) marcava Designação/Tipo/Largura/Altura/Quantidade do vão como editáveis; `FacRepo` só sabe acrescentar vãos (`AdicionarVaos`), não editar nem remover um já existente, e as chamadas que `Palette.cs` usaria para gravar (`AlvRepo.DefinirDesignacaoVao`/`AlterarVao`) leem XData `CASQUILHO_ALV`, que um pano nunca tem — por isso qualquer edição destes campos falhava sempre em silêncio. Mesma classe de bug do PR #23 (Tipo/Pré-aro do vão de alvenaria), só que no ficheiro-irmão do adaptador de Materiais. Corrigido só na camada de modelo: os cinco campos passaram a `editavel: false`. Não implementada persistência nova (`FacRepo.AlterarVao`/`RemoverVao`) — ficaria fora do âmbito de uma correcção de paridade; a remoção de vão de pano continua com o mesmo problema de fundo (sempre falha, mas já avisa, não é falso-sucesso), registado como achado para decisão futura. Ver nota na Fase 5, critério "paridade de campos/comandos" | `dotnet test` 357/357 (1 teste novo, `O_vao_de_um_pano_e_todo_de_leitura`); confirmado que falha sem a correcção e passa com ela (revertido `ResultadosAdaptadores.cs` temporariamente). **Correcção 100% verificada** — `ResultadosAdaptadores.cs` não usa `Autodesk.*`/WinForms, sem necessidade de build manual |
 | 2026-11-11 | — | Sessão de integração: actualizado o branch `integrar/agente-2026-11-06` (PR #30) com os PRs #31 (2026-11-08) e #32 (2026-11-10), que tinham ficado de fora na integração original dos 19 primeiros. Único conflito de código real encontrado em todo o processo (ao contrário da integração anterior, que não teve nenhum): `ResultadosAdaptadores.cs`, `Deducao()` — o PR #32 reportou o vão de um pano de Materiais como gap "não coberto por nenhum PR aberto", mas comparou só contra `main`; o PR #24 (2026-10-31), já integrado, tinha aplicado exactamente a mesma correcção (os mesmos cinco campos a `editavel: false`) catorze dias antes. Resolvido a favor do código já integrado (PR #24); o teste novo do PR #32 ficou, por não conflituar e reforçar a mesma asserção. Ver nota de integração na Fase 5 acima. Também resolvidos conflitos de texto (sem código) em `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md` entre #31/#32, mantendo todas as notas de ambos | `dotnet test Tests/TSKTakeOff.Tests.csproj` 362/362 na árvore combinada (361 de #11-29+#31 + 1 novo de #32, sem duplicação). Nenhum código novo escrito nesta sessão — só integração e resolução de conflitos; os ficheiros WinForms/Autodesk continuam por compilar manualmente |
 | 2026-11-12 | 5 | Fila sem itens `[ ]` novos; PR #32 (mais recente, `agent/paleta-resultados-2026-11-10`) já cobre o achado mais recente sem indicar trabalho cortado a meio — não repetido (Passo 0). Seguido o plano, Fase 5 ("paridade de campos/comandos"): depois de confirmar por `grep`/leitura que `AplicarEdicaoDePropriedade` não usa `FacRepo` em nenhum outro ponto além do já coberto pelos PRs #25/#31 (menu Mais e campo "artigo"), encontrado um gap novo, da mesma família ("campo editável que não grava de verdade para um pano de Materiais") — ver nota na Fase 5 acima. Raiz do bug mais profunda do que a dispatch de `Palette.cs`: `ResultadosArvore.Construir` nunca copiava `TipoMedida` para os nós de vão/título, só para o de medição — corrigido isso primeiro (lógica pura) antes de poder despachar por tipo em `Palette.cs` | `dotnet test` 357/357 (356 + 1 teste novo, `O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais`, em `Tests/ResultadosAdaptadoresTests.cs`); confirmado que falha sem a correção de `ResultadosArvore.cs` (revertida temporariamente) e passa com ela. `Palette.cs` revisto por leitura cuidadosa contra o padrão já usado no caso `"artigo"` e por um verificador de chavetas/parênteses do ficheiro inteiro (409/409, 1537/1537 — equilibradas). **`Palette.cs` não compilado** — sem AutoCAD/WinForms neste sandbox; aguarda build manual. Aviso de backlog mantido: 22 PRs abertos sem merge desde 2026-10-08, já avisado em sessões anteriores — não repetido aqui para não ser ruído, ver PR #32 para o detalhe mais recente |
+| 2026-11-15 | 5 | `Docs/TAREFAS_AGENTE.md` sem itens `[ ]` novos; seguido o plano, Fase 5 ("Remover" — item explícito da ordem de prioridade). Auditando o critério "Remover distingue corretamente medição, vão e título", confirmado por leitura que `RemoverVaoSeleccionado()` e o ramo de título de `RemoverParede()` (`Palette.cs`) despachavam SEMPRE para `AlvRepo.RemoverVao`/`AlvRepo.AlternarTitulo`, mesmo para um nó de um pano de Materiais — cuja XData vive sob `CASQUILHO_FAC` (`FacRepo.AppName`), não `CASQUILHO_ALV`. Mesma raiz de bug já corrigida nas sessões anteriores para "artigo" e para o título em `PROPRIEDADES`, mas nunca para o botão «Remover». Corrigido: `ResultadosArvore.Construir` passou a propagar `TipoMedida` também para `noVao`/`noTitulo` (só `noMed`/`noTipo` traziam); `FacRepo.RemoverVao` criado (não existia); os dois pontos de `Palette.cs` despacham agora por `TipoMedida == "Materiais"`. De caminho, o ramo de título passou a avisar quando `AlternarTitulo` falha, em vez de assumir sempre sucesso. Ver nota na Fase 5 acima | `dotnet test` 357/357 (356 da baseline + 1 teste novo, `O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais`, confirmado que falha sem a correção de `ResultadosArvore.cs` e passa com ela). `Palette.cs`/`Fachada.cs` revistos por leitura cuidadosa contra o padrão já usado para "artigo" e por um verificador de chavetas/parênteses do ficheiro inteiro (409/409 chavetas e 1540/1540 parênteses em `Palette.cs`; 59/59 e 265/265 em `Fachada.cs`) — **não compilados** em `net48`/AutoCAD neste sandbox; aguardam build manual. `ResultadosArvore.cs` **é** compilado e testado (sem `Autodesk.*`/`System.Windows.Forms`, confirmado por leitura) |
 
 ### Decisões desta passagem
 
