@@ -4447,10 +4447,24 @@ namespace TSKTakeOff
 
             // Acrescenta o nível, ou tira-o se já lá estiver. Os outros níveis
             // ficam: um sub-artigo por baixo de um artigo não apaga o artigo.
-            string marcaActual = ehFachada ? MarcaDeFachada(handle) : MarcaDe(handle);
+            string marcaActual = MarcaDe(handle);
             bool tinha = marcaActual.Contains(marca);
-            if (ehFachada) FacRepo.AlternarTitulo(handle, marca);
-            else AlvRepo.AlternarTitulo(handle, marca);
+
+            // Despacho já por tipo de medida (ehFachada, acima); falta
+            // verificar o retorno — sem isto, uma medição apagada do desenho
+            // entre a selecção e o clique dizia "título acrescentado" sem
+            // gravar nada, o mesmo anti-padrão já corrigido noutros pontos
+            // da Fase 5.
+            bool gravouMarca = ehFachada
+                ? FacRepo.AlternarTitulo(handle, marca)
+                : AlvRepo.AlternarTitulo(handle, marca);
+
+            if (!gravouMarca)
+            {
+                Confirmar(false, nome.ToLowerInvariant());
+                PaletteHost.RefreshData();
+                return;
+            }
 
             if (tinha)
             {
@@ -4485,8 +4499,15 @@ namespace TSKTakeOff
                     if (mm == marca) break;
                     if (mm.Length > 0) i++;
                 }
-                if (ehFachada) FacRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
-                else AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                bool gravouTexto = ehFachada
+                    ? FacRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto)
+                    : AlvRepo.DefinirTextoDeTitulo(handle, i, codigo + "\u001f" + texto);
+                if (!gravouTexto)
+                {
+                    Confirmar(false, nome.ToLowerInvariant());
+                    PaletteHost.RefreshData();
+                    return;
+                }
             }
 
             PaletteHost.Log("Linha de " + nome.ToLowerInvariant() +
@@ -4530,12 +4551,10 @@ namespace TSKTakeOff
         {
             foreach (var p in _paredes)
                 if (p.Handle == handle) return p.MarcaDepois ?? "";
-            return "";
-        }
 
-        /// <summary>Como <see cref="MarcaDe"/>, mas para um pano (Materiais).</summary>
-        private string MarcaDeFachada(string handle)
-        {
+            // Um pano de Materiais também pode ter título marcado — sem isto,
+            // "Mais ▸ Artigo/Capítulo" nunca detectava a marca já existente
+            // num pano e tentava sempre ACRESCENTAR, nunca remover.
             foreach (var f in _fachadas)
                 if (f.Handle == handle) return f.MarcaDepois ?? "";
             return "";
