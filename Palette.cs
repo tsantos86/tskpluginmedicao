@@ -2649,14 +2649,13 @@ namespace TSKTakeOff
 
                     string textoTitulo = codigo + ChaveArtigo.Sep + descricao;
 
-                    // O título de um pano (Materiais) vive na XData do
-                    // FacRepo ("CASQUILHO_FAC"), não na do AlvRepo
-                    // ("CASQUILHO_ALV") — chamar sempre AlvRepo fazia o
-                    // GetXDataForApplication devolver null e a edição
-                    // revertia em silêncio ao texto antigo, só nos títulos de
-                    // Materiais (os de Alvenaria/Camadas, que são Parede,
-                    // continuavam a gravar bem).
-                    if (no.Pai != null && no.Pai.TipoMedida == "Materiais")
+                    // Um título de um pano de Materiais vive sob a XData do
+                    // FacRepo (CASQUILHO_FAC), não a do AlvRepo
+                    // (CASQUILHO_ALV) — o mesmo motivo que já obrigou a
+                    // despachar "artigo" por tipo de medida. Sem isto, editar
+                    // o Código/Descrição do título de um pano procurava o
+                    // handle no sítio errado e nunca gravava nada.
+                    if (no.TipoMedida == "Materiais")
                         FacRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);
                     else
                         AlvRepo.DefinirTextoDeTitulo(handle, no.Indice, textoTitulo);

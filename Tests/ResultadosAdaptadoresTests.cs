@@ -72,6 +72,34 @@ namespace TSKTakeOff.Tests
         }
 
         [Fact]
+        public void O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais()
+        {
+            // Sem isto, `Palette.AplicarEdicaoDePropriedade` não tem como
+            // distinguir um título/vão de um pano (XData do FacRepo) de um de
+            // alvenaria (XData do AlvRepo) e despacha sempre para o
+            // repositório errado — a mesma classe de bug já corrigida para o
+            // campo "artigo" da medição, só que aqui ao nível do vão/título.
+            var pano = Pano("F1", "PISO 0", "ETICS", 10.0, 2.5);
+            pano.Vaos.Add(new Vao { Designacao = "V1", Largura = 1.0, Altura = 1.2, Quantidade = 1 });
+            pano.AlternarMarca("ART");
+            pano.DefinirTextoDaMarca(0, "7\u001fReboco armado");
+
+            var raiz = ResultadosArvore.Construir(ResultadosAdaptadores.DeMateriais(
+                new List<MedFachada> { pano },
+                RegraDesconto.DescontarTudo, null, Pt), Pt);
+
+            var med = ResultadosArvoreTests.Procurar(raiz, "M:F1");
+            var vao = ResultadosArvoreTests.Procurar(raiz, "M:F1/V:0");
+            var titulo = ResultadosArvoreTests.Procurar(raiz, "M:F1/T:0");
+
+            Assert.Equal("Materiais", med.TipoMedida);
+            Assert.NotNull(vao);
+            Assert.Equal("Materiais", vao.TipoMedida);
+            Assert.NotNull(titulo);
+            Assert.Equal("Materiais", titulo.TipoMedida);
+        }
+
+        [Fact]
         public void O_rotulo_do_tipo_traz_a_unidade_em_que_ele_mede()
         {
             // Ler "Alvenaria" sem saber em que se mede obriga a descer à

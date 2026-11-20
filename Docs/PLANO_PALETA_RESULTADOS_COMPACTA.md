@@ -2,7 +2,7 @@
 
 Referência visual aprovada: `Deploy/MockupPalette/index-resultados-compacto.html`
 
-Última atualização: 2026-10-09
+Última atualização: 2026-11-12
 
 Estado geral: **Painel único em tema claro (estilo Eberick), com `DefinicoesTipoDialog` a fechar os campos de Materiais e Contagens; código morto das quatro abas antigas removido; falta só a matriz manual da Fase 8**
 
@@ -434,6 +434,32 @@ Objetivo: recuperar no novo painel compacto toda a capacidade operacional da gre
   > asserção sem conflito. O achado "Remover vão de pano continua sem
   > `FacRepo.RemoverVao`" do PR #32 é novo e continua pendente — ver Fase 5,
   > achados em aberto.
+  >
+  > **Nota 2026-11-12.** Bug real encontrado nesta família ("campo editável
+  > que não grava de verdade"), ainda não coberto por nenhum dos PRs abertos
+  > (#21-#29, #31, #32): editar o Código/Descrição do título de um PANO de
+  > Materiais em `PROPRIEDADES` (`AplicarEdicaoDePropriedade`, casos
+  > `codigoTitulo`/`descricaoTitulo`) chamava sempre `AlvRepo.DefinirTextoDeTitulo`,
+  > nunca `FacRepo.DefinirTextoDeTitulo` — a mesma classe de bug que o PR #31
+  > já corrigiu para o campo `artigo` (XData `CASQUILHO_ALV` vs
+  > `CASQUILHO_FAC`). A causa raiz era mais profunda do que só a dispatch de
+  > `Palette.cs`: `ResultadosArvore.Construir` nunca propagava `TipoMedida`
+  > para os nós de vão/título (`noVao`/`noTitulo`), só para o nó de medição
+  > (`noMed`) — um dispatch por `no.TipoMedida` não tinha sequer como
+  > funcionar nesse nível. Corrigido em dois passos: (1) `ResultadosArvore.cs`
+  > passou a copiar `TipoMedida = tipo` também para `noVao`/`noTitulo` (lógica
+  > pura, testada); (2) `Palette.cs` passou a despachar
+  > `codigoTitulo`/`descricaoTitulo` para `FacRepo.DefinirTextoDeTitulo`
+  > quando `no.TipoMedida == "Materiais"`. Os campos do próprio vão (PR #32)
+  > continuam de leitura — esta correção só toca no título. Risco de conflito
+  > textual ao integrar com os PRs #25/#27/#31, que tocam a mesma zona de
+  > `Palette.cs` — esperado, mesma razão já registada nesses PRs.
+  >
+  > **Integração 2026-11-20.** Conflito previsto acima resolvido a favor
+  > desta versão (`no.TipoMedida` directo, mais simples do que o
+  > `no.Pai.TipoMedida` do PR #24, que já estava integrado): a propagação de
+  > `TipoMedida` para `noVao`/`noTitulo` em `ResultadosArvore.cs` é a
+  > correção de raiz, e dispensa a indirecção pelo pai.
 - [~] Reclassificar continua a aceitar Ctrl/Shift e vários handles.
 
   > **Nota 2026-09-18.** Confirmado: `_dgvCompacto` tem `MultiSelect = true`
@@ -991,6 +1017,7 @@ Objetivo: confirmar paridade funcional e produzir uma única build versionada.
 | 2026-11-08 | 5 | Passo 0: confirmados **19 PRs abertos desta rotina sem nenhum merge** (#11-#29, `agent/paleta-resultados-2026-10-08` a `-2026-11-05` — PR #29 já tinha agravado o aviso urgente para 19), todos completos pelas próprias descrições, nenhum a retomar; esta sessão abre o 20.º. Ver aviso urgente ao utilizador. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5 ("paridade de campos/comandos"): auditoria dedicada ao mesmo anti-padrão já corrigido 9 vezes nesta rotina (editável sem gravação real / falso sucesso), mas no ÚNICO campo editável de Materiais que nenhum dos PRs abertos tocava — o `artigo`. `ResultadosAdaptadores.DeMateriais` já documentava no próprio comentário que "o FacRepo sabe gravar o artigo de um pano", mas o `switch` de `AplicarEdicaoDePropriedade` (`Palette.cs`) e o `ClassificarMedicoes` (botão `Mais ▸ Reclassificar…`) chamavam sempre `AlvRepo.DefinirArtigo`/`DefinirArtigoEmVarias` — nunca `FacRepo`. Como a XData de um pano vive sob `CASQUILHO_FAC`, não `CASQUILHO_ALV`, a escrita nunca gravava nada: em edição única, `Confirmar()` avisava com uma mensagem enganadora ("pode ter sido apagada do desenho"); em lote (PROPRIEDADES ou Reclassificar), o pano desaparecia caladamente da contagem de "medições classificadas", sem dizer porquê. Corrigido: dispatch por `no.TipoMedida == "Materiais"` → `FacRepo` na edição única; novo `DefinirArtigoEmVariasPorTipo` (separa handles por tipo antes de chamar o repositório certo) usado pelos dois caminhos em lote — Lineares/Contagens, que não têm nenhum método de gravação de artigo, passam a aparecer explicitamente na mensagem como ignorados em vez de desaparecerem sem aviso | `dotnet test` 356/356 (sem alterações ao projecto de testes — o modelo já documentava `artigo` como editável para Materiais, `Tests/ResultadosAdaptadoresTests.cs:286`; o bug vivia só na dispatch de `Palette.cs`, que os testes não alcançam). `Palette.cs` revisto por leitura cuidadosa contra o resto do ficheiro e por um verificador de chavetas/parênteses/parênteses-rectos do ficheiro inteiro (414/414, 1562/1562, 65/65 — equilibradas). **Não compilado em `net48`** — sem AutoCAD/WinForms neste sandbox; precisa de build manual em Visual Studio antes de merge |
 | 2026-11-10 | 5 | **Passo 0:** confirmados 21 PRs abertos desta rotina sem merge (#11-#29, #31, mais o PR de integração #30 que já junta #11-#29 e mescla limpo, `dotnet test` 361/361 nessa árvore) — nenhum indicava trabalho cortado a meio; lidos os ficheiros tocados por cada um para não duplicar. Fila sem itens `[ ]` novos. Seguido o plano, Fase 5: continuação da família "campo editável sem gravação real" (PRs #21-29/#31), mas num ponto que nenhum desses PRs tinha investigado — o vão de um **pano de Materiais**, não o de alvenaria. `ResultadosAdaptadores.Deducao()` (só usada por `DeMateriais`) marcava Designação/Tipo/Largura/Altura/Quantidade do vão como editáveis; `FacRepo` só sabe acrescentar vãos (`AdicionarVaos`), não editar nem remover um já existente, e as chamadas que `Palette.cs` usaria para gravar (`AlvRepo.DefinirDesignacaoVao`/`AlterarVao`) leem XData `CASQUILHO_ALV`, que um pano nunca tem — por isso qualquer edição destes campos falhava sempre em silêncio. Mesma classe de bug do PR #23 (Tipo/Pré-aro do vão de alvenaria), só que no ficheiro-irmão do adaptador de Materiais. Corrigido só na camada de modelo: os cinco campos passaram a `editavel: false`. Não implementada persistência nova (`FacRepo.AlterarVao`/`RemoverVao`) — ficaria fora do âmbito de uma correcção de paridade; a remoção de vão de pano continua com o mesmo problema de fundo (sempre falha, mas já avisa, não é falso-sucesso), registado como achado para decisão futura. Ver nota na Fase 5, critério "paridade de campos/comandos" | `dotnet test` 357/357 (1 teste novo, `O_vao_de_um_pano_e_todo_de_leitura`); confirmado que falha sem a correcção e passa com ela (revertido `ResultadosAdaptadores.cs` temporariamente). **Correcção 100% verificada** — `ResultadosAdaptadores.cs` não usa `Autodesk.*`/WinForms, sem necessidade de build manual |
 | 2026-11-11 | — | Sessão de integração: actualizado o branch `integrar/agente-2026-11-06` (PR #30) com os PRs #31 (2026-11-08) e #32 (2026-11-10), que tinham ficado de fora na integração original dos 19 primeiros. Único conflito de código real encontrado em todo o processo (ao contrário da integração anterior, que não teve nenhum): `ResultadosAdaptadores.cs`, `Deducao()` — o PR #32 reportou o vão de um pano de Materiais como gap "não coberto por nenhum PR aberto", mas comparou só contra `main`; o PR #24 (2026-10-31), já integrado, tinha aplicado exactamente a mesma correcção (os mesmos cinco campos a `editavel: false`) catorze dias antes. Resolvido a favor do código já integrado (PR #24); o teste novo do PR #32 ficou, por não conflituar e reforçar a mesma asserção. Ver nota de integração na Fase 5 acima. Também resolvidos conflitos de texto (sem código) em `Docs/PLANO_PALETA_RESULTADOS_COMPACTA.md` entre #31/#32, mantendo todas as notas de ambos | `dotnet test Tests/TSKTakeOff.Tests.csproj` 362/362 na árvore combinada (361 de #11-29+#31 + 1 novo de #32, sem duplicação). Nenhum código novo escrito nesta sessão — só integração e resolução de conflitos; os ficheiros WinForms/Autodesk continuam por compilar manualmente |
+| 2026-11-12 | 5 | Fila sem itens `[ ]` novos; PR #32 (mais recente, `agent/paleta-resultados-2026-11-10`) já cobre o achado mais recente sem indicar trabalho cortado a meio — não repetido (Passo 0). Seguido o plano, Fase 5 ("paridade de campos/comandos"): depois de confirmar por `grep`/leitura que `AplicarEdicaoDePropriedade` não usa `FacRepo` em nenhum outro ponto além do já coberto pelos PRs #25/#31 (menu Mais e campo "artigo"), encontrado um gap novo, da mesma família ("campo editável que não grava de verdade para um pano de Materiais") — ver nota na Fase 5 acima. Raiz do bug mais profunda do que a dispatch de `Palette.cs`: `ResultadosArvore.Construir` nunca copiava `TipoMedida` para os nós de vão/título, só para o de medição — corrigido isso primeiro (lógica pura) antes de poder despachar por tipo em `Palette.cs` | `dotnet test` 357/357 (356 + 1 teste novo, `O_vao_e_o_titulo_de_um_pano_herdam_o_TipoMedida_Materiais`, em `Tests/ResultadosAdaptadoresTests.cs`); confirmado que falha sem a correção de `ResultadosArvore.cs` (revertida temporariamente) e passa com ela. `Palette.cs` revisto por leitura cuidadosa contra o padrão já usado no caso `"artigo"` e por um verificador de chavetas/parênteses do ficheiro inteiro (409/409, 1537/1537 — equilibradas). **`Palette.cs` não compilado** — sem AutoCAD/WinForms neste sandbox; aguarda build manual. Aviso de backlog mantido: 22 PRs abertos sem merge desde 2026-10-08, já avisado em sessões anteriores — não repetido aqui para não ser ruído, ver PR #32 para o detalhe mais recente |
 
 ### Decisões desta passagem
 
