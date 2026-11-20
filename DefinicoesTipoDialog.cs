@@ -215,7 +215,14 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat,
                 BackColor = PaletteTheme.Palido,
                 ForeColor = PaletteTheme.Acento,
-                UseVisualStyleBackColor = false
+                UseVisualStyleBackColor = false,
+                // Entra primeiro no FlowLayoutPanel RightToLeft, por isso
+                // fica mais à direita (Cancelar à sua esquerda) — mas sem
+                // TabIndex explícito o Tab seguia essa mesma ordem de
+                // Controls.Add e visitava Guardar antes de Cancelar, ao
+                // contrário da leitura esquerda→direita. Mesmo bug já
+                // corrigido em `Rodape()`/`PaletteFiltros.cs`.
+                TabIndex = 1
             };
             var btnCancel = new Button
             {
@@ -226,7 +233,8 @@ namespace TSKTakeOff
                 FlatStyle = FlatStyle.Flat,
                 BackColor = PaletteTheme.Fundo,
                 ForeColor = PaletteTheme.Tinta,
-                UseVisualStyleBackColor = false
+                UseVisualStyleBackColor = false,
+                TabIndex = 0
             };
             // A ordem de inserção num FlowLayoutPanel RightToLeft conta: o
             // primeiro fica mais à direita. "Guardar" entra primeiro para

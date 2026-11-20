@@ -73,7 +73,13 @@ namespace TSKTakeOff
                 Text = "Procurar (parte do código, parte da designação, ou os dois):"
             };
 
-            _procura = new TextBox { Dock = DockStyle.Top, Margin = new Padding(10) };
+            _procura = new TextBox
+            {
+                Dock = DockStyle.Top,
+                Margin = new Padding(10),
+                AccessibleName = "Procurar artigo",
+                AccessibleDescription = rotProcura.Text
+            };
             _procura.TextChanged += (s, e) => Encher();
             // Sem isto, navegar a lista filtrada por teclado obrigava a Tab
             // para sair da procura primeiro — quebra o gesto de "escrever e
@@ -94,21 +100,29 @@ namespace TSKTakeOff
                 IntegralHeight = false,
                 // Monoespaçada: os códigos alinham-se e a árvore lê-se de
                 // relance, como na pré-visualização da importação.
-                Font = new Font(FontFamily.GenericMonospace, 8.75f)
+                Font = new Font(FontFamily.GenericMonospace, 8.75f),
+                AccessibleName = "Artigos do mapa de quantidades"
             };
 
             var ok = new Button
             {
                 Text = "Classificar",
                 DialogResult = DialogResult.OK,
-                Size = new Size(130, 34)
+                Size = new Size(130, 34),
+                // `cancelar` entra primeiro no FlowLayoutPanel RightToLeft
+                // (ver `baixo` abaixo), logo fica mais à direita; Classificar
+                // fica à esquerda. TabIndex explícito para o Tab seguir a
+                // leitura esquerda→direita em vez da ordem de Controls.Add
+                // (mesmo bug já corrigido em Rodape()/PaletteFiltros.cs).
+                TabIndex = 0
             };
             var cancelar = new Button
             {
                 Text = "Cancelar",
                 DialogResult = DialogResult.Cancel,
                 Size = new Size(120, 34),
-                Margin = new Padding(8, 0, 0, 0)
+                Margin = new Padding(8, 0, 0, 0),
+                TabIndex = 1
             };
 
             // Duplo clique na lista vale por Classificar: é o gesto que toda a
@@ -192,6 +206,11 @@ namespace TSKTakeOff
                         _contexto + "\". Duplo clique escolhe.";
                 else
                     _conta.Text = achados.Count + " artigo(s). Duplo clique escolhe.";
+
+                // Sem isto, um leitor de ecrã nunca sabe quantos artigos a
+                // procura deixou — só anuncia "Artigos do mapa de
+                // quantidades" sempre igual, sem reagir ao que se escreveu.
+                _lista.AccessibleDescription = _conta.Text;
 
                 if (antes != null)
                 {
