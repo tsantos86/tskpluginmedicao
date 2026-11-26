@@ -35,64 +35,82 @@ namespace TSKTakeOff
 
                 foreach (ObjectId id in ms)
                 {
-                    // O tipo sabe-se sem abrir a entidade. Só se abre o que
-                    // pode ser nosso — num desenho de arquitectura isso é um
-                    // punhado entre dezenas de milhares de objectos.
-                    if (id.ObjectClass == Util.ClPolyline)
+                    // Uma entidade com geometria problemática (ex.: polyline
+                    // auto-intersectada, área degenerada) não pode abortar a
+                    // leitura do resto do desenho: sem isto, uma única
+                    // entidade mal formada tornava a grelha, o Excel ao vivo
+                    // e os totais indisponíveis para TODAS as medições.
+                    try
                     {
-                        var pl = tr.GetObject(id, OpenMode.ForRead) as Polyline;
-                        if (pl == null) continue;
-
-                        // Uma polyline é parede, pano de material OU medição
-                        // linear, nunca as duas: se já se sabe o que é, não se
-                        // procura mais.
-                        var parede = AlvRepo.LerParede(pl);
-                        if (parede != null) { paredes.Add(parede); continue; }
-
-                        var fachada = FacRepo.LerFachada(pl);
-                        if (fachada != null) { fachadas.Add(fachada); continue; }
-
-                        // Medições lineares simples (MEDIR/TSKLINEAR): polyline
-                        // com XData próprio. Sem isto, o que se media a linear
-                        // sumia da folha ao vivo e da exportação pelo modelo —
-                        // só aparecia no .xlsx simples.
-                        using (ResultBuffer rb =
-                            pl.GetXDataForApplication(Commands.AppNameLinear))
+                        // O tipo sabe-se sem abrir a entidade. Só se abre o que
+                        // pode ser nosso — num desenho de arquitectura isso é um
+                        // punhado entre dezenas de milhares de objectos.
+                        if (id.ObjectClass == Util.ClPolyline)
                         {
-                            if (rb == null) continue;
+                            var pl = tr.GetObject(id, OpenMode.ForRead) as Polyline;
+                            if (pl == null) continue;
 
-                            string categoria = "GERAL";
-                            foreach (TypedValue tv in rb)
+                            // Uma polyline é parede, pano de material OU medição
+                            // linear, nunca as duas: se já se sabe o que é, não se
+                            // procura mais.
+                            var parede = AlvRepo.LerParede(pl);
+                            if (parede != null) { paredes.Add(parede); continue; }
+
+                            var fachada = FacRepo.LerFachada(pl);
+                            if (fachada != null) { fachadas.Add(fachada); continue; }
+
+                            // Medições lineares simples (MEDIR/TSKLINEAR): polyline
+                            // com XData próprio. Sem isto, o que se media a linear
+                            // sumia da folha ao vivo e da exportação pelo modelo —
+                            // só aparecia no .xlsx simples.
+                            using (ResultBuffer rb =
+                                pl.GetXDataForApplication(Commands.AppNameLinear))
                             {
-                                if (tv.TypeCode == (int)DxfCode.ExtendedDataAsciiString)
+                                if (rb == null) continue;
+
+                                string categoria = "GERAL";
+                                foreach (TypedValue tv in rb)
                                 {
-                                    categoria = tv.Value.ToString();
-                                    break;
+                                    if (tv.TypeCode == (int)DxfCode.ExtendedDataAsciiString)
+                                    {
+                                        categoria = tv.Value.ToString();
+                                        break;
+                                    }
                                 }
-                            }
 
-                            lineares.Add(new MedItem
-                            {
-                                Handle = pl.Handle.ToString(),
-                                Categoria = categoria,
-                                Layer = pl.Layer,
-                                Comprimento = pl.Length,
-                                Vertices = pl.NumberOfVertices
-                            });
+                                lineares.Add(new MedItem
+                                {
+                                    Handle = pl.Handle.ToString(),
+                                    Categoria = categoria,
+                                    Layer = pl.Layer,
+                                    Comprimento = pl.Length,
+                                    Vertices = pl.NumberOfVertices
+                                });
+                            }
+                        }
+                        else if (id.ObjectClass == Util.ClHatch)
+                        {
+                            // Hachuras marcadas como medição de área.
+                            var porArea = AlvRepo.LerParedeDeHatch(
+                                tr.GetObject(id, OpenMode.ForRead) as Hatch);
+                            if (porArea != null) paredes.Add(porArea);
+                        }
+                        else if (id.ObjectClass == Util.ClCircle)
+                        {
+                            var contagem = ContRepo.LerContagem(
+                                tr.GetObject(id, OpenMode.ForRead) as Circle);
+                            if (contagem != null) contagens.Add(contagem);
                         }
                     }
-                    else if (id.ObjectClass == Util.ClHatch)
+                    catch (Autodesk.AutoCAD.Runtime.Exception ex)
                     {
-                        // Hachuras marcadas como medição de área.
-                        var porArea = AlvRepo.LerParedeDeHatch(
-                            tr.GetObject(id, OpenMode.ForRead) as Hatch);
-                        if (porArea != null) paredes.Add(porArea);
+                        PaletteHost.Log("Leitura: entidade " + id.Handle +
+                            " ignorada [" + ex.ErrorStatus + "]: " + ex.Message);
                     }
-                    else if (id.ObjectClass == Util.ClCircle)
+                    catch (System.Exception ex)
                     {
-                        var contagem = ContRepo.LerContagem(
-                            tr.GetObject(id, OpenMode.ForRead) as Circle);
-                        if (contagem != null) contagens.Add(contagem);
+                        PaletteHost.Log("Leitura: entidade " + id.Handle +
+                            " ignorada [" + ex.GetType().Name + "]: " + ex.Message);
                     }
                 }
                 tr.Commit();

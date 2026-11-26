@@ -543,7 +543,7 @@ utilizador move para a secção `## Fila` as que aprovar.
 
 ### Da Auditoria de arquitetura (`Docs/ANALISE_ARQUITETURA.md`, 2026-09-26) — Fase 1 do roadmap, executáveis sem AutoCAD
 
-- [ ] Corrigir `ExcelLiveSync.EscreverFolhaItem` (modo item do Excel ao
+- [x] Corrigir `ExcelLiveSync.EscreverFolhaItem` (modo item do Excel ao
       vivo, `ExcelLiveSync.cs:1190-1215`) para escrever a coluna Item
       (numeração `A001…`) também nas linhas de Medição/Dedução/Capítulo/
       Alçado/Piso, não só nas de Título (`if
@@ -553,7 +553,15 @@ utilizador move para a secção `## Fila` as que aprovar.
       `Autodesk.*` nem `System.Windows.Forms` (confirmado) — considerar
       acrescentá-lo ao projecto de testes e cobrir esta função com um teste
       novo que monte o array `dados[,]` sem precisar de Excel real.
-- [ ] Isolar a leitura por entidade em `Leitura.Tudo` (`Leitura.cs:36-97`):
+      **Já implementado** no PR #18 (`agent/paleta-resultados-2026-10-16`,
+      2026-10-16), ainda por mesclar — confirmado por leitura do diff dessa
+      branch nesta sessão (2026-11-26, Passo 0 só verifica PRs por
+      conteúdo "incompleto"; este está completo, só não mesclado). Marcado
+      `[x]` aqui em `main` para a próxima sessão não o repetir — a marca
+      `[x]` já feita no PR #18 não chega a `main` enquanto o PR não for
+      mesclado. Ver nota de risco "Fila/plano desincronizados de `main`
+      por PRs não mesclados" nos Riscos do plano.
+- [x] Isolar a leitura por entidade em `Leitura.Tudo` (`Leitura.cs:36-97`):
       hoje uma excepção em `AlvRepo.LadosDoRetangulo` (sem try/catch) para
       uma única polyline problemática aborta a leitura de TODAS as
       medições do desenho (grelha, Excel, totais ficam indisponíveis).
@@ -561,6 +569,22 @@ utilizador move para a secção `## Fila` as que aprovar.
       (`PaletteHost.Log`) a entidade que falhou em vez de propagar.
       Ficheiro Autodesk — não compila neste sandbox, precisa de build
       manual.
+      **Feito 2026-11-26**: todo o corpo do `foreach (ObjectId id in ms)`
+      (os três ramos — Polyline/Hatch/Circle) passou a correr dentro de um
+      `try`, com dois `catch` no mesmo padrão já usado em `Util.Seguro`
+      (`Commands.cs:2579`) — primeiro `Autodesk.AutoCAD.Runtime.Exception`
+      (regista `ex.ErrorStatus`), depois `System.Exception` genérico — e
+      `PaletteHost.Log("Leitura: entidade " + id.Handle + " ignorada
+      [...]: " + ex.Message)` em vez de deixar propagar. Os `continue`
+      já existentes dentro dos ramos continuam a funcionar normalmente
+      (saem do `try` sem excepção, só avançam a iteração). Sem alterações
+      a `AlvRepo.LadosDoRetangulo` nem a nenhum outro chamador — a
+      isolação é só à volta de cada entidade, como o item pedia.
+      **Implementado, aguarda build manual** (`Leitura.cs` referencia
+      `Autodesk.AutoCAD.DatabaseServices`, não compila neste sandbox).
+      Verificado por `dotnet test` (356/356, sem alterações ao projecto de
+      testes — ficheiro fora da fronteira Autodesk-livre) e por leitura
+      cuidadosa contra o resto do ficheiro e o padrão de `Util.Seguro`.
 - [ ] Registar (`PaletteHost.Log`) quando `AlvRepo.LerParede`
       (`AlvRepo.cs:66`) ou `LerParedeDeHatch` (`AlvRepo.cs:101`) caem no
       `catch` que engole a excepção de `pl.Area`/`h.Area` — hoje a medição
